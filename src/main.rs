@@ -44,7 +44,7 @@ fn main() {
         window.show_all();
     });
 
-    imap::hello_world_curl();
+
 
     application.run(&[]);
 }
