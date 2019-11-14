@@ -1,0 +1,20 @@
+[package]
+name = "imap-notes"
+version = "0.0.1"
+authors = ["Findus"]
+autobins = false
+
+[dependencies]
+curl = "0.4.25"
+
+[dependencies.gtk]
+version = "0.7.0"
+features = ["v3_16"]
+
+[dependencies.gio]
+version = "0.7.0"
+features = ["v2_44"]
+
+
+[[bin]]
+name = "main"
