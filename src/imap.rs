@@ -9,8 +9,12 @@ struct Collector(Vec<u8>);
 
 use curl::easy::{Easy, Easy2, Handler, WriteError};
 use self::regex::Regex;
-use std::ops::DerefMut;
+use std::ops::{DerefMut, Deref};
 use std::borrow::Borrow;
+use self::imap::Session;
+use std::net::TcpStream;
+use self::native_tls::TlsStream;
+use self::imap::types::{ZeroCopy, Name};
 
 impl Handler for Collector {
     fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
@@ -86,11 +90,11 @@ pub fn imap_list_notes() {
 
     let creds = fs::read_to_string("./cred").expect("error");
 
-    let usernameRegex = Regex::new(r"^username=(.*)").unwrap();
-    let passwordRegex = Regex::new(r"password=(.*)").unwrap();
+    let username_regex = Regex::new(r"^username=(.*)").unwrap();
+    let password_regex = Regex::new(r"password=(.*)").unwrap();
 
-    let username = usernameRegex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-    let password = passwordRegex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
+    let username = username_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
+    let password = password_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
 
     let mut easy = Easy2::new(Collector(Vec::new()));
     easy.url("imaps://imap.ankaa.uberspace.de/Notes").unwrap();
@@ -100,15 +104,14 @@ pub fn imap_list_notes() {
     easy.perform().unwrap();
 }
 
-fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
-
+fn login() -> Session<TlsStream<TcpStream>> {
     let creds = fs::read_to_string("./cred").expect("error");
 
-    let usernameRegex = Regex::new(r"^username=(.*)").unwrap();
-    let passwordRegex = Regex::new(r"password=(.*)").unwrap();
+    let username_regex = Regex::new(r"^username=(.*)").unwrap();
+    let password_regex = Regex::new(r"password=(.*)").unwrap();
 
-    let username = usernameRegex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-    let password = passwordRegex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
+    let username = username_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
+    let password = password_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
 
     let domain = "imap.ankaa.uberspace.de";
     let tls = native_tls::TlsConnector::builder().build().unwrap();
@@ -121,16 +124,29 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
     // to do anything useful with the e-mails, we need to log in
     let mut imap_session = client
         .login(username, password)
-        .map_err(|e| e.0)?;
+        .map_err(|e| e.0);
+
+    return imap_session.unwrap();
+}
+
+fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
+
+    let mut imap_session = login();
 
     // we want to fetch the first email in the INBOX mailbox
-    imap_session.select("Notes")?;
+
+    let count =
+        imap_session.list(None, None).iter().next().iter().count();
+
+    let mailbox = imap_session.examine("Notes").unwrap();
 
     // fetch message number 1 in this mailbox, along with its RFC822 field.
     // RFC 822 dictates the format of the body of e-mails
     let messages = imap_session.fetch("1:*", "RFC822.HEADER")?;
 
     let folders = imap_session.list(None,None);
+
+    println!("{}", folders.iter().count());
 
     folders.iter().for_each( |folder|  {
         folder.iter().for_each( |d| {
@@ -142,14 +158,14 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
 
     iterator.for_each( |message| {
 
-        let subjectRgex = Regex::new(r"Subject:(.*)").unwrap();
+        let subject_rgex = Regex::new(r"Subject:(.*)").unwrap();
 
         // extract the message's body
         let header = message.header().expect("message did not have a body!");
         let header = std::str::from_utf8(header)
             .expect("message was not valid utf-8")
             .to_string();
-        let subject = subjectRgex.captures(header.as_str()).unwrap().get(1).unwrap().as_str();
+        let subject = subject_rgex.captures(header.as_str()).unwrap().get(1).unwrap().as_str();
         println!("{}", header);
     });
 
@@ -160,6 +176,20 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
     Ok(Some("ddd".to_string()))
 }
 
+fn list_note_folders() -> Vec<String> {
+    let mut imap = login();
+    let folders_result = imap.list(None, Some("Notes*"));
+     let result: Vec<String> = match folders_result {
+        Ok(result) => {
+            let names: Vec<String> = result.iter().map( |name| name.name().to_string()).collect();
+            names
+        }
+        _ => Vec::new()
+    };
+
+    return result
+}
+
 #[cfg(test)]
 mod tests {
     use imap;
@@ -167,7 +197,7 @@ mod tests {
     #[test]
     fn login() {
         //imap::hello_world_curl();
-        imap::fetch_inbox_top();
+        println!("{:#?}",imap::list_note_folders());
     }
 
 }
