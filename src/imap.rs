@@ -2,110 +2,25 @@ extern crate regex;
 extern crate imap;
 extern crate native_tls;
 
-use std::io::{stdout, Write};
-use std::fs;
+use std::io::{stdout, Write, Read};
+use std::{fs, io};
 
 struct Collector(Vec<u8>);
 
-use curl::easy::{Easy, Easy2, Handler, WriteError};
+use curl::easy::{Easy, Easy2, WriteError};
 use self::regex::Regex;
 use std::ops::{DerefMut, Deref};
 use std::borrow::Borrow;
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
-use self::imap::types::{ZeroCopy, Name};
-
-impl Handler for Collector {
-    fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
-        self.0.extend_from_slice(data);
-        Ok(data.len())
-    }
-}
-
-// Print a web page onto stdout
-pub fn hello_world_curl() {
-    let mut easy = Easy::new();
-    let domain = "https://www.rust-lang.org/";
-    easy.url(domain).unwrap();
-    easy.write_function(|data| {
-        stdout().write_all(data).unwrap();
-        Ok(data.len())
-    }).unwrap();
-    easy.perform().unwrap();
-
-    println!("{}", easy.response_code().unwrap());
-}
-
-pub fn imap_framework_test() {
-
-/*
-    let creds = fs::read_to_string("./cred").expect("error");
-
-    let usernameRegex = Regex::new(r"^username=(.*)").unwrap();
-    let passwordRegex = Regex::new(r"password=(.*)").unwrap();
-
-    let username = usernameRegex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-    let password = passwordRegex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-
-    let domain = "imaps://imap.ankaa.uberspace.de";
-    let tls = native_tls::TlsConnector::builder().build().unwrap();
-
-    // we pass in the domain twice to check that the server's TLS
-    // certificate is valid for the domain we're connecting to.
-    let client = imap::connect((domain, 993), domain, &tls).unwrap();
-
-    // the client we have here is unauthenticated.
-    // to do anything useful with the e-mails, we need to log in
-    let mut imap_session = client
-        .login(username, password)
-        .map_err(|e| e.0)?;
-
-    // we want to fetch the first email in the INBOX mailbox
-    imap_session.select("INBOX")?;
-
-    // fetch message number 1 in this mailbox, along with its RFC822 field.
-    // RFC 822 dictates the format of the body of e-mails
-    let messages = imap_session.fetch("1", "RFC822")?;
-    let message = if let Some(m) = messages.iter().next() {
-        m
-    } else {
-        return Ok(None);
-    };
-
-    // extract the message's body
-    let body = message.body().expect("message did not have a body!");
-    let body = std::str::from_utf8(body)
-        .expect("message was not valid utf-8")
-        .to_string();
-
-    // be nice to the server and log out
-    imap_session.logout()?;
-*/
-
-
-}
-
-pub fn imap_list_notes() {
-
-    let creds = fs::read_to_string("./cred").expect("error");
-
-    let username_regex = Regex::new(r"^username=(.*)").unwrap();
-    let password_regex = Regex::new(r"password=(.*)").unwrap();
-
-    let username = username_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-    let password = password_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-
-    let mut easy = Easy2::new(Collector(Vec::new()));
-    easy.url("imaps://imap.ankaa.uberspace.de/Notes").unwrap();
-    easy.username(username).unwrap();
-    easy.password(password).unwrap();
-    easy.port(993).unwrap();
-    easy.perform().unwrap();
-}
+use self::imap::types::{ZeroCopy, Name, Fetch};
+use std::str::from_utf8;
+use std::error::Error;
 
 fn login() -> Session<TlsStream<TcpStream>> {
-    let creds = fs::read_to_string("./cred").expect("error");
+    println!("{}",std::env::current_dir().unwrap().display());
+    let creds = fs::read_to_string("cred").expect("error");
 
     let username_regex = Regex::new(r"^username=(.*)").unwrap();
     let password_regex = Regex::new(r"password=(.*)").unwrap();
@@ -113,8 +28,8 @@ fn login() -> Session<TlsStream<TcpStream>> {
     let username = username_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
     let password = password_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
 
-    let domain = "imap.ankaa.uberspace.de";
-    let tls = native_tls::TlsConnector::builder().build().unwrap();
+    let domain = "localhost";
+    let tls = native_tls::TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap();
 
     // we pass in the domain twice to check that the server's TLS
     // certificate is valid for the domain we're connecting to.
@@ -176,8 +91,40 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
     Ok(Some("ddd".to_string()))
 }
 
-fn list_note_folders() -> Vec<String> {
-    let mut imap = login();
+fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folderName: String) -> Vec<String> {
+    session.select(folderName);
+    let messages_result = session.fetch("1:*", "RFC822.HEADER");
+    let xd = match messages_result {
+        Ok(m) => {
+            let dd: ZeroCopy<Vec<Fetch>> = m;
+            get_headers(dd).unwrap()
+        },
+        _ => Vec::new()
+    };
+    xd
+}
+
+fn get_headers(fetch_vector: ZeroCopy<Vec<Fetch>>) -> io::Result<Vec<String>> {
+    let results: Vec<io::Result<String>> = fetch_vector.iter().map( |fetch| get_header(fetch)).collect();
+    let errors = results.iter().filter(|e| e.is_err()).count() > 0;
+    let strings = results.into_iter().map(|e| e.unwrap()).collect();
+    if errors {
+        return Err(io::Error::from_raw_os_error(1))
+    } else {
+        Ok(strings)
+    }
+}
+
+fn get_header(fetch: &Fetch) -> io::Result<String> {
+    let result = fetch.header();
+    if result.is_none() {
+        return Err(io::Error::from_raw_os_error(1))
+    }
+    let res = std::string::String::from_utf8_lossy(result.unwrap()).to_string();
+    Ok(res)
+}
+
+fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String> {
     let folders_result = imap.list(None, Some("Notes*"));
      let result: Vec<String> = match folders_result {
         Ok(result) => {
@@ -196,8 +143,12 @@ mod tests {
 
     #[test]
     fn login() {
-        //imap::hello_world_curl();
-        println!("{:#?}",imap::list_note_folders());
+        let mut session = imap::login();
+        println!("MEEEEEM");
+        let folders = imap::list_note_folders(&mut session);
+        let foldername = folders.iter().last().unwrap().to_string();
+        let messages = imap::get_messages_from_foldersession(&mut session, foldername);
+        println!("{:#?}", messages);
     }
 
 }
