@@ -10,6 +10,11 @@ regex = "1"
 imap = "1"
 native-tls = "0.2"
 mailparse = "0.8"
+cascade = "0.1"
+
+[dependencies.gdk]
+version = "0.11.0"
+features = ["v3_16"]
 
 [dependencies.gtk]
 version = "0.7.0"

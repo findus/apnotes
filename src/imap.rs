@@ -15,10 +15,11 @@ use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
 use mailparse::MailHeader;
 use std::ptr::null;
+use std::borrow::Borrow;
 
-mod Note;
+pub(crate) mod Note;
 
-fn login() -> Session<TlsStream<TcpStream>> {
+pub fn login() -> Session<TlsStream<TcpStream>> {
     println!("{}",std::env::current_dir().unwrap().display());
     let creds = fs::read_to_string("cred").expect("error");
 
@@ -91,7 +92,7 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
     Ok(Some("ddd".to_string()))
 }
 
-fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folderName: String) -> Vec<Note::Note> {
+pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folderName: String) -> Vec<Note::Note> {
     session.select(folderName);
     let messages_result = session.fetch("1:*", "RFC822.HEADER");
     let _xd = match messages_result {
@@ -104,10 +105,9 @@ fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, 
     _xd
 }
 
-fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>) -> Vec<Note::Note> {
+pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>) -> Vec<Note::Note> {
     let d: Vec<Note::Note> = fetch_vector.into_iter().map(|fetch| {
-        let f = fetch;
-        let q = get_headers(f);
+        let q = get_headers(fetch.borrow());
         let note = Note::Note {
             mailHeaders: q,
             body: "".to_string()
@@ -126,7 +126,7 @@ fn get_headers(fetch: &Fetch) -> Vec<(String, String)> {
     }
 }
 
-fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String> {
+pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String> {
     let folders_result = imap.list(None, Some("Notes*"));
      let result: Vec<String> = match folders_result {
         Ok(result) => {
