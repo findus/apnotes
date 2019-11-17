@@ -4,9 +4,7 @@ extern crate curl;
 extern crate core;
 extern crate mailparse;
 extern crate gdk;
-
-#[macro_use]
-extern crate cascade;
+extern crate webkit2gtk;
 
 use gtk::prelude::*;
 use gio::prelude::*;
@@ -16,6 +14,7 @@ use gtk::{Application, ApplicationWindow, Button, Orientation, ListBoxBuilder, L
 mod imap;
 
 use imap::Note::NoteTrait;
+use webkit2gtk::WebContext;
 
 
 fn main() {
@@ -41,6 +40,7 @@ fn main() {
 
         let list_box =
             ListBoxBuilder::new()
+                .vexpand(true)
                 .halign(gtk::Align::Fill)
                 .valign(gtk::Align::Fill)
                 .build();
@@ -60,46 +60,27 @@ fn main() {
             list_box.add(&label);
         });
 
+        let context = webkit2gtk::WebContext::get_default().unwrap();
+        let webView = webkit2gtk::WebView::new_with_context(&context);
+
         //GRID
+
+        let pane = gtk::PanedBuilder::new()
+            .vexpand(true)
+            .hexpand(true)
+            .build();
 
         let boxx = gtk::BoxBuilder::new()
             .halign(gtk::Align::Fill)
             .valign(gtk::Align::Fill)
             .build();
 
-        let grid = gtk::GridBuilder::new()
-            .column_spacing(12)
-            .row_spacing(3)
-            .valign(gtk::Align::Fill)
-            .halign(gtk::Align::Fill)
-            .build();
+        let button = gtk::ButtonBoxBuilder::new().name("Click").build();
 
+        pane.add1(&list_box);
+        pane.add2(&button);
 
-        let label = gtk::LabelBuilder::new().label("Click").build();
-
-        let event_box = cascade! {
-            gtk::EventBoxBuilder::new()
-                .can_focus(false)
-                .hexpand(true)
-                .vexpand(true)
-                .events(gdk::EventMask::BUTTON_PRESS_MASK)
-                .build();
-            ..add(&cascade! {
-                gtk::GridBuilder::new()
-                .valign(gtk::Align::Fill)
-                .hexpand(true)
-                .vexpand(true)
-                    .column_spacing(12)
-                    .row_spacing(3)
-                    .build();
-                ..attach(&list_box, 1, 0, 1, 2);
-                ..attach(&label, 0, 0, 1, 1);
-            });
-        };
-
-        event_box.override_background_color(StateFlags::NORMAL, Some(&gdk::RGBA::blue()));
-
-        window.add(&event_box);
+        window.add(&pane);
 
 
         window.show_all();
