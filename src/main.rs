@@ -1,13 +1,13 @@
 extern crate gtk;
 extern crate gio;
 extern crate curl;
+extern crate core;
+extern crate mailparse;
 
 use gtk::prelude::*;
 use gio::prelude::*;
 
-use gtk::{Application, ApplicationWindow, Button, StackSidebarBuilder, Stack, ListBox, Orientation};
-use std::borrow::Borrow;
-use std::fmt::Display;
+use gtk::{Application, ApplicationWindow, Button, Orientation};
 
 mod imap;
 

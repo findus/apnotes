@@ -9,6 +9,7 @@ curl = "0.4.25"
 regex = "1"
 imap = "1"
 native-tls = "0.2"
+mailparse = "0.8"
 
 [dependencies.gtk]
 version = "0.7.0"

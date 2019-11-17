@@ -1,22 +1,22 @@
 extern crate regex;
 extern crate imap;
 extern crate native_tls;
+extern crate mailparse;
 
-use std::io::{stdout, Write, Read};
-use std::{fs, io};
+
+use std::{fs};
 
 struct Collector(Vec<u8>);
 
-use curl::easy::{Easy, Easy2, WriteError};
 use self::regex::Regex;
-use std::ops::{DerefMut, Deref};
-use std::borrow::Borrow;
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
-use self::imap::types::{ZeroCopy, Name, Fetch};
-use std::str::from_utf8;
-use std::error::Error;
+use self::imap::types::{ZeroCopy, Fetch};
+use mailparse::MailHeader;
+use std::ptr::null;
+
+mod Note;
 
 fn login() -> Session<TlsStream<TcpStream>> {
     println!("{}",std::env::current_dir().unwrap().display());
@@ -37,7 +37,7 @@ fn login() -> Session<TlsStream<TcpStream>> {
 
     // the client we have here is unauthenticated.
     // to do anything useful with the e-mails, we need to log in
-    let mut imap_session = client
+    let imap_session = client
         .login(username, password)
         .map_err(|e| e.0);
 
@@ -50,10 +50,10 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
 
     // we want to fetch the first email in the INBOX mailbox
 
-    let count =
+    let _count =
         imap_session.list(None, None).iter().next().iter().count();
 
-    let mailbox = imap_session.examine("Notes").unwrap();
+    let _mailbox = imap_session.examine("Notes").unwrap();
 
     // fetch message number 1 in this mailbox, along with its RFC822 field.
     // RFC 822 dictates the format of the body of e-mails
@@ -80,7 +80,7 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
         let header = std::str::from_utf8(header)
             .expect("message was not valid utf-8")
             .to_string();
-        let subject = subject_rgex.captures(header.as_str()).unwrap().get(1).unwrap().as_str();
+        let _subject = subject_rgex.captures(header.as_str()).unwrap().get(1).unwrap().as_str();
         println!("{}", header);
     });
 
@@ -91,37 +91,39 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
     Ok(Some("ddd".to_string()))
 }
 
-fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folderName: String) -> Vec<String> {
+fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folderName: String) -> Vec<Note::Note> {
     session.select(folderName);
     let messages_result = session.fetch("1:*", "RFC822.HEADER");
-    let xd = match messages_result {
+    let _xd = match messages_result {
         Ok(m) => {
             let dd: ZeroCopy<Vec<Fetch>> = m;
-            get_headers(dd).unwrap()
+            get_notes(dd)
         },
         _ => Vec::new()
     };
-    xd
+    _xd
 }
 
-fn get_headers(fetch_vector: ZeroCopy<Vec<Fetch>>) -> io::Result<Vec<String>> {
-    let results: Vec<io::Result<String>> = fetch_vector.iter().map( |fetch| get_header(fetch)).collect();
-    let errors = results.iter().filter(|e| e.is_err()).count() > 0;
-    let strings = results.into_iter().map(|e| e.unwrap()).collect();
-    if errors {
-        return Err(io::Error::from_raw_os_error(1))
-    } else {
-        Ok(strings)
-    }
+fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>) -> Vec<Note::Note> {
+    let d: Vec<Note::Note> = fetch_vector.into_iter().map(|fetch| {
+        let f = fetch;
+        let q = get_headers(f);
+        let note = Note::Note {
+            mailHeaders: q,
+            body: "".to_string()
+        };
+        note
+    }).collect();
+    d
 }
-
-fn get_header(fetch: &Fetch) -> io::Result<String> {
-    let result = fetch.header();
-    if result.is_none() {
-        return Err(io::Error::from_raw_os_error(1))
+/**
+Returns empty vector if something fails
+*/
+fn get_headers(fetch: &Fetch) -> Vec<(String, String)> {
+    match mailparse::parse_headers(fetch.header().unwrap()) {
+        Ok((header, _)) => header.into_iter().map( |h| (h.get_key().unwrap(), h.get_value().unwrap())).collect(),
+        _ => Vec::new()
     }
-    let res = std::string::String::from_utf8_lossy(result.unwrap()).to_string();
-    Ok(res)
 }
 
 fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String> {
@@ -147,8 +149,8 @@ mod tests {
         println!("MEEEEEM");
         let folders = imap::list_note_folders(&mut session);
         let foldername = folders.iter().last().unwrap().to_string();
-        let messages = imap::get_messages_from_foldersession(&mut session, foldername);
-        println!("{:#?}", messages);
+        let _messages = imap::get_messages_from_foldersession(&mut session, "Notes".to_string());
+        _messages.iter().for_each(|b| println!("{:#?}", b.mailHeaders));
     }
 
 }
