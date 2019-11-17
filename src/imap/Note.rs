@@ -1,6 +1,7 @@
 extern crate mailparse;
 
 use mailparse::{MailHeader, MailHeaderMap};
+use std::borrow::Borrow;
 
 pub trait NoteTrait {
     fn subject(&self) -> String;
@@ -11,16 +12,12 @@ pub struct Note {
     pub body: String
 }
 
-//impl NoteTrait for Note {
-//    fn subject(&self) -> String {
-//        let subject = match self.mailHeaders.get_first_value("Subject") {
-//            Ok(Some(subject)) => subject,
-//            Ok(None) => "<no subject>".to_string(),
-//            Err(e) => {
-//                println!("failed to get message subject: {:?}", e);
-//                "".to_string()
-//            }
-//        };
-//        subject
-//    }
-//}
+impl NoteTrait for Note {
+    fn subject(&self) -> String {
+        let subject = match self.mailHeaders.iter().find(|(x, y)| x.eq("Subject")) {
+            Some((subject, name)) => name.to_owned(),
+            _ => "<no subject>".to_string()
+        };
+        subject
+    }
+}

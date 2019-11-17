@@ -142,6 +142,7 @@ fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use imap;
+    use imap::Note::NoteTrait;
 
     #[test]
     fn login() {
@@ -150,7 +151,7 @@ mod tests {
         let folders = imap::list_note_folders(&mut session);
         let foldername = folders.iter().last().unwrap().to_string();
         let _messages = imap::get_messages_from_foldersession(&mut session, "Notes".to_string());
-        _messages.iter().for_each(|b| println!("{:#?}", b.mailHeaders));
+        _messages.iter().for_each(|b| println!("{}", b.subject()));
     }
 
 }
