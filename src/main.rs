@@ -4,18 +4,18 @@ extern crate curl;
 extern crate core;
 extern crate mailparse;
 extern crate gdk;
-extern crate webkit2gtk;
+
+mod mail;
+mod notes;
+
+use crate::mail::fetcher::*;
 
 use gtk::prelude::*;
 use gio::prelude::*;
+use crate::notes::*;
+use notes::note::NoteTrait;
 
 use gtk::{Application, ApplicationWindow, Button, Orientation, ListBoxBuilder, ListBox, LabelBuilder, StateFlags};
-
-mod imap;
-
-use imap::Note::NoteTrait;
-use webkit2gtk::WebContext;
-
 
 fn main() {
     let application = Application::new(
@@ -45,23 +45,23 @@ fn main() {
                 .valign(gtk::Align::Fill)
                 .build();
 
-        list_box.override_background_color(StateFlags::NORMAL, Some(&gdk::RGBA::green()));
+        // list_box.override_background_color(StateFlags::NORMAL, Some(&gdk::RGBA::green()));
 
         let label = LabelBuilder::new().label("Hi").build();
         list_box.add(&label);
 
-        let mut session = imap::login();
+        let mut session = login();
         println!("MEEEEEM");
-        let folders = imap::list_note_folders(&mut session);
+        let folders = list_note_folders(&mut session);
         let foldername = folders.iter().last().unwrap().to_string();
-        let _messages = imap::get_messages_from_foldersession(&mut session, foldername);
+        let _messages = get_messages_from_foldersession(&mut session, foldername);
         _messages.iter().for_each(|b| {
             let label = LabelBuilder::new().label(b.subject().to_string().as_ref()).build();
             list_box.add(&label);
         });
 
-        let context = webkit2gtk::WebContext::get_default().unwrap();
-        let webView = webkit2gtk::WebView::new_with_context(&context);
+        //let context = webkit2gtk::WebContext::get_default().unwrap();
+        //let webView = webkit2gtk::WebView::new_with_context(&context);
 
         //GRID
 
