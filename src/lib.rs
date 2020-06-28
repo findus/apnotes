@@ -1,6 +1,7 @@
 pub mod fetcher;
 pub mod note;
 pub mod converter;
+pub mod profile;
 
 use crate::fetcher::*;
 

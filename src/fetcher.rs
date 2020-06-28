@@ -4,8 +4,6 @@ extern crate mailparse;
 extern crate log;
 extern crate regex;
 
-
-use std::fs;
 use std::fs::File;
 use self::log::{info, warn, debug};
 use std::io::Write;
@@ -20,6 +18,7 @@ use self::regex::Regex;
 use note::{Note, NoteTrait};
 use fetcher;
 use converter;
+use profile;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -27,15 +26,10 @@ pub trait MailFetcher {
 
 
 pub fn login() -> Session<TlsStream<TcpStream>> {
-    let creds = fs::read_to_string("cred").expect("error");
 
-    let username_regex = Regex::new(r"^username=(.*)").unwrap();
-    let password_regex = Regex::new(r"password=(.*)").unwrap();
+    let profile = self::profile::load_profile();
 
-    let username = username_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-    let password = password_regex.captures(creds.as_str()).unwrap().get(1).unwrap().as_str();
-
-    let domain = "imap.ankaa.uberspace.de";
+    let domain = profile.imap_server.as_str();
     let tls = native_tls::TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap();
 
     // we pass in the domain twice to check that the server's TLS
@@ -45,7 +39,7 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     // the client we have here is unauthenticated.
     // to do anything useful with the e-mails, we need to log in
     let imap_session = client
-        .login(username, password)
+        .login(profile.username, profile.password)
         .map_err(|e| e.0);
 
     return imap_session.unwrap();
@@ -160,7 +154,7 @@ pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
         let _messages = fetcher::get_messages_from_foldersession(session, folder_name.to_string());
 
         _messages.iter().for_each(|note| {
-            let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_");
+            let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
             info!("Save to {}", location);
 
             let path = std::path::Path::new(&location);
