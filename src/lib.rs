@@ -1,9 +1,9 @@
-pub mod fetcher;
+pub mod apple_imap;
 pub mod note;
 pub mod converter;
 pub mod profile;
 
-use crate::fetcher::*;
+use crate::apple_imap::*;
 
 pub fn fetch_all() {
     let mut session = login();

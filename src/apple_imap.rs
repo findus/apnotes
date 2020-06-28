@@ -10,15 +10,16 @@ use std::io::Write;
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
-use self::imap::types::{ZeroCopy, Fetch};
+use self::imap::types::{ZeroCopy, Fetch, Uid};
 
 use std::borrow::Borrow;
 
 use self::regex::Regex;
 use note::{Note, NoteTrait};
-use fetcher;
+use apple_imap;
 use converter;
 use profile;
+use std::collections::HashMap;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -45,50 +46,66 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     return imap_session.unwrap();
 }
 
-pub fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
-    let mut imap_session = login();
+pub fn duplicate_notes_folder(session: &mut Session<TlsStream<TcpStream>>) {
 
-    // we want to fetch the first email in the INBOX mailbox
+    let folders = list_note_folders(session);
 
-    let _count =
-        imap_session.list(None, None).iter().next().iter().count();
+    folders.iter().for_each(|folder_name| {
+        let _messages = apple_imap::get_messages_from_foldersession(session, folder_name.to_string());
 
-    let _mailbox = imap_session.examine("Notes").unwrap();
+        _messages.iter().for_each(|note| {
+            let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
+            info!("Save to {}", location);
 
-    // fetch message number 1 in this mailbox, along with its RFC822 field.
-    // RFC 822 dictates the format of the body of e-mails
-    let messages = imap_session.fetch("1:*", "RFC822.HEADER")?;
+            let path = std::path::Path::new(&location);
+            let prefix = path.parent().unwrap();
+            std::fs::create_dir_all(prefix).unwrap();
 
-    let folders = imap_session.list(None, None);
-
-    info!("Folder count: {}", folders.iter().count());
-
-    folders.iter().for_each(|folder| {
-        folder.iter().for_each(|d| {
-            info!("Folder names: {}", d.name().to_string());
-        })
+            let mut f = File::create(location).expect("Unable to create file");
+            f.write_all(converter::convert2md(&note.body).as_bytes()).expect("Unable to write file")
+        });
     });
+}
 
-    let iterator = messages.iter();
+pub fn create_folder(session: &mut Session<TlsStream<TcpStream>>, mailbox: &str) {
+    match session.create(&mailbox) {
+        Err(e) => warn!("warn {}", e),
+        _ => {}
+    };
+}
 
-    iterator.for_each(|message| {
-        let subject_rgex = Regex::new(r"Subject:(.*)").unwrap();
+pub fn copy_uid(session: &mut Session<TlsStream<TcpStream>>, id: &str, mailbox: &str) {
 
-        // extract the message's body
-        let header = message.header().expect("message did not have a body!");
-        let header = std::str::from_utf8(header).expect("message was not valid utf-8").to_string();
-        let _subject = subject_rgex.captures(header.as_str()).unwrap().get(1).unwrap().as_str();
-        // println!("{}", header);
-    });
+    if let Some(error) = session.select(mailbox).and_then( |_| {
+        session.uid_copy(id, &mailbox)
+    }).err() {
+        warn!("warn {}", error)
+    }
+}
 
-
-    // be nice to the server and log out
-    imap_session.logout()?;
-
-    Ok(Some("ddd".to_string()))
+pub fn get_uids(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> HashMap<String,Vec<Option<u32>>> {
+    let mut map = HashMap::new();
+    if let Some(result) = session.select(&folder_name).err() {
+        warn!("Could not select folder {} [{}]", folder_name, result)
+    }
+    let messages_result = session.fetch("1:*", "(RFC822.HEADER UID)");
+    let messages = match messages_result {
+        Ok(messages) => {
+            debug!("Message Loading for {} successful", &folder_name.to_string());
+            let ids = messages.iter().map(|f| f.uid).collect();
+            map.insert(folder_name, ids);
+        }
+        Err(_error) => {
+            warn!("Could not load notes from {}!", &folder_name.to_string());
+            let mut vec: Vec<Option<u32>> = Vec::new();
+            map.insert(folder_name, vec);
+        }
+    };
+    map
 }
 
 pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<Note> {
+
     if let Some(result) = session.select(&folder_name).err() {
         warn!("Could not select folder {} [{}]", folder_name, result)
     }
@@ -151,7 +168,7 @@ pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
     let folders = list_note_folders(session);
 
     folders.iter().for_each(|folder_name| {
-        let _messages = fetcher::get_messages_from_foldersession(session, folder_name.to_string());
+        let _messages = apple_imap::get_messages_from_foldersession(session, folder_name.to_string());
 
         _messages.iter().for_each(|note| {
             let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");

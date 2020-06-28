@@ -6,8 +6,7 @@ use std::fs;
 use self::regex::Regex;
 use self::xdg::*;
 use std::fs::File;
-use std::path::PathBuf;
-use self::log::{info, warn, debug};
+use self::log::{info, warn};
 
 pub struct Profile {
     pub(crate) username: String,

@@ -12,7 +12,7 @@ use gtk::prelude::*;
 use gio::prelude::*;
 
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
-use apple_notes_rs::fetcher::*;
+use apple_notes_rs::apple_imap::*;
 use apple_notes_rs::note::NoteTrait;
 
 fn main() {

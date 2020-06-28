@@ -7,7 +7,7 @@ autobins = false
 [dependencies]
 curl = "0.4.25"
 regex = "1"
-imap = "1"
+imap = "2.1.2"
 native-tls = "0.2"
 mailparse = "0.8"
 cascade = "0.1"
@@ -39,3 +39,7 @@ path = "src/bin/ui.rs"
 [[bin]]
 name = "fetch"
 path = "src/bin/fetch_all.rs"
+
+[[bin]]
+name = "backup"
+path = "src/bin/backup.rs"
