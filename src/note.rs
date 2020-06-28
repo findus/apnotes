@@ -11,6 +11,7 @@ pub trait NoteTrait {
 pub struct Note {
     pub mail_headers: Vec<(String, String)>,
     pub body: String,
+    pub hash: u64
 }
 
 impl NoteTrait for Note {

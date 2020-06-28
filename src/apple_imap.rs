@@ -3,6 +3,7 @@ extern crate native_tls;
 extern crate mailparse;
 extern crate log;
 extern crate regex;
+extern crate fasthash;
 
 use std::fs::File;
 use self::log::{info, warn, debug};
@@ -20,6 +21,8 @@ use apple_imap;
 use converter;
 use profile;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use self::fasthash::{metro, MetroHasher};
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -129,7 +132,8 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>) -> Vec<Note> {
         let body = get_body(fetch.borrow());
         Note {
             mail_headers: headers,
-            body: body.unwrap_or("mist".to_string()),
+            body: body.clone().unwrap_or("mist".to_string()),
+            hash: metro::hash64(body.clone().unwrap_or("mist".to_string()))
         }
     }).collect()
 }
@@ -179,7 +183,19 @@ pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
             std::fs::create_dir_all(prefix).unwrap();
 
             let mut f = File::create(location).expect("Unable to create file");
-            f.write_all(converter::convert2md(&note.body).as_bytes()).expect("Unable to write file")
+            f.write_all(converter::convert2md(&note.body).as_bytes()).expect("Unable to write file");
+
+
+            let location = "/home/findus/.notes/.hash/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
+            info!("Save hash to {}", location);
+
+            let path = std::path::Path::new(&location);
+            let prefix = path.parent().unwrap();
+            std::fs::create_dir_all(prefix).unwrap();
+
+            let mut f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
+            f.write_all((&note.hash.to_string()).as_ref()).expect("Unable to write file");
+
         });
     });
 }
