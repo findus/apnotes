@@ -7,25 +7,22 @@ extern crate regex;
 
 use std::fs;
 use std::fs::File;
-use self::log::{info, trace, warn, debug};
+use self::log::{info, warn, debug};
 use std::io::Write;
-
-struct Collector(Vec<u8>);
-
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
-use std::ptr::null;
+
 use std::borrow::Borrow;
-use std::any::Any;
+
 use self::regex::Regex;
 use note::{Note, NoteTrait};
 use fetcher;
 use converter;
 
 pub trait MailFetcher {
-    fn fetchMails() -> Vec<Note>;
+    fn fetch_mails() -> Vec<Note>;
 }
 
 
@@ -97,16 +94,18 @@ pub fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
     Ok(Some("ddd".to_string()))
 }
 
-pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folderName: String) -> Vec<Note> {
-    session.select(&folderName);
+pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<Note> {
+    if let Some(result) = session.select(&folder_name).err() {
+        warn!("Could not select folder {} [{}]", folder_name, result)
+    }
     let messages_result = session.fetch("1:*", "(RFC822 RFC822.HEADER)");
     let messages = match messages_result {
         Ok(messages) => {
-            debug!("Message Loading for {} successful", &folderName.to_string());
+            debug!("Message Loading for {} successful", &folder_name.to_string());
             get_notes(messages)
         }
-        Err(error) => {
-            warn!("Could not load notes from {}!", &folderName.to_string());
+        Err(_error) => {
+            warn!("Could not load notes from {}!", &folder_name.to_string());
             Vec::new()
         }
     };
@@ -118,7 +117,7 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>) -> Vec<Note> {
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
         Note {
-            mailHeaders: headers,
+            mail_headers: headers,
             body: body.unwrap_or("mist".to_string()),
         }
     }).collect()
@@ -157,11 +156,11 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
 pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
     let folders = list_note_folders(session);
 
-    folders.iter().for_each(|folderName| {
-        let _messages = fetcher::get_messages_from_foldersession(session, folderName.to_string());
+    folders.iter().for_each(|folder_name| {
+        let _messages = fetcher::get_messages_from_foldersession(session, folder_name.to_string());
 
         _messages.iter().for_each(|note| {
-            let location = "/home/findus/.notes/".to_string() + folderName + "/" + &note.subject().replace("/", "_");
+            let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_");
             info!("Save to {}", location);
 
             let path = std::path::Path::new(&location);
@@ -173,22 +172,3 @@ pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
         });
     });
 }
-
-#[cfg(test)]
-mod tests {
-    //mod notes;
-    //use imap;
-    use crate::notes::*;
-    use crate::mail::fetcher::*;
-    use notes::note::NoteTrait;
-    use fetcher::save_all_notes_to_file;
-
-
-    #[test]
-    fn login() {
-        simple_logger::init().unwrap();
-        let mut session = crate::mail::fetcher::login();
-        save_all_notes_to_file(&mut session);
-    }
-}
-

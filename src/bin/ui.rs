@@ -6,12 +6,12 @@ extern crate mailparse;
 extern crate gdk;
 extern crate apple_notes_rs;
 
-use apple_notes_rs::*;
+
 
 use gtk::prelude::*;
 use gio::prelude::*;
 
-use gtk::{Application, ApplicationWindow, Button, Orientation, ListBoxBuilder, ListBox, LabelBuilder, StateFlags};
+use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
 use apple_notes_rs::fetcher::*;
 use apple_notes_rs::note::NoteTrait;
 
@@ -32,7 +32,7 @@ fn main() {
             println!("Clicked!");
         });
 
-        let button2 = Button::new_with_label("Click me!");
+        let _button2 = Button::new_with_label("Click me!");
         button.connect_clicked(|_| {
             println!("Clicked!");
         });
@@ -69,7 +69,7 @@ fn main() {
             .hexpand(true)
             .build();
 
-        let boxx = gtk::BoxBuilder::new()
+        let _boxx = gtk::BoxBuilder::new()
             .halign(gtk::Align::Fill)
             .valign(gtk::Align::Fill)
             .build();
