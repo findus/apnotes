@@ -11,18 +11,15 @@ use std::io::Write;
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
-use self::imap::types::{ZeroCopy, Fetch, Uid};
+use self::imap::types::{ZeroCopy, Fetch};
 
 use std::borrow::Borrow;
-
-use self::regex::Regex;
 use note::{Note, NoteTrait};
 use apple_imap;
 use converter;
 use profile;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use self::fasthash::{metro, MetroHasher};
+use self::fasthash::metro;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -118,7 +115,7 @@ pub fn get_uids(session: &mut Session<TlsStream<TcpStream>>, folder_name: String
         warn!("Could not select folder {} [{}]", folder_name, result)
     }
     let messages_result = session.fetch("1:*", "(RFC822.HEADER UID)");
-    let messages = match messages_result {
+    match messages_result {
         Ok(messages) => {
             debug!("Message Loading for {} successful", &folder_name.to_string());
             let ids = messages.iter().map(|f| f.uid).collect();
@@ -126,7 +123,7 @@ pub fn get_uids(session: &mut Session<TlsStream<TcpStream>>, folder_name: String
         }
         Err(_error) => {
             warn!("Could not load notes from {}!", &folder_name.to_string());
-            let mut vec: Vec<Option<u32>> = Vec::new();
+            let vec: Vec<Option<u32>> = Vec::new();
             map.insert(folder_name, vec);
         }
     };
@@ -156,8 +153,8 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>) -> Vec<Note> {
     fetch_vector.into_iter().map(|fetch| {
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
-        let body2 = body.clone().unwrap_or("".to_string());
-        let hash = metro::hash64(body2);
+        let hash_sequence = body.clone().unwrap_or("".to_string());
+        let hash = metro::hash64(hash_sequence);
         Note {
             mail_headers: headers,
             body: body.clone().unwrap_or("".to_string()),
