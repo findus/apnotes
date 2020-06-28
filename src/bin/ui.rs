@@ -4,20 +4,19 @@ extern crate curl;
 extern crate core;
 extern crate mailparse;
 extern crate gdk;
+extern crate apple_notes_rs;
 
-mod mail;
-mod notes;
-
-use crate::mail::fetcher::*;
+use apple_notes_rs::*;
 
 use gtk::prelude::*;
 use gio::prelude::*;
-use crate::notes::*;
-use notes::note::NoteTrait;
 
 use gtk::{Application, ApplicationWindow, Button, Orientation, ListBoxBuilder, ListBox, LabelBuilder, StateFlags};
+use apple_notes_rs::fetcher::*;
+use apple_notes_rs::note::NoteTrait;
 
 fn main() {
+
     let application = Application::new(
         Some("de.f1ndus.imap-notes"),
         Default::default(),

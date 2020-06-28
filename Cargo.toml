@@ -1,5 +1,5 @@
 [package]
-name = "imap-notes"
+name = "apple_notes_rs"
 version = "0.0.1"
 authors = ["Findus"]
 autobins = false
@@ -11,6 +11,9 @@ imap = "1"
 native-tls = "0.2"
 mailparse = "0.8"
 cascade = "0.1"
+log = "0.4"
+env_logger = "0.7.1"
+html2runes = "1.0.1"
 
 [dependencies.gdk]
 version = "0.11.0"
@@ -24,6 +27,14 @@ features = ["v3_16"]
 version = "0.7.0"
 features = ["v2_44"]
 
+[lib]
+name = "apple_notes_rs"
+path = "src/lib.rs"
 
 [[bin]]
-name = "main"
+name = "ui"
+path = "src/bin/ui.rs"
+
+[[bin]]
+name = "fetch"
+path = "src/bin/fetch_all.rs"
