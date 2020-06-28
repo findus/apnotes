@@ -44,3 +44,11 @@ path = "src/bin/fetch_all.rs"
 [[bin]]
 name = "backup"
 path = "src/bin/backup.rs"
+
+[[bin]]
+name = "sync"
+path = "src/bin/sync.rs"
+
+[[bin]]
+name = "hash"
+path = "src/bin/hash.rs"

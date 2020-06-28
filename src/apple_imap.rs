@@ -49,6 +49,32 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     return imap_session.unwrap();
 }
 
+pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
+    let folders = list_note_folders(session);
+
+    folders.iter().for_each(|folder_name| {
+        let _messages = apple_imap::get_messages_from_foldersession(session, folder_name.to_string());
+
+        _messages.iter().for_each(|note| {
+            let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
+            debug!("Compare {}", location);
+
+            let hash_location = "/home/findus/.notes/.hash/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
+            let hash_loc_path = std::path::Path::new(&hash_location);
+            if hash_loc_path.exists() {
+                let remote_hash = note.hash;
+                let local_hash = std::fs::read_to_string(hash_loc_path).unwrap();
+                if remote_hash == local_hash.parse::<u64>().unwrap() {
+                    debug!("Same: {}", folder_name.to_string() + "/" + &note.subject());
+                } else {
+                    info!("Differ: {} [{}<->{}]", folder_name.to_string() + "/" + &note.subject(), local_hash, remote_hash);
+                }
+            }
+
+        });
+    });
+}
+
 pub fn duplicate_notes_folder(session: &mut Session<TlsStream<TcpStream>>) {
 
     let folders = list_note_folders(session);
@@ -112,7 +138,7 @@ pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream
     if let Some(result) = session.select(&folder_name).err() {
         warn!("Could not select folder {} [{}]", folder_name, result)
     }
-    let messages_result = session.fetch("1:*", "(RFC822 RFC822.HEADER)");
+    let messages_result = session.fetch("1:*", "(RFC822 RFC822.HEADER UID)");
     let messages = match messages_result {
         Ok(messages) => {
             debug!("Message Loading for {} successful", &folder_name.to_string());
@@ -130,10 +156,13 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>) -> Vec<Note> {
     fetch_vector.into_iter().map(|fetch| {
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
+        let body2 = body.clone().unwrap_or("".to_string());
+        let hash = metro::hash64(body2);
         Note {
             mail_headers: headers,
-            body: body.clone().unwrap_or("mist".to_string()),
-            hash: metro::hash64(body.clone().unwrap_or("mist".to_string()))
+            body: body.clone().unwrap_or("".to_string()),
+            hash,
+            uid: fetch.uid.unwrap()
         }
     }).collect()
 }
@@ -186,6 +215,17 @@ pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
             f.write_all(converter::convert2md(&note.body).as_bytes()).expect("Unable to write file");
 
 
+            let location = "/home/findus/.debug_html/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
+            info!("Save to {}", location);
+
+            let path = std::path::Path::new(&location);
+            let prefix = path.parent().unwrap();
+            std::fs::create_dir_all(prefix).unwrap();
+
+            let mut f = File::create(location).expect("Unable to create file");
+            f.write_all(&note.body.as_bytes()).expect("Unable to write file");
+
+
             let location = "/home/findus/.notes/.hash/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
             info!("Save hash to {}", location);
 
@@ -193,8 +233,11 @@ pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
             let prefix = path.parent().unwrap();
             std::fs::create_dir_all(prefix).unwrap();
 
+
+            let hash = metro::hash64(&note.body.as_bytes());
+
             let mut f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
-            f.write_all((&note.hash.to_string()).as_ref()).expect("Unable to write file");
+            f.write_all((hash.to_string()).as_ref()).expect("Unable to write file");
 
         });
     });
