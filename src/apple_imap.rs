@@ -10,14 +10,14 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate serde;
 
-use std::fs::{File, FileType};
+use std::fs::{File};
 use self::log::{info, warn, debug};
 use std::io::Write;
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
-use self::serde::{Serialize, Deserialize};
+
 
 use std::borrow::Borrow;
 use note::{Note, NoteTrait, LocalNote};
@@ -30,7 +30,7 @@ use self::walkdir::WalkDir;
 use note::NotesMetadata;
 
 
-use self::jfs::Store;
+
 use std::hash::Hash;
 
 
@@ -98,7 +98,7 @@ pub fn get_added_deleted_notes(remote_notes: &Vec<Note>) -> Remote_Difference {
     let local_size = local_titles.len();
     info!("Found {} local notes", local_size);
 
-    let remote_size = remote_titles.len();
+    let _remote_size = remote_titles.len();
     info!("Found {} rempte messages", local_size);
 
 
@@ -129,7 +129,7 @@ fn get_updated_notes(remote_notes: &Vec<Note>) -> Vec<String> {
             let hash_loc_path = std::path::Path::new(&hash_location);
             if hash_loc_path.exists() {
                 let remote_hash = note.hash();
-                let mut f = File::open(hash_loc_path).unwrap();
+                let f = File::open(hash_loc_path).unwrap();
                 let local_hash : NotesMetadata = serde_json::from_reader(f).unwrap();
                 if remote_hash == local_hash.hash {
                     debug!("Same: {}", note.folder.to_string() + "/" + &note.subject());
@@ -145,12 +145,12 @@ fn get_updated_notes(remote_notes: &Vec<Note>) -> Vec<String> {
 pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
     let notes = fetch_notes(session);
 
-    let added_deleted_notes = get_added_deleted_notes(&notes);
+    let _added_deleted_notes = get_added_deleted_notes(&notes);
     //TODO check if present remote notes were explicitely deleted locally
 
-    let updated_notes = get_updated_notes(&notes);
+    let _updated_notes = get_updated_notes(&notes);
 
-    let local_messages = get_local_messages();
+    let _local_messages = get_local_messages();
 
 }
 
@@ -316,7 +316,7 @@ pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
 
             let hash = metro::hash64(&note.body().as_bytes());
 
-            let mut f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
+            let f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
 
             let note = note.mail_headers.clone();
 

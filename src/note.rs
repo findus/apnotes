@@ -1,7 +1,7 @@
 extern crate mailparse;
 extern crate html2runes;
 
-use std::path::Path;
+
 use std::fs::File;
 use walkdir::DirEntry;
 use std::hash::{Hash, Hasher};
@@ -39,7 +39,7 @@ impl LocalNote {
         let metadata_file_path = format!("{}/{}",&folder,&new_file_name).to_owned();
         let hash_loc_path = std::path::Path::new(&metadata_file_path).to_owned();
 
-        let mut metadata_file = File::open(hash_loc_path).unwrap();
+        let metadata_file = File::open(hash_loc_path).unwrap();
 
         LocalNote {
             metadata: serde_json::from_reader(metadata_file).unwrap(),
@@ -65,7 +65,7 @@ impl NoteTrait for LocalNote {
 
     fn identifier(&self) -> String {
         match self.get_header_value(&self.metadata.header, "X-Universally-Unique-Identifier") {
-            Some((subject)) => subject,
+            Some(subject) => subject,
             _ => panic!("Could not get Identifier of LocalNote {}", self.subject())
         }
     }
@@ -91,7 +91,7 @@ impl NoteTrait for Note {
 
     fn subject(&self) -> String {
         match self.get_header_value(&self.mail_headers, "Subject") {
-            Some((subject)) => format!("{}-{}", self.uid, subject).replace("/", "_").replace(" ", "_"),
+            Some(subject) => format!("{}-{}", self.uid, subject).replace("/", "_").replace(" ", "_"),
             _ => "no_subject".to_string()
         }
     }
@@ -99,7 +99,7 @@ impl NoteTrait for Note {
     // X-Universally-Unique-Identifier
     fn identifier(&self) -> String {
         match self.get_header_value(&self.mail_headers, "X-Universally-Unique-Identifier") {
-            Some((subject)) => subject,
+            Some(subject) => subject,
             _ => panic!("Could not get Identifier of Note {}", self.subject())
         }
     }

@@ -4,7 +4,7 @@ extern crate log;
 use apple_notes_rs::*;
 use apple_notes_rs::apple_imap::*;
 
-use self::log::{info, warn, debug};
+use self::log::{info};
 
 fn main() {
     env_logger::init();

@@ -2,8 +2,8 @@ extern crate apple_notes_rs;
 extern crate log;
 extern crate fasthash;
 
-use std::hash::{Hash, Hasher};
-use self::fasthash::{metro, MetroHasher};
+
+use self::fasthash::{metro};
 use std::env;
 use std::path::PathBuf;
 
