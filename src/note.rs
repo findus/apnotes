@@ -6,15 +6,47 @@ use std::fs::File;
 use walkdir::DirEntry;
 use std::hash::{Hash, Hasher};
 
+#[derive(Serialize,Deserialize)]
+pub(crate) struct NotesMetadata {
+    pub header: Vec<(String, String)>,
+    pub hash: u64
+}
+
+
 pub trait NoteTrait {
     fn hash(&self) -> u64;
     fn body(&self) -> String;
     fn subject(&self) -> String;
     fn identifier(&self) -> String;
+
+    fn get_header_value(&self, headers: &Vec<(String, String)>, search_string: &str) -> Option<String> {
+        headers.iter()
+            .find(|(key, _)| key == search_string)
+            .and_then(|val| Some(val.1.clone()))
+    }
 }
 
-pub struct LocalNote {
-    pub path: DirEntry
+pub(crate) struct LocalNote {
+    pub path: DirEntry,
+    pub metadata: NotesMetadata
+}
+
+impl LocalNote {
+    pub fn new(path: DirEntry) -> LocalNote {
+        let folder = path.path().parent().unwrap().to_string_lossy().into_owned();
+        let new_file_name = format!(".{}_hash",path.file_name().to_string_lossy().into_owned());
+
+        let metadata_file_path = format!("{}/{}",&folder,&new_file_name).to_owned();
+        let hash_loc_path = std::path::Path::new(&metadata_file_path).to_owned();
+
+        let mut metadata_file = File::open(hash_loc_path).unwrap();
+
+        LocalNote {
+            metadata: serde_json::from_reader(metadata_file).unwrap(),
+            path
+        }
+    }
+
 }
 
 impl NoteTrait for LocalNote {
@@ -32,9 +64,10 @@ impl NoteTrait for LocalNote {
     }
 
     fn identifier(&self) -> String {
-        let subject = self.subject();
-        let folder = self.path.path().parent().unwrap().file_name().unwrap().to_string_lossy();
-        format!("{}_{}", folder, subject)
+        match self.get_header_value(&self.metadata.header, "X-Universally-Unique-Identifier") {
+            Some((subject)) => subject,
+            _ => panic!("Could not get Identifier of LocalNote {}", self.subject())
+        }
     }
 }
 
@@ -57,16 +90,18 @@ impl NoteTrait for Note {
     }
 
     fn subject(&self) -> String {
-        let subject = match self.mail_headers.iter().find(|(x, _y)| x.eq("Subject")) {
-            Some((_subject, name)) => format!("{}-{}", self.uid, name).replace("/", "_").replace(" ", "_"),
+        match self.get_header_value(&self.mail_headers, "Subject") {
+            Some((subject)) => format!("{}-{}", self.uid, subject).replace("/", "_").replace(" ", "_"),
             _ => "no_subject".to_string()
-        };
-        subject
+        }
     }
 
+    // X-Universally-Unique-Identifier
     fn identifier(&self) -> String {
-        let subject = self.subject();
-        format!("{}_{}", self.folder, subject)
+        match self.get_header_value(&self.mail_headers, "X-Universally-Unique-Identifier") {
+            Some((subject)) => subject,
+            _ => panic!("Could not get Identifier of Note {}", self.subject())
+        }
     }
 }
 

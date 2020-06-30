@@ -27,16 +27,12 @@ use profile;
 use std::collections::{HashMap, HashSet};
 use self::fasthash::metro;
 use self::walkdir::WalkDir;
+use note::NotesMetadata;
 
 
 use self::jfs::Store;
 use std::hash::Hash;
 
-#[derive(Serialize,Deserialize)]
-struct NotesMetadata {
-    header: Vec<(String, String)>,
-    hash: u64
-}
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -71,7 +67,7 @@ fn get_local_messages() -> Vec<LocalNote> {
         .filter(|e| e.file_type().is_file())
         .filter(|e| !e.file_name().to_str().unwrap().to_string().starts_with("."))
         .map(| d| {
-            LocalNote { path: d }
+            LocalNote::new(d)
         }).collect()
 }
 
