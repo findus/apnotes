@@ -16,7 +16,7 @@ use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
 
 use std::borrow::Borrow;
-use note::{Note, NotesMetadata};
+use note::{Note, NotesMetadata, HeaderParser};
 use apple_imap;
 use profile;
 use std::collections::{HashMap};
@@ -82,11 +82,44 @@ pub fn copy_uid(session: &mut Session<TlsStream<TcpStream>>, id: &str, mailbox: 
     }
 }
 
+pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<Note> {
+    if let Some(result) = session.select(&metadata.subfolder).err() {
+        warn!("Could not select folder {} [{}]", &metadata.subfolder, result)
+    }
+    let messages_result = session.uid_fetch(metadata.uid.to_string(), "(RFC822 RFC822.HEADER UID)");
+    match messages_result {
+        Ok(message) => {
+            debug!("Message Loading for {} successful", &metadata.subject());
+            let first_message = message.first().unwrap();
+
+            let new_metadata = NotesMetadata {
+                header: get_headers(message.first().unwrap()),
+                old_remote_id: None,
+                subfolder: metadata.subfolder.clone(),
+                locally_deleted: false,
+                uid: first_message.uid.unwrap()
+            };
+
+            Some(
+                Note {
+                    mail_headers: new_metadata,
+                    folder: metadata.subfolder.to_string(),
+                    body: get_body(first_message).unwrap()
+                }
+            )
+        },
+        Err(_error) => {
+            warn!("Could not load notes from {}!", &metadata.subfolder);
+            None
+        }
+    }
+}
+
 pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
     if let Some(result) = session.select(&folder_name).err() {
         warn!("Could not select folder {} [{}]", folder_name, result)
     }
-    let messages_result = session.fetch("1:*", "(RFC822.HEADER)");
+    let messages_result = session.fetch("1:*", "(RFC822.HEADER UID)");
     match messages_result {
         Ok(messages) => {
             debug!("Message Loading for {} successful", &folder_name.to_string());
@@ -95,7 +128,8 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
                     header: get_headers(f),
                     old_remote_id: None,
                     subfolder: folder_name.clone(),
-                    locally_deleted: false
+                    locally_deleted: false,
+                    uid: f.uid.unwrap()
                 }
             }).collect()
         },
@@ -132,7 +166,7 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
         let hash_sequence = body.clone().unwrap_or("".to_string());
         let hash = metro::hash64(hash_sequence);
             Note {
-                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false },
+                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid.unwrap() },
                 body: body.clone().unwrap_or("".to_string()),
                 folder: folder_name.to_owned()
             }

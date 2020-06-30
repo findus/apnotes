@@ -12,6 +12,8 @@ use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
 use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge};
+use apple_imap;
+use io;
 
 pub struct RemoteDifference {
     only_remote: Vec<String>,
@@ -82,7 +84,29 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
     let actions = get_update_actions(&metadata);
 
     let _local_messages = get_local_messages();
+    execute_actions(&actions, session);
 
+}
+
+fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) {
+    let note = apple_imap::fetch_single_note(session,metadata).unwrap();
+    io::save_note_to_file(&note);
+}
+
+fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) {
+    actions.iter().for_each(|(action, metadata)| {
+        match action {
+            UpdateRemotely => {
+
+            },
+            UpdateLocally => {
+                update_locally(metadata, session);
+            }
+            _ => {
+
+            }
+        }
+    })
 }
 
 fn get_local_messages() -> Vec<LocalNote> {
