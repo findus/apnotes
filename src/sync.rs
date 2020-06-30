@@ -2,7 +2,7 @@ extern crate log;
 extern crate walkdir;
 
 
-use note::{NotesMetadata, Note, LocalNote, NoteTrait};
+use note::{NotesMetadata, Note, LocalNote, NoteTrait, HeaderParser};
 use apple_imap::fetch_notes;
 use std::net::TcpStream;
 use native_tls::TlsStream;
@@ -20,21 +20,21 @@ pub struct RemoteDifference {
 fn get_updated_notes(remote_notes: &Vec<Note>) -> Vec<String> {
 
     remote_notes.iter().map(move |note| {
-        let location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/" + &note.subject_with_identifier();
+        let location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/" + &note.mail_headers.subject_with_identifier();
         debug!("Compare {}", location);
 
-        let hash_location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/." + &note.subject_with_identifier() + "_hash";
+        let hash_location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/." + &note.mail_headers.subject_with_identifier() + "_hash";
         let hash_loc_path = std::path::Path::new(&hash_location);
         if hash_loc_path.exists() {
-            let remote_hash = note.subject_with_identifier();
+            let remote_hash = note.mail_headers.message_id();
             let f = File::open(hash_loc_path).unwrap();
             let local_hash : NotesMetadata = serde_json::from_reader(f).unwrap();
-            if remote_hash == "".to_string() {
-                debug!("Same: {}", note.folder.to_string() + "/" + &note.subject());
+            if remote_hash == local_hash.message_id() {
+                debug!("Same: {}", note.folder.to_string() + "/" + &note.mail_headers.subject());
             } else {
                 //todo local_hash_fix
-                info!("Differ: {} [{}<->{}]", note.folder.to_string() + "/" + &note.subject(), local_hash.old_remote_id, remote_hash);
-                return Some(note.identifier().to_owned())
+                info!("Differ: {} [{}<->{}]", note.folder.to_string() + "/" + &note.mail_headers.subject(), local_hash.message_id(), remote_hash);
+                return Some(note.mail_headers.identifier().to_owned())
             }
         }
         return None
@@ -72,8 +72,8 @@ pub fn get_added_deleted_notes(remote_notes: &Vec<Note>) -> RemoteDifference {
     info!("Loading local messages");
     let local_messages = get_local_messages();
 
-    let local_titles: HashSet<String> = local_messages.iter().map(|note| note.identifier()).collect();
-    let remote_titles: HashSet<String> = remote_notes.iter().map(|note| note.identifier()).collect();
+    let local_titles: HashSet<String> = local_messages.iter().map(|note| note.metadata.identifier()).collect();
+    let remote_titles: HashSet<String> = remote_notes.iter().map(|note| note.mail_headers.identifier()).collect();
 
     let local_size = local_titles.len();
     info!("Found {} local notes", local_size);

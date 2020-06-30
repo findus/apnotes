@@ -19,17 +19,52 @@ impl HeaderParser for NotesMetadata {
             .find(|(key, _)| key == search_string)
             .and_then(|val| Some(val.1.clone()))
     }
+
+    fn subject(&self) -> String {
+        match self.get_header_value("Subject") {
+            Some(subject) => subject,
+            _ => panic!("Could not get Identifier of LocalNote {:?}", self.header)
+        }
+    }
+
+    fn identifier(&self) -> String {
+        match self.get_header_value("X-Universally-Unique-Identifier") {
+            Some(subject) => subject,
+            _ => panic!("Could not get uuid of this note {:?}", self.header)
+        }
+    }
+
+    fn subject_with_identifier(&self) -> String {
+        format!("{}_{}",self.identifier(), self.subject_escaped())
+    }
+
+    fn subject_escaped(&self) -> String {
+        match self.get_header_value("Subject") {
+            Some(subject) => format!("{}", subject).replace("/", "_").replace(" ", "_"),
+            _ =>  panic!("Could not get Subject of this note {:?}", self.header)
+        }
+    }
+
+    fn message_id(&self) -> String {
+        match self.get_header_value("Message-Id") {
+            Some(subject) => subject,
+            _ =>  panic!("Could not get Message-Id of this note {:?}", self.header)
+        }
+    }
 }
 
 pub trait HeaderParser {
     fn get_header_value(&self, search_string: &str) -> Option<String>;
+    fn subject(&self) -> String;
+    fn identifier(&self) -> String;
+    fn subject_with_identifier(&self) -> String;
+    fn subject_escaped(&self) -> String;
+    fn message_id(&self) -> String;
 }
 
 pub trait NoteTrait {
     fn body(&self) -> String;
-    fn subject(&self) -> String;
-    fn identifier(&self) -> String;
-    fn subject_with_identifier(&self) -> String;
+    fn uuid(&self) -> String;
 }
 
 pub(crate) struct LocalNote {
@@ -61,19 +96,8 @@ impl NoteTrait for LocalNote {
         " ".to_string()
     }
 
-    fn subject(&self) -> String {
-        self.path.file_name().to_str().unwrap().to_string()
-    }
-
-    fn identifier(&self) -> String {
-        match self.metadata.get_header_value("X-Universally-Unique-Identifier") {
-            Some(subject) => subject,
-            _ => panic!("Could not get Identifier of LocalNote {}", self.subject())
-        }
-    }
-
-    fn subject_with_identifier(&self) -> String {
-        format!("{}_{}",self.identifier(), self.subject())
+    fn uuid(&self) -> String {
+        self.metadata.identifier()
     }
 }
 
@@ -89,33 +113,18 @@ impl NoteTrait for Note {
         self.body.clone()
     }
 
-    fn subject(&self) -> String {
-        match self.mail_headers.get_header_value("Subject") {
-            Some(subject) => format!("{}", subject).replace("/", "_").replace(" ", "_"),
-            _ => "no_subject".to_string()
-        }
-    }
-
-    // X-Universally-Unique-Identifier
-    fn identifier(&self) -> String {
-        match self.mail_headers.get_header_value("X-Universally-Unique-Identifier") {
-            Some(subject) => subject,
-            _ => panic!("Could not get Identifier of Note {}", self.subject())
-        }
-    }
-
-    fn subject_with_identifier(&self) -> String {
-        format!("{}_{}",self.identifier(), self.subject())
+    fn uuid(&self) -> String {
+        self.mail_headers.identifier()
     }
 }
 
 impl std::cmp::PartialEq for Box<dyn NoteTrait>  {
     fn eq(&self, other: &Self) -> bool {
-        self.subject() == other.subject().as_ref()
+        self.uuid() == other.uuid().as_ref()
     }
 
     fn ne(&self, other: &Self) -> bool {
-        self.subject() != other.subject().as_ref()
+        self.uuid() != other.uuid().as_ref()
     }
 }
 
@@ -125,7 +134,7 @@ impl std::cmp::Eq for Box<dyn NoteTrait> {
 
 impl std::hash::Hash for Box<dyn NoteTrait> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.subject().hash(state)
+        self.uuid().hash(state)
     }
 }
 
