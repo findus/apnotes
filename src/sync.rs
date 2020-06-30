@@ -15,6 +15,8 @@ use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, Delete
 use apple_imap;
 use io;
 use std::iter::FromIterator;
+use converter;
+use profile;
 
 pub struct RemoteDifference {
     only_remote: Vec<String>,
@@ -33,13 +35,39 @@ pub enum UpdateAction {
     DoNothing
 }
 
+pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
+    let metadata = fetch_headers(session);
+    let remote_metadata = metadata.iter().collect();
+
+    let local_messages = get_local_messages();
+
+    let local_metadata = local_messages
+        .iter()
+        .map(|note| &note.metadata)
+        .collect();
+
+    let mut add_delete_actions = get_added_deleted_notes(local_metadata, remote_metadata);
+    //TODO check if present remote notes were explicitely deleted locally
+
+    let mut update_actions = get_update_actions(&metadata);
+
+    // let mut hist: Vec<(UpdateAction,&NotesMetadata)> = add_delete_actions.into_iter().filter(|(_,metadata)| {
+    //     let s: Vec<&&NotesMetadata> = update_actions.iter().map(|(_,b)|b).collect();
+    //     !s.contains(&metadata)
+    // }).collect();
+
+    update_actions.append(&mut add_delete_actions);
+    execute_actions(&update_actions, session);
+
+}
+
 fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &NotesMetadata)> {
 
     remote_notes.into_iter().map( |mail_headers| {
-        let location = "/home/findus/.notes/".to_string() + &mail_headers.subfolder + "/" + &mail_headers.subject_with_identifier();
+        let location = profile::get_notes_dir() + &mail_headers.subfolder + "/" + &mail_headers.subject_with_identifier();
         debug!("Compare {}", location);
 
-        let hash_location = "/home/findus/.notes/".to_string() + &mail_headers.subfolder + "/." + &mail_headers.subject_with_identifier() + "_hash";
+        let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.subject_with_identifier() + "_hash";
         let hash_loc_path = std::path::Path::new(&hash_location);
 
         if hash_loc_path.exists() {
@@ -58,7 +86,7 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &
             } else if remote_uuid != local_uuid && oldest_remote_uuid.is_none() {
                 info!("Changed Remotely: {}", mail_headers.subject());
                 return Some((UpdateLocally, mail_headers))
-            } else if oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == local_uuid {
+            } else if oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == remote_uuid {
                 info!("Changed Locally: {}", mail_headers.subject());
                 return Some((UpdateRemotely, mail_headers))
             } else if oldest_remote_uuid.is_some() && remote_uuid != local_uuid {
@@ -76,27 +104,6 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &
     }).collect::<Vec<(UpdateAction, &NotesMetadata)>>()
 }
 
-pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
-    let metadata = fetch_headers(session);
-    let remote_metadata = metadata.iter().collect();
-
-    let local_messages = get_local_messages();
-
-    let local_metadata = local_messages
-        .iter()
-        .map(|note| &note.metadata)
-        .collect();
-
-    let mut add_delete_actions = get_added_deleted_notes(local_metadata, remote_metadata);
-    //TODO check if present remote notes were explicitely deleted locally
-
-    let mut update_actions = get_update_actions(&metadata);
-
-    add_delete_actions.append(&mut update_actions);
-    execute_actions(&add_delete_actions, session);
-
-}
-
 fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();
     io::save_note_to_file(&note);
@@ -106,13 +113,13 @@ fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut
     actions.iter().for_each(|(action, metadata)| {
         match action {
             UpdateRemotely => {
-
+              converter::convert2Html(metadata);
             },
             UpdateAction::UpdateLocally | UpdateAction::AddLocally => {
                 update_locally(metadata, session);
             }
             _ => {
-                unimplemented!("Action is not implemented")
+                unimplemented!("Action is not implemented");
             }
         }
     })
@@ -120,7 +127,7 @@ fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut
 
 fn get_local_messages() -> Vec<LocalNote> {
 
-    WalkDir::new("/home/findus/.notes/")
+    WalkDir::new(profile::get_notes_dir())
         .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())

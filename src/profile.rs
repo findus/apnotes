@@ -51,3 +51,13 @@ pub fn load_profile() -> Profile {
         imap_server
     }
 }
+
+pub fn get_notes_dir() -> String {
+    let xdg = BaseDirectories::new().expect("Could not find xdg data dir");
+    if let Some(dir) = xdg.find_data_file("notes") {
+        dir.to_string_lossy().to_string() + "/"
+    } else {
+        info!("No xdg data dir found, create a new one");
+        xdg.create_data_directory("notes").expect("Could not create xdg data dir").to_string_lossy().to_string() +"/"
+    }
+}
