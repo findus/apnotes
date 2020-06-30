@@ -4,14 +4,13 @@ extern crate html2runes;
 
 use std::fs::File;
 use walkdir::DirEntry;
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 
 #[derive(Serialize,Deserialize)]
 pub(crate) struct NotesMetadata {
     pub header: Vec<(String, String)>,
     pub hash: u64
 }
-
 
 pub trait NoteTrait {
     fn hash(&self) -> u64;
