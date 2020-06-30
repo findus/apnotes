@@ -11,9 +11,10 @@ use self::log::{info, debug};
 use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
-use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge};
+use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, DeleteRemote, DeleteLocally, AddLocally, AddRemotely};
 use apple_imap;
 use io;
+use std::iter::FromIterator;
 
 pub struct RemoteDifference {
     only_remote: Vec<String>,
@@ -77,14 +78,22 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &
 
 pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
     let metadata = fetch_headers(session);
+    let remote_metadata = metadata.iter().collect();
 
-    let _added_deleted_notes = get_added_deleted_notes(&metadata);
+    let local_messages = get_local_messages();
+
+    let local_metadata = local_messages
+        .iter()
+        .map(|note| &note.metadata)
+        .collect();
+
+    let mut add_delete_actions = get_added_deleted_notes(local_metadata, remote_metadata);
     //TODO check if present remote notes were explicitely deleted locally
 
-    let actions = get_update_actions(&metadata);
+    let mut update_actions = get_update_actions(&metadata);
 
-    let _local_messages = get_local_messages();
-    execute_actions(&actions, session);
+    add_delete_actions.append(&mut update_actions);
+    execute_actions(&add_delete_actions, session);
 
 }
 
@@ -99,11 +108,11 @@ fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut
             UpdateRemotely => {
 
             },
-            UpdateLocally => {
+            UpdateAction::UpdateLocally | UpdateAction::AddLocally => {
                 update_locally(metadata, session);
             }
             _ => {
-
+                unimplemented!("Action is not implemented")
             }
         }
     })
@@ -123,36 +132,31 @@ fn get_local_messages() -> Vec<LocalNote> {
 }
 
 
-pub fn get_added_deleted_notes(metadata: &Vec<NotesMetadata>) -> RemoteDifference {
+pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>, remote_metadata: HashSet<&'a NotesMetadata>) -> Vec<(UpdateAction, &'a NotesMetadata)> {
 
     info!("Loading local messages");
     let local_messages = get_local_messages();
 
-    let local_titles: HashSet<String> = local_messages
-        .iter()
-        .map(|note| note.metadata.identifier())
-        .collect();
 
-    let remote_titles: HashSet<String> = metadata
-        .iter()
-        .map(|mail_headers| mail_headers.identifier())
-        .collect();
 
-    let local_size = local_titles.len();
+    let local_size = local_metadata.len();
     info!("Found {} local notes", local_size);
 
-    let _remote_size = remote_titles.len();
-    info!("Found {} remote messages", local_size);
+    let remote_size = remote_metadata.len();
+    info!("Found {} remote messages", remote_size);
 
 
-    let only_local: Vec<String> = local_titles
-        .difference(&remote_titles)
-        .map(|e| e.to_owned()).collect();
+    let mut only_local: Vec<(UpdateAction,&NotesMetadata)> = local_metadata
+        .difference(&remote_metadata)
+        .into_iter()
+        .map(|e| (AddRemotely,e.clone()))
+        .collect();
 
-    let only_remote: Vec<String> = remote_titles
-        .difference(&local_titles)
-        .map(|e| e.to_owned()).collect();
-
+    let mut only_remote: Vec<(UpdateAction,&NotesMetadata)> = remote_metadata
+        .difference(&local_metadata)
+        .into_iter()
+        .map(|e| (AddLocally,e.to_owned()))
+        .collect();
 
     let only_local_count = only_local.len();
     let only_remote_count = only_remote.len();
@@ -160,9 +164,7 @@ pub fn get_added_deleted_notes(metadata: &Vec<NotesMetadata>) -> RemoteDifferenc
     println!("Found {} remote_only_notes", only_remote_count);
     println!("Found {} local_only_notes", only_local_count);
 
-    RemoteDifference {
-        only_remote,
-        only_local
-    }
+    only_local.append(&mut only_remote);
+    only_local
 
 }
