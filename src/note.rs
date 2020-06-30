@@ -7,22 +7,29 @@ use walkdir::DirEntry;
 use std::hash::Hasher;
 
 #[derive(Serialize,Deserialize)]
-pub(crate) struct NotesMetadata {
+pub struct NotesMetadata {
     pub header: Vec<(String, String)>,
-    pub hash: u64
+    pub old_remote_id: String
 }
 
-pub trait NoteTrait {
-    fn hash(&self) -> u64;
-    fn body(&self) -> String;
-    fn subject(&self) -> String;
-    fn identifier(&self) -> String;
-
-    fn get_header_value(&self, headers: &Vec<(String, String)>, search_string: &str) -> Option<String> {
-        headers.iter()
+impl HeaderParser for NotesMetadata {
+    fn get_header_value(&self, search_string: &str) -> Option<String> {
+        self.header
+            .iter()
             .find(|(key, _)| key == search_string)
             .and_then(|val| Some(val.1.clone()))
     }
+}
+
+pub trait HeaderParser {
+    fn get_header_value(&self, search_string: &str) -> Option<String>;
+}
+
+pub trait NoteTrait {
+    fn body(&self) -> String;
+    fn subject(&self) -> String;
+    fn identifier(&self) -> String;
+    fn subject_with_identifier(&self) -> String;
 }
 
 pub(crate) struct LocalNote {
@@ -50,10 +57,6 @@ impl LocalNote {
 
 impl NoteTrait for LocalNote {
 
-    fn hash(&self) -> u64 {
-        0
-    }
-
     fn body(&self) -> String {
         " ".to_string()
     }
@@ -63,44 +66,46 @@ impl NoteTrait for LocalNote {
     }
 
     fn identifier(&self) -> String {
-        match self.get_header_value(&self.metadata.header, "X-Universally-Unique-Identifier") {
+        match self.metadata.get_header_value("X-Universally-Unique-Identifier") {
             Some(subject) => subject,
             _ => panic!("Could not get Identifier of LocalNote {}", self.subject())
         }
     }
+
+    fn subject_with_identifier(&self) -> String {
+        format!("{}_{}",self.identifier(), self.subject())
+    }
 }
 
 pub struct Note {
-    pub mail_headers: Vec<(String, String)>,
+    pub mail_headers: NotesMetadata,
     pub folder: String,
     pub body: String,
-    pub hash: u64,
-    pub uid: u32,
 }
 
 impl NoteTrait for Note {
-
-    fn hash(&self) -> u64 {
-        self.hash
-    }
 
     fn body(&self) -> String {
         self.body.clone()
     }
 
     fn subject(&self) -> String {
-        match self.get_header_value(&self.mail_headers, "Subject") {
-            Some(subject) => format!("{}-{}", self.uid, subject).replace("/", "_").replace(" ", "_"),
+        match self.mail_headers.get_header_value("Subject") {
+            Some(subject) => format!("{}", subject).replace("/", "_").replace(" ", "_"),
             _ => "no_subject".to_string()
         }
     }
 
     // X-Universally-Unique-Identifier
     fn identifier(&self) -> String {
-        match self.get_header_value(&self.mail_headers, "X-Universally-Unique-Identifier") {
+        match self.mail_headers.get_header_value("X-Universally-Unique-Identifier") {
             Some(subject) => subject,
             _ => panic!("Could not get Identifier of Note {}", self.subject())
         }
+    }
+
+    fn subject_with_identifier(&self) -> String {
+        format!("{}_{}",self.identifier(), self.subject())
     }
 }
 

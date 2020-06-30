@@ -20,19 +20,20 @@ pub struct RemoteDifference {
 fn get_updated_notes(remote_notes: &Vec<Note>) -> Vec<String> {
 
     remote_notes.iter().map(move |note| {
-        let location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/" + &note.subject();
+        let location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/" + &note.subject_with_identifier();
         debug!("Compare {}", location);
 
-        let hash_location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/." + &note.subject() + "_hash";
+        let hash_location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/." + &note.subject_with_identifier() + "_hash";
         let hash_loc_path = std::path::Path::new(&hash_location);
         if hash_loc_path.exists() {
-            let remote_hash = note.hash();
+            let remote_hash = note.subject_with_identifier();
             let f = File::open(hash_loc_path).unwrap();
             let local_hash : NotesMetadata = serde_json::from_reader(f).unwrap();
-            if remote_hash == local_hash.hash {
+            if remote_hash == "".to_string() {
                 debug!("Same: {}", note.folder.to_string() + "/" + &note.subject());
             } else {
-                info!("Differ: {} [{}<->{}]", note.folder.to_string() + "/" + &note.subject(), local_hash.hash, remote_hash);
+                //todo local_hash_fix
+                info!("Differ: {} [{}<->{}]", note.folder.to_string() + "/" + &note.subject(), local_hash.old_remote_id, remote_hash);
                 return Some(note.identifier().to_owned())
             }
         }

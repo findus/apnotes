@@ -9,7 +9,7 @@ use self::log::{info};
 fn main() {
     env_logger::init();
 
-    let mut session = apple_imap::login();
+    /*let mut session = apple_imap::login();
     let folders = list_note_folders(&mut session);
     info!("Loaded {} folders", folders.len());
     folders.iter().for_each(|folder| {
@@ -24,6 +24,6 @@ fn main() {
                 }
             })
         })
-    })
+    })*/
 
 }
