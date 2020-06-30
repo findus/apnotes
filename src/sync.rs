@@ -78,7 +78,7 @@ pub fn get_added_deleted_notes(remote_notes: &Vec<Note>) -> RemoteDifference {
     info!("Found {} local notes", local_size);
 
     let _remote_size = remote_titles.len();
-    info!("Found {} rempte messages", local_size);
+    info!("Found {} remote messages", local_size);
 
 
     let only_local: Vec<String> = local_titles.difference(&remote_titles).map(|e| e.to_owned()).collect();

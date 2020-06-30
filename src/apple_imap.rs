@@ -9,23 +9,18 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate serde;
 
-use std::fs::{File};
 use self::log::{info, warn, debug};
-use std::io::Write;
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
 
-
 use std::borrow::Borrow;
-use note::{Note, NoteTrait};
+use note::Note;
 use apple_imap;
-use converter;
 use profile;
 use std::collections::{HashMap};
 use self::fasthash::metro;
-use note::NotesMetadata;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -60,27 +55,6 @@ pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<Note> {
     })
         .flatten()
         .collect()
-}
-
-pub fn duplicate_notes_folder(session: &mut Session<TlsStream<TcpStream>>) {
-
-    let folders = list_note_folders(session);
-
-    folders.iter().for_each(|folder_name| {
-        let _messages = apple_imap::get_messages_from_foldersession(session, folder_name.to_string());
-
-        _messages.iter().for_each(|note| {
-            let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
-            info!("Save to {}", location);
-
-            let path = std::path::Path::new(&location);
-            let prefix = path.parent().unwrap();
-            std::fs::create_dir_all(prefix).unwrap();
-
-            let mut f = File::create(location).expect("Unable to create file");
-            f.write_all(converter::convert2md(&note.body()).as_bytes()).expect("Unable to write file")
-        });
-    });
 }
 
 pub fn create_folder(session: &mut Session<TlsStream<TcpStream>>, mailbox: &str) {
@@ -183,59 +157,4 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
     };
 
     return result;
-}
-
-pub fn save_all_notes_to_file(session: &mut Session<TlsStream<TcpStream>>) {
-    let folders = list_note_folders(session);
-
-    folders.iter().for_each(|folder_name| {
-        let _messages = apple_imap::get_messages_from_foldersession(session, folder_name.to_string());
-
-        _messages.iter().for_each(|note| {
-            let location = "/home/findus/.notes/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
-            info!("Save to {}", location);
-
-            let path = std::path::Path::new(&location);
-            let prefix = path.parent().unwrap();
-            std::fs::create_dir_all(prefix).unwrap();
-
-            let mut f = File::create(location).expect("Unable to create file");
-            f.write_all(converter::convert2md(&note.body()).as_bytes()).expect("Unable to write file");
-
-
-            let location = "/home/findus/.debug_html/".to_string() + folder_name + "/" + &note.subject().replace("/", "_").replace(" ", "_");
-            info!("Save to {}", location);
-
-            let path = std::path::Path::new(&location);
-            let prefix = path.parent().unwrap();
-            std::fs::create_dir_all(prefix).unwrap();
-
-            let mut f = File::create(location).expect("Unable to create file");
-            f.write_all(&note.body().as_bytes()).expect("Unable to write file");
-
-
-            let location = "/home/findus/.notes/".to_string() + folder_name + "/." + &note.subject().replace("/", "_").replace(" ", "_") + "_hash";
-            info!("Save hash to {}", location);
-
-            let path = std::path::Path::new(&location);
-            let prefix = path.parent().unwrap();
-            std::fs::create_dir_all(prefix).unwrap();
-
-
-            let hash = metro::hash64(&note.body().as_bytes());
-
-            let f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
-
-            let note = note.mail_headers.clone();
-
-            let dd = NotesMetadata {
-                header: note,
-                hash
-            };
-
-
-            serde_json::to_writer(f, &dd);
-
-        });
-    });
 }
