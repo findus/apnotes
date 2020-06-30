@@ -13,7 +13,7 @@ use gio::prelude::*;
 
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
 use apple_notes_rs::apple_imap::*;
-use apple_notes_rs::note::NoteTrait;
+use apple_notes_rs::note::{NoteTrait, HeaderParser};
 
 fn main() {
 
@@ -55,7 +55,7 @@ fn main() {
         let foldername = folders.iter().last().unwrap().to_string();
         let _messages = get_messages_from_foldersession(&mut session, foldername);
         _messages.iter().for_each(|b| {
-            let label = LabelBuilder::new().label(b.subject().to_string().as_ref()).build();
+            let label = LabelBuilder::new().label(b.mail_headers.subject().to_string().as_ref()).build();
             list_box.add(&label);
         });
 

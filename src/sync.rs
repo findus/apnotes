@@ -11,20 +11,34 @@ use self::log::{info, debug};
 use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
+use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge};
 
 pub struct RemoteDifference {
     only_remote: Vec<String>,
     only_local: Vec<String>
 }
 
-fn get_updated_notes(remote_notes: &Vec<NotesMetadata>) -> Vec<String> {
+#[derive(PartialEq)]
+pub enum UpdateAction {
+    DeleteRemote,
+    DeleteLocally,
+    UpdateRemotely,
+    UpdateLocally,
+    Merge,
+    AddRemotely,
+    AddLocally,
+    DoNothing
+}
 
-    remote_notes.iter().map(move |mail_headers| {
+fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &NotesMetadata)> {
+
+    remote_notes.into_iter().map( |mail_headers| {
         let location = "/home/findus/.notes/".to_string() + &mail_headers.subfolder + "/" + &mail_headers.subject_with_identifier();
         debug!("Compare {}", location);
 
         let hash_location = "/home/findus/.notes/".to_string() + &mail_headers.subfolder + "/." + &mail_headers.subject_with_identifier() + "_hash";
         let hash_loc_path = std::path::Path::new(&hash_location);
+
         if hash_loc_path.exists() {
             let f = File::open(hash_loc_path).unwrap();
             let local_metadata : NotesMetadata = serde_json::from_reader(f).unwrap();
@@ -37,16 +51,26 @@ fn get_updated_notes(remote_notes: &Vec<NotesMetadata>) -> Vec<String> {
 
             if remote_uuid == local_uuid {
                 debug!("Same: {}", mail_headers.subfolder.to_string() + "/" + &mail_headers.subject());
+                return Some((DoNothing, mail_headers))
             } else if remote_uuid != local_uuid && oldest_remote_uuid.is_none() {
                 info!("Changed Remotely: {}", mail_headers.subject());
+                return Some((UpdateLocally, mail_headers))
             } else if oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == local_uuid {
                 info!("Changed Locally: {}", mail_headers.subject());
+                return Some((UpdateRemotely, mail_headers))
             } else if oldest_remote_uuid.is_some() && remote_uuid != local_uuid {
                 info!("Changed on both ends, needs merge: {}", &mail_headers.subject());
+                return Some((Merge, mail_headers))
             }
         }
         return None
-    }).filter_map(|e|e).collect::<Vec<String>>()
+    }).filter_map(|e| {
+        if e.is_some() && e.as_ref().unwrap().0 != DoNothing {
+            e
+        } else {
+            None
+        }
+    }).collect::<Vec<(UpdateAction, &NotesMetadata)>>()
 }
 
 pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
@@ -55,7 +79,7 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
     let _added_deleted_notes = get_added_deleted_notes(&metadata);
     //TODO check if present remote notes were explicitely deleted locally
 
-    let _updated_notes = get_updated_notes(&metadata);
+    let actions = get_update_actions(&metadata);
 
     let _local_messages = get_local_messages();
 
@@ -80,8 +104,15 @@ pub fn get_added_deleted_notes(metadata: &Vec<NotesMetadata>) -> RemoteDifferenc
     info!("Loading local messages");
     let local_messages = get_local_messages();
 
-    let local_titles: HashSet<String> = local_messages.iter().map(|note| note.metadata.identifier()).collect();
-    let remote_titles: HashSet<String> = metadata.iter().map(|mail_headers| mail_headers.identifier()).collect();
+    let local_titles: HashSet<String> = local_messages
+        .iter()
+        .map(|note| note.metadata.identifier())
+        .collect();
+
+    let remote_titles: HashSet<String> = metadata
+        .iter()
+        .map(|mail_headers| mail_headers.identifier())
+        .collect();
 
     let local_size = local_titles.len();
     info!("Found {} local notes", local_size);
@@ -90,8 +121,13 @@ pub fn get_added_deleted_notes(metadata: &Vec<NotesMetadata>) -> RemoteDifferenc
     info!("Found {} remote messages", local_size);
 
 
-    let only_local: Vec<String> = local_titles.difference(&remote_titles).map(|e| e.to_owned()).collect();
-    let only_remote: Vec<String> = remote_titles.difference(&local_titles).map(|e| e.to_owned()).collect();
+    let only_local: Vec<String> = local_titles
+        .difference(&remote_titles)
+        .map(|e| e.to_owned()).collect();
+
+    let only_remote: Vec<String> = remote_titles
+        .difference(&local_titles)
+        .map(|e| e.to_owned()).collect();
 
 
     let only_local_count = only_local.len();
