@@ -10,7 +10,8 @@ use std::hash::Hasher;
 pub struct NotesMetadata {
     pub header: Vec<(String, String)>,
     pub old_remote_id: Option<String>,
-    pub subfolder: String
+    pub subfolder: String,
+    pub locally_deleted: bool
 }
 
 impl HeaderParser for NotesMetadata {
