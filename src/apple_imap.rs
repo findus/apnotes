@@ -93,7 +93,8 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
             messages.iter().map(|f| {
                 NotesMetadata {
                     header: get_headers(f),
-                    old_remote_id: "".to_string(),
+                    old_remote_id: None,
+                    subfolder: folder_name.clone()
                 }
             }).collect()
         },
@@ -130,7 +131,7 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
         let hash_sequence = body.clone().unwrap_or("".to_string());
         let hash = metro::hash64(hash_sequence);
             Note {
-                mail_headers: NotesMetadata { header: headers, old_remote_id: "0".to_owned() },
+                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone() },
                 body: body.clone().unwrap_or("".to_string()),
                 folder: folder_name.to_owned()
             }

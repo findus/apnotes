@@ -9,7 +9,8 @@ use std::hash::Hasher;
 #[derive(Serialize,Deserialize)]
 pub struct NotesMetadata {
     pub header: Vec<(String, String)>,
-    pub old_remote_id: String
+    pub old_remote_id: Option<String>,
+    pub subfolder: String
 }
 
 impl HeaderParser for NotesMetadata {

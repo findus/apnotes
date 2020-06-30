@@ -3,7 +3,7 @@ extern crate walkdir;
 
 
 use note::{NotesMetadata, Note, LocalNote, NoteTrait, HeaderParser};
-use apple_imap::fetch_notes;
+use apple_imap::{fetch_notes, fetch_headers};
 use std::net::TcpStream;
 use native_tls::TlsStream;
 use imap::Session;
@@ -17,24 +17,32 @@ pub struct RemoteDifference {
     only_local: Vec<String>
 }
 
-fn get_updated_notes(remote_notes: &Vec<Note>) -> Vec<String> {
+fn get_updated_notes(remote_notes: &Vec<NotesMetadata>) -> Vec<String> {
 
-    remote_notes.iter().map(move |note| {
-        let location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/" + &note.mail_headers.subject_with_identifier();
+    remote_notes.iter().map(move |mail_headers| {
+        let location = "/home/findus/.notes/".to_string() + &mail_headers.subfolder + "/" + &mail_headers.subject_with_identifier();
         debug!("Compare {}", location);
 
-        let hash_location = "/home/findus/.notes/".to_string() + note.folder.as_ref() + "/." + &note.mail_headers.subject_with_identifier() + "_hash";
+        let hash_location = "/home/findus/.notes/".to_string() + &mail_headers.subfolder + "/." + &mail_headers.subject_with_identifier() + "_hash";
         let hash_loc_path = std::path::Path::new(&hash_location);
         if hash_loc_path.exists() {
-            let remote_hash = note.mail_headers.message_id();
             let f = File::open(hash_loc_path).unwrap();
-            let local_hash : NotesMetadata = serde_json::from_reader(f).unwrap();
-            if remote_hash == local_hash.message_id() {
-                debug!("Same: {}", note.folder.to_string() + "/" + &note.mail_headers.subject());
-            } else {
-                //todo local_hash_fix
-                info!("Differ: {} [{}<->{}]", note.folder.to_string() + "/" + &note.mail_headers.subject(), local_hash.message_id(), remote_hash);
-                return Some(note.mail_headers.identifier().to_owned())
+            let local_metadata : NotesMetadata = serde_json::from_reader(f).unwrap();
+
+            let local_uuid = local_metadata.message_id();
+            let oldest_remote_uuid = local_metadata.old_remote_id;
+
+            let remote_uuid = mail_headers.message_id();
+
+
+            if remote_uuid == local_uuid {
+                debug!("Same: {}", mail_headers.subfolder.to_string() + "/" + &mail_headers.subject());
+            } else if remote_uuid != local_uuid && oldest_remote_uuid.is_none() {
+                info!("Changed Remotely: {}", mail_headers.subject());
+            } else if oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == local_uuid {
+                info!("Changed Locally: {}", mail_headers.subject());
+            } else if oldest_remote_uuid.is_some() && remote_uuid != local_uuid {
+                info!("Changed on both ends, needs merge: {}", &mail_headers.subject());
             }
         }
         return None
@@ -42,12 +50,12 @@ fn get_updated_notes(remote_notes: &Vec<Note>) -> Vec<String> {
 }
 
 pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
-    let notes = fetch_notes(session);
+    let metadata = fetch_headers(session);
 
-    let _added_deleted_notes = get_added_deleted_notes(&notes);
+    let _added_deleted_notes = get_added_deleted_notes(&metadata);
     //TODO check if present remote notes were explicitely deleted locally
 
-    let _updated_notes = get_updated_notes(&notes);
+    let _updated_notes = get_updated_notes(&metadata);
 
     let _local_messages = get_local_messages();
 
@@ -67,13 +75,13 @@ fn get_local_messages() -> Vec<LocalNote> {
 }
 
 
-pub fn get_added_deleted_notes(remote_notes: &Vec<Note>) -> RemoteDifference {
+pub fn get_added_deleted_notes(metadata: &Vec<NotesMetadata>) -> RemoteDifference {
 
     info!("Loading local messages");
     let local_messages = get_local_messages();
 
     let local_titles: HashSet<String> = local_messages.iter().map(|note| note.metadata.identifier()).collect();
-    let remote_titles: HashSet<String> = remote_notes.iter().map(|note| note.mail_headers.identifier()).collect();
+    let remote_titles: HashSet<String> = metadata.iter().map(|mail_headers| mail_headers.identifier()).collect();
 
     let local_size = local_titles.len();
     info!("Found {} local notes", local_size);
