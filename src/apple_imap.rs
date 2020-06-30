@@ -3,7 +3,6 @@ extern crate native_tls;
 extern crate mailparse;
 extern crate log;
 extern crate regex;
-extern crate fasthash;
 extern crate jfs;
 extern crate serde_derive;
 extern crate serde_json;
@@ -20,7 +19,6 @@ use note::{Note, NotesMetadata, HeaderParser};
 use apple_imap;
 use profile;
 use std::collections::{HashMap};
-use self::fasthash::metro;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -163,8 +161,6 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
     fetch_vector.into_iter().map(|fetch| {
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
-        let hash_sequence = body.clone().unwrap_or("".to_string());
-        let hash = metro::hash64(hash_sequence);
             Note {
                 mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid.unwrap() },
                 body: body.clone().unwrap_or("".to_string()),

@@ -1,7 +1,6 @@
 extern crate log;
 
 use note::{NotesMetadata, HeaderParser};
-use fasthash::metro;
 use converter;
 use std::fs::File;
 use std::io::Write;
