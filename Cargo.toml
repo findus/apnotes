@@ -21,6 +21,7 @@ serde_json = "1.0.56"
 serde_derive = "1.0.114"
 serde = "1.0.114"
 pulldown-cmark = "0.7.1"
+subprocess = "0.2.4"
 
 [dependencies.gdk]
 version = "0.11.0"
@@ -53,3 +54,7 @@ path = "src/bin/backup.rs"
 [[bin]]
 name = "sync"
 path = "src/bin/sync.rs"
+
+[[bin]]
+name = "edit"
+path = "src/bin/edit.rs"
