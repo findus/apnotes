@@ -15,7 +15,6 @@ pub fn convert2Html(input: &NotesMetadata) -> String {
     let path = Path::new(&path);
     let text = std::fs::read_to_string(path).unwrap();
 
-
     let mut input = text;
 
     let mut parser = Parser::new(&input);

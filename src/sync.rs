@@ -3,7 +3,7 @@ extern crate walkdir;
 
 
 use note::{NotesMetadata, Note, LocalNote, NoteTrait, HeaderParser};
-use apple_imap::{fetch_notes, fetch_headers};
+use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
 use imap::Session;
@@ -113,7 +113,7 @@ fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut
     actions.iter().for_each(|(action, metadata)| {
         match action {
             UpdateRemotely => {
-              converter::convert2Html(metadata);
+                apple_imap::update_message(session, &metadata);
             },
             UpdateAction::UpdateLocally | UpdateAction::AddLocally => {
                 update_locally(metadata, session);

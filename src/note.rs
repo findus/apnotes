@@ -5,6 +5,7 @@ extern crate html2runes;
 use std::fs::File;
 use walkdir::DirEntry;
 use std::hash::Hasher;
+use converter;
 
 #[derive(Serialize,Deserialize)]
 pub struct NotesMetadata {
@@ -33,7 +34,7 @@ impl HeaderParser for NotesMetadata {
     fn identifier(&self) -> String {
         match self.get_header_value("X-Universally-Unique-Identifier") {
             Some(subject) => subject,
-            _ => panic!("Could not get uuid of this note {:?}", self.header)
+            _ => panic!("Could not get uuid of this note {:#?}", self.header)
         }
     }
 
@@ -70,7 +71,7 @@ pub trait NoteTrait {
     fn uuid(&self) -> String;
 }
 
-pub(crate) struct LocalNote {
+pub struct LocalNote {
     pub path: DirEntry,
     pub metadata: NotesMetadata
 }

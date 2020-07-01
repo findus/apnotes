@@ -15,8 +15,8 @@ use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
 
 use std::borrow::Borrow;
-use note::{Note, NotesMetadata, HeaderParser};
-use apple_imap;
+use note::{Note, NotesMetadata, HeaderParser, LocalNote};
+use ::{apple_imap, converter};
 use profile;
 use std::collections::{HashMap};
 
@@ -197,4 +197,29 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
     };
 
     return result;
+}
+
+pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) {
+
+    let uid = metadata.uid;
+
+    let headers = metadata.header.iter().map( |(k,v)| {
+        //TODO make sure that updated message has new message-id
+        format!("{}: {}",k,v)
+    })
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    let content = converter::convert2Html(metadata);
+
+    let message = format!("{}\n\n{}",headers, content);
+
+    session.append(&metadata.subfolder, message.as_bytes());
+    session.uid_store(format!("{}", uid), "+FLAGS (\\Deleted)").unwrap();
+    session.expunge().unwrap();
+    //TODO somehow get new uid
+}
+
+pub fn create_message(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) {
+
 }
