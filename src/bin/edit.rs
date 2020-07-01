@@ -1,6 +1,7 @@
 extern crate subprocess;
 extern crate apple_notes_rs;
 extern crate regex;
+extern crate log;
 extern crate uuid;
 
 use std::process::Command;
@@ -10,6 +11,8 @@ use apple_notes_rs::note::{NotesMetadata, HeaderParser};
 use uuid::Uuid;
 use self::regex::Regex;
 use apple_notes_rs::io;
+use log::info;
+use apple_notes_rs::util;
 
 pub fn main() {
     let args: Vec<String> = env::args().collect();
@@ -25,9 +28,11 @@ pub fn main() {
 }
 
 fn update(file: &String) {
+    info!("Update Message_Id for {}", &file);
     let path = std::path::Path::new(file).to_owned();
+    let metadata_file_path = util::get_hash_path(&path);
 
-    let metadata_file = File::open(path).unwrap();
+    let metadata_file = File::open(metadata_file_path).unwrap();
     let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
 
     let metadata_identifier = metadata.identifier();
@@ -36,14 +41,14 @@ fn update(file: &String) {
         .filter(|(a,b)| a != "Message-Id")
         .collect();
 
-
     if metadata.old_remote_id.is_none() {
+        info!("File is changed the for the first time, gonna change uuid");
         let new_uuid_str = replace_uuid(&metadata_identifier);
         new_metadata_headers.push(("Message-Id".to_owned(), new_uuid_str.clone()));
 
         let new_metadata = NotesMetadata {
             header: new_metadata_headers,
-            old_remote_id: Some(new_uuid_str.to_string()),
+            old_remote_id: Some(metadata.identifier()),
             subfolder: metadata.subfolder,
             locally_deleted: false,
             uid: metadata.uid
