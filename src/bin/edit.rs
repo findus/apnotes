@@ -35,10 +35,10 @@ fn update(file: &String) {
     let metadata_file = File::open(metadata_file_path).unwrap();
     let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
 
-    let metadata_identifier = metadata.identifier();
+    let metadata_identifier = metadata.message_id();
     let mut new_metadata_headers: Vec<(String,String)> = metadata.header
         .into_iter()
-        .filter(|(a,b)| a != "Message-Id")
+        .filter(|(a,_)| a != "Message-Id")
         .collect();
 
     if metadata.old_remote_id.is_none() {
@@ -48,7 +48,7 @@ fn update(file: &String) {
 
         let new_metadata = NotesMetadata {
             header: new_metadata_headers,
-            old_remote_id: Some(metadata.identifier()),
+            old_remote_id: Some(metadata_identifier.clone()),
             subfolder: metadata.subfolder,
             locally_deleted: false,
             uid: metadata.uid
