@@ -6,6 +6,7 @@ use std::fs::File;
 use walkdir::DirEntry;
 use std::hash::Hasher;
 use converter;
+use util;
 
 #[derive(Serialize,Deserialize)]
 pub struct NotesMetadata {
@@ -78,13 +79,8 @@ pub struct LocalNote {
 
 impl LocalNote {
     pub fn new(path: DirEntry) -> LocalNote {
-        let folder = path.path().parent().unwrap().to_string_lossy().into_owned();
-        let new_file_name = format!(".{}_hash",path.file_name().to_string_lossy().into_owned());
-
-        let metadata_file_path = format!("{}/{}",&folder,&new_file_name).to_owned();
-        let hash_loc_path = std::path::Path::new(&metadata_file_path).to_owned();
-
-        let metadata_file = File::open(hash_loc_path).unwrap();
+        let metadata_file_path = util::get_hash_path(path.path());
+        let metadata_file = File::open(metadata_file_path).unwrap();
 
         LocalNote {
             metadata: serde_json::from_reader(metadata_file).unwrap(),

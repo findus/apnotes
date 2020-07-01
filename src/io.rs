@@ -25,7 +25,11 @@ pub fn save_note_to_file(note: &Note) {
     let mut f = File::create(location).expect("Unable to create file");
     f.write_all(converter::convert2md(&note.body()).as_bytes()).expect("Unable to write file");
 
-    let location = profile::get_notes_dir() +  &note.folder + "/." + &note.mail_headers.subject_with_identifier() + "_hash";
+    save_metadata_to_file(&note.mail_headers)
+}
+
+pub fn save_metadata_to_file(metadata: &NotesMetadata) {
+    let location = profile::get_notes_dir() +  &metadata.subfolder + "/." + &metadata.subject_with_identifier() + "_hash";
     info!("Save hash to {}", location);
 
     let path = std::path::Path::new(&location);
@@ -34,5 +38,5 @@ pub fn save_note_to_file(note: &Note) {
 
     let f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
 
-    serde_json::to_writer(f, &note.mail_headers);
+    serde_json::to_writer(f, &metadata);
 }

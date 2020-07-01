@@ -22,6 +22,7 @@ serde_derive = "1.0.114"
 serde = "1.0.114"
 pulldown-cmark = "0.7.1"
 subprocess = "0.2.4"
+uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [dependencies.gdk]
 version = "0.11.0"

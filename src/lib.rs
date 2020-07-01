@@ -11,6 +11,7 @@ pub mod converter;
 pub mod profile;
 pub mod sync;
 pub mod io;
+pub mod util;
 
 use crate::apple_imap::*;
 use io::save_all_notes_to_file;
