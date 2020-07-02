@@ -18,11 +18,7 @@ use std::borrow::Borrow;
 use note::{Note, NotesMetadata, HeaderParser};
 use ::{apple_imap, converter};
 use profile;
-
 use imap::error::Error;
-
-
-use io;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -207,7 +203,7 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
     return result;
 }
 
-pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<(), Error> {
+pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<u32, Error> {
     //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
     let uid = format!("{}", metadata.uid);
 
@@ -237,20 +233,11 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
         //Save the new UID to the metadata file
         .and_then(|new_uid| {
-            println!("New UID: {}", new_uid);
-            let new_metadata = NotesMetadata {
-                header: metadata.header.clone(),
-                old_remote_id: metadata.old_remote_id.clone(),
-                subfolder: metadata.subfolder.clone(),
-                locally_deleted: metadata.locally_deleted,
-                uid: new_uid
-            };
-            io::save_metadata_to_file(&new_metadata);
-            Ok(())
+            Ok(new_uid)
         })
 }
 
 
-pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) {
-    session.create(&note.subfolder);
+pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) -> Result<(),Error> {
+    session.create(&note.subfolder)
 }

@@ -12,6 +12,7 @@ use apple_notes_rs::note::{NotesMetadata, HeaderParser};
 use self::regex::Regex;
 use apple_notes_rs::io;
 use log::info;
+use log::error;
 use apple_notes_rs::util;
 
 pub fn main() {
@@ -51,11 +52,12 @@ fn update(file: &String) {
             old_remote_id: Some(metadata_identifier.clone()),
             subfolder: metadata.subfolder,
             locally_deleted: false,
-            //TODO get new one
             uid: metadata.uid
         };
 
-        io::save_metadata_to_file(&new_metadata);
+        if let Some(e) = io::save_metadata_to_file(&new_metadata).err() {
+            error!("Could not save metadata file for {}, {}", new_metadata.subject(), e);
+        }
     }
 
 }

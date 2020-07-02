@@ -2,25 +2,24 @@ extern crate log;
 extern crate walkdir;
 
 
-use note::{NotesMetadata, Note, LocalNote, NoteTrait, HeaderParser};
+use note::{NotesMetadata, LocalNote, HeaderParser};
 use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
 use imap::Session;
-use self::log::{info, debug, warn};
+use self::log::{info, debug, error};
 use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
 use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, AddLocally, AddRemotely};
 use apple_imap;
 use io;
-
-
 use profile;
+use sync::UpdateError::SyncError;
 
-pub struct RemoteDifference {
-    only_remote: Vec<String>,
-    only_local: Vec<String>
+#[derive(Debug)]
+pub enum UpdateError {
+    SyncError(String)
 }
 
 #[derive(PartialEq)]
@@ -51,13 +50,11 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
 
     let mut update_actions = get_update_actions(&metadata);
 
-    // let mut hist: Vec<(UpdateAction,&NotesMetadata)> = add_delete_actions.into_iter().filter(|(_,metadata)| {
-    //     let s: Vec<&&NotesMetadata> = update_actions.iter().map(|(_,b)|b).collect();
-    //     !s.contains(&metadata)
-    // }).collect();
-
     update_actions.append(&mut add_delete_actions);
-    execute_actions(&update_actions, session);
+    let action_results = execute_actions(&update_actions, session);
+    action_results.iter().for_each(|result| {
+        println!("{}", result.is_ok())
+    })
 
 }
 
@@ -103,50 +100,68 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &
     }).collect::<Vec<(UpdateAction, &NotesMetadata)>>()
 }
 
-fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) {
+fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<(), UpdateError> {
     match apple_imap::update_message(session, metadata) {
-         Ok(_) => {
-             let new_metadata = NotesMetadata {
-                 header: metadata.header.clone(),
-                 old_remote_id: None,
-                 subfolder: metadata.subfolder.to_string(),
-                 locally_deleted: false,
-                 //TODO pass here new uid
-                 uid: metadata.uid
-             };
+        Ok(new_uid) => {
+            println!("New UID: {}", new_uid);
+            let new_metadata = NotesMetadata {
+                header: metadata.header.clone(),
+                old_remote_id: metadata.old_remote_id.clone(),
+                subfolder: metadata.subfolder.clone(),
+                locally_deleted: metadata.locally_deleted,
+                uid: new_uid
+            };
 
-             io::save_metadata_to_file(&new_metadata);
-        }, Err(e) => {
-            warn!("Could not push changes to mail-server {} for {}", metadata.subject(), e.to_string());
+            io::save_metadata_to_file(&new_metadata)
+                .map_err(|e| SyncError(e.line().to_string()))
+        },
+        Err(e) => {
+            error!("Error while updating note {} {}", metadata.subject(), e.to_string());
+            Err(SyncError(e.to_string()))
         }
     }
-
 }
 
-fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) {
+fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<(), UpdateError> {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();
-    io::save_note_to_file(&note);
+    io::save_note_to_file(&note).map_err(|e| SyncError(e.to_string()))
 }
 
-fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) {
-    actions.iter().for_each(|(action, metadata)| {
+trait CustomAndThen<T, E> {
+    fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
+        where E: std::convert::From<E2>;
+}
+
+impl<T, E> CustomAndThen<T, E> for Result<T, E> {
+    fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
+        where E: std::convert::From<E2>
+    {
+        match self {
+            Ok(t) => op(t).map_err(From::from),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) -> Vec<Result<(), UpdateError>> {
+     actions.iter().map(|(action, metadata)| {
         match action {
             AddRemotely => {
-                create_mailbox(session, metadata);
-                session.select(&metadata.subfolder);
-                update_remotely(metadata, session);
+                create_mailbox(session, metadata).map_err(|e| SyncError(e.to_string()))
+                    .and_then( |_| session.select(&metadata.subfolder).map_err(|e| SyncError(e.to_string()))
+                    .and_then(|_| update_remotely(metadata, session)))
             },
             UpdateRemotely => {
-                update_remotely(metadata, session);
+                update_remotely(metadata, session)
             },
             UpdateAction::UpdateLocally | UpdateAction::AddLocally => {
-                update_locally(metadata, session);
+                update_locally(metadata, session)
             }
             _ => {
-                unimplemented!("Action is not implemented");
+                unimplemented!("Action is not implemented")
             }
         }
-    })
+    }).collect()
 }
 
 fn get_local_messages() -> Vec<LocalNote> {
