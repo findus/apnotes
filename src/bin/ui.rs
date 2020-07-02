@@ -13,7 +13,7 @@ use gio::prelude::*;
 
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
 use apple_notes_rs::apple_imap::*;
-use apple_notes_rs::note::{NoteTrait, HeaderParser};
+use apple_notes_rs::note::{HeaderParser};
 
 fn main() {
 

@@ -11,11 +11,11 @@ use self::log::{info, debug, warn};
 use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
-use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, DeleteRemote, DeleteLocally, AddLocally, AddRemotely};
+use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, AddLocally, AddRemotely};
 use apple_imap;
 use io;
-use std::iter::FromIterator;
-use converter;
+
+
 use profile;
 
 pub struct RemoteDifference {
@@ -166,7 +166,7 @@ fn get_local_messages() -> Vec<LocalNote> {
 pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>, remote_metadata: HashSet<&'a NotesMetadata>) -> Vec<(UpdateAction, &'a NotesMetadata)> {
 
     info!("Loading local messages");
-    let local_messages = get_local_messages();
+    let _local_messages = get_local_messages();
 
 
 

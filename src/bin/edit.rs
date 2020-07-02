@@ -4,11 +4,11 @@ extern crate regex;
 extern crate log;
 extern crate uuid;
 
-use std::process::Command;
+
 use std::env;
 use std::fs::File;
 use apple_notes_rs::note::{NotesMetadata, HeaderParser};
-use uuid::Uuid;
+
 use self::regex::Regex;
 use apple_notes_rs::io;
 use log::info;
