@@ -51,6 +51,7 @@ fn update(file: &String) {
             old_remote_id: Some(metadata_identifier.clone()),
             subfolder: metadata.subfolder,
             locally_deleted: false,
+            //TODO get new one
             uid: metadata.uid
         };
 

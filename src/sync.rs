@@ -7,7 +7,7 @@ use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
 use imap::Session;
-use self::log::{info, debug};
+use self::log::{info, debug, warn};
 use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
@@ -79,7 +79,6 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &
 
             let remote_uuid = mail_headers.message_id();
 
-
             if remote_uuid == local_uuid {
                 debug!("Same: {}", mail_headers.subfolder.to_string() + "/" + &mail_headers.subject());
                 return Some((DoNothing, mail_headers))
@@ -104,6 +103,26 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &
     }).collect::<Vec<(UpdateAction, &NotesMetadata)>>()
 }
 
+fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) {
+    match apple_imap::update_message(session, &metadata) {
+         Ok(_) => {
+             let new_metadata = NotesMetadata {
+                 header: metadata.header.clone(),
+                 old_remote_id: None,
+                 subfolder: metadata.subfolder.to_string(),
+                 locally_deleted: false,
+                 //TODO pass here new uid
+                 uid: metadata.uid
+             };
+
+             io::save_metadata_to_file(&new_metadata);
+        }, Err(e) => {
+            warn!("Could not push changes to mail-server {} for {}", metadata.subject(), e.to_string());
+        }
+    }
+
+}
+
 fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();
     io::save_note_to_file(&note);
@@ -112,8 +131,13 @@ fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpS
 fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) {
     actions.iter().for_each(|(action, metadata)| {
         match action {
+            AddRemotely => {
+                create_mailbox(session, metadata);
+                session.select(&metadata.subfolder);
+                update_remotely(metadata, session);
+            },
             UpdateRemotely => {
-                apple_imap::update_message(session, &metadata);
+                update_remotely(metadata, session);
             },
             UpdateAction::UpdateLocally | UpdateAction::AddLocally => {
                 update_locally(metadata, session);

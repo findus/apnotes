@@ -19,6 +19,7 @@ use note::{Note, NotesMetadata, HeaderParser, LocalNote};
 use ::{apple_imap, converter};
 use profile;
 use std::collections::{HashMap};
+use imap::error::Error;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -199,9 +200,9 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
     return result;
 }
 
-pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) {
-
-    let uid = metadata.uid;
+pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<(), Error> {
+    //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
+    let uid = format!("{}", metadata.uid);
 
     let headers = metadata.header.iter().map( |(k,v)| {
         //TODO make sure that updated message has new message-id
@@ -214,12 +215,22 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
 
     let message = format!("{}\n\n{}",headers, content);
 
-    session.append(&metadata.subfolder, message.as_bytes());
-    session.uid_store(format!("{}", uid), "+FLAGS (\\Deleted)").unwrap();
-    session.expunge().unwrap();
-    //TODO somehow get new uid
+    match session.append(&metadata.subfolder, message.as_bytes())
+        .and_then(|_| session.select(&metadata.subfolder))
+        .and_then(|_| session.uid_store(&uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string().replace("\\\\","\\")))
+        .and_then(|_| session.uid_expunge(&uid)) {
+        Err(e)  => {
+            println!("{}",e);
+            Err(imap::error::Error::No("no".to_owned()))
+        },
+        _ => Ok(()),
+    }
 }
 
 pub fn create_message(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) {
 
+}
+
+pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) {
+    session.create(&note.subfolder);
 }

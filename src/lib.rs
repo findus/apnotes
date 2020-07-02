@@ -4,6 +4,7 @@ extern crate serde_derive;
 extern crate walkdir;
 extern crate native_tls;
 extern crate imap;
+extern crate gdk;
 
 pub mod apple_imap;
 pub mod note;
