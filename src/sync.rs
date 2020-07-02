@@ -106,7 +106,7 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
             println!("New UID: {}", new_uid);
             let new_metadata = NotesMetadata {
                 header: metadata.header.clone(),
-                old_remote_id: metadata.old_remote_id.clone(),
+                old_remote_id: None,
                 subfolder: metadata.subfolder.clone(),
                 locally_deleted: metadata.locally_deleted,
                 uid: new_uid
