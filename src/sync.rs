@@ -59,7 +59,7 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
 }
 
 fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &NotesMetadata)> {
-
+    //TODO analyze what happens if title changes remotely, implement logic for local title change
     remote_notes.into_iter().map( |mail_headers| {
         let location = profile::get_notes_dir() + &mail_headers.subfolder + "/" + &mail_headers.subject_with_identifier();
         debug!("Compare {}", location);
