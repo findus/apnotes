@@ -104,7 +104,7 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, &
 }
 
 fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) {
-    match apple_imap::update_message(session, &metadata) {
+    match apple_imap::update_message(session, metadata) {
          Ok(_) => {
              let new_metadata = NotesMetadata {
                  header: metadata.header.clone(),

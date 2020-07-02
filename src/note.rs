@@ -120,11 +120,11 @@ impl NoteTrait for Note {
 
 impl std::cmp::PartialEq for Box<dyn NoteTrait>  {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid() == other.uuid().as_ref()
+        self.uuid() == other.uuid().clone()
     }
 
     fn ne(&self, other: &Self) -> bool {
-        self.uuid() != other.uuid().as_ref()
+        self.uuid() != other.uuid().clone()
     }
 }
 

@@ -18,8 +18,11 @@ use std::borrow::Borrow;
 use note::{Note, NotesMetadata, HeaderParser, LocalNote};
 use ::{apple_imap, converter};
 use profile;
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use imap::error::Error;
+use std::collections::hash_map::RandomState;
+use imap::types::Seq;
+use io;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<Note>;
@@ -79,6 +82,10 @@ pub fn copy_uid(session: &mut Session<TlsStream<TcpStream>>, id: &str, mailbox: 
     }).err() {
         warn!("warn {}", error)
     }
+}
+
+pub fn fetch_uid_of_message_id(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) {
+
 }
 
 pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<Note> {
@@ -211,25 +218,38 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         .collect::<Vec<String>>()
         .join("\n");
 
-    let content = converter::convert2Html(metadata);
+    let content = converter::convert2Html(&metadata);
 
     let message = format!("{}\n\n{}",headers, content);
 
-    match session.append(&metadata.subfolder, message.as_bytes())
+    session
+        //Write new message into the mailbox
+        .append(&metadata.subfolder, message.as_bytes())
+        //Select the appropriate mailbox, in which the updated message was saved
         .and_then(|_| session.select(&metadata.subfolder))
-        .and_then(|_| session.uid_store(&uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string().replace("\\\\","\\")))
-        .and_then(|_| session.uid_expunge(&uid)) {
-        Err(e)  => {
-            println!("{}",e);
-            Err(imap::error::Error::No("no".to_owned()))
-        },
-        _ => Ok(()),
-    }
+        // Set the old (overridden) message to "deleted", so that it can be expunged
+        .and_then(|_| session.uid_store(&uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string()))
+        //Expunge them
+        .and_then(|_| session.uid_expunge(&uid))
+        //Search for the new message, to get the new UID of the updated message
+        .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", metadata.message_id())))
+        //Get the first UID
+        .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
+        //Save the new UID to the metadata file
+        .and_then(|new_uid| {
+            println!("New UID: {}", new_uid);
+            let new_metadata = NotesMetadata {
+                header: metadata.header.clone(),
+                old_remote_id: metadata.old_remote_id.clone(),
+                subfolder: metadata.subfolder.clone(),
+                locally_deleted: metadata.locally_deleted,
+                uid: new_uid
+            };
+            io::save_metadata_to_file(&new_metadata);
+            Ok(())
+        })
 }
 
-pub fn create_message(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) {
-
-}
 
 pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) {
     session.create(&note.subfolder);
