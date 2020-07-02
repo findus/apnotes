@@ -127,22 +127,6 @@ fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpS
     io::save_note_to_file(&note).map_err(|e| SyncError(e.to_string()))
 }
 
-trait CustomAndThen<T, E> {
-    fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
-        where E: std::convert::From<E2>;
-}
-
-impl<T, E> CustomAndThen<T, E> for Result<T, E> {
-    fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
-        where E: std::convert::From<E2>
-    {
-        match self {
-            Ok(t) => op(t).map_err(From::from),
-            Err(e) => Err(e),
-        }
-    }
-}
-
 fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) -> Vec<Result<(), UpdateError>> {
      actions.iter().map(|(action, metadata)| {
         match action {
