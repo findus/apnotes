@@ -15,12 +15,8 @@ use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, AddLoc
 use apple_imap;
 use io;
 use profile;
-use sync::UpdateError::SyncError;
-
-#[derive(Debug)]
-pub enum UpdateError {
-    SyncError(String)
-}
+use error::UpdateError::*;
+use error::UpdateError;
 
 #[derive(PartialEq)]
 pub enum UpdateAction {

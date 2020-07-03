@@ -14,48 +14,81 @@ use apple_notes_rs::io;
 use log::info;
 use log::error;
 use apple_notes_rs::util;
+use std::io::{BufReader, BufRead};
+use apple_notes_rs::error::UpdateError::EditError;
+use apple_notes_rs::error::UpdateError;
 
 pub fn main() {
     let args: Vec<String> = env::args().collect();
 
     let file = args.get(1).unwrap();
-    match subprocess::Exec::cmd("nvim").arg(file).join() {
-        Ok(_) => update(file),
-        Err(d) => error!("{}", d.to_string())
-    }
+    match subprocess::Exec::cmd("nvim").arg(file)
+        .join()
+        .map_err(|e| EditError(e.to_string()))
+        .and_then(|_| self::update(&file)) {
+        Ok(_) => info!("Successfully edited file"),
+        Err(e) => error!("Could not save edited file: {}", e)
+    };
 
 }
 
-fn update(file: &String) {
+fn update(file: &String) -> Result<(), UpdateError> {
     info!("Update Message_Id for {}", &file);
     let path = std::path::Path::new(file).to_owned();
     let metadata_file_path = util::get_hash_path(&path);
 
+    let file = File::open(path).unwrap();
+    let mut reader = BufReader::new(file);
+
+    let mut first_line= String::new();
+    reader.read_line(&mut first_line).expect("Could not read first line");
+
     let metadata_file = File::open(metadata_file_path).unwrap();
     let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
 
+    let old_subject = metadata.subject();
+
+    if old_subject != first_line {
+        info!("Title of note changed, will update metadata_file subject and file-name");
+    }
+
     let metadata_identifier = metadata.message_id();
-    let mut new_metadata_headers: Vec<(String,String)> = metadata.header
-        .into_iter()
-        .filter(|(a,_)| a != "Message-Id")
-        .collect();
+    let new_metadata_headers_iterator =
+            metadata.header.clone()
+                .into_iter()
+                .filter(|(a,_)| a != "Message-Id")
+                .filter(|(a,_)| a != "Subject");
+
+
+    let mut new_metadata_headers: Vec<(String,String)> = new_metadata_headers_iterator.collect();
 
     if metadata.old_remote_id.is_none() {
         info!("File is changed the for the first time, gonna change uuid");
         let new_uuid_str = replace_uuid(&metadata_identifier);
+
         new_metadata_headers.push(("Message-Id".to_owned(), new_uuid_str.clone()));
+
+        if old_subject != first_line {
+            new_metadata_headers.push(("Subject".to_owned(), first_line.to_owned()));
+        } else {
+            new_metadata_headers.push(("Subject".to_owned(), old_subject.to_owned()));
+        }
 
         let new_metadata = NotesMetadata {
             header: new_metadata_headers,
             old_remote_id: Some(metadata_identifier.clone()),
-            subfolder: metadata.subfolder,
+            subfolder: metadata.subfolder.to_string(),
             locally_deleted: false,
             uid: metadata.uid
         };
 
-        if let Some(e) = io::save_metadata_to_file(&new_metadata).err() {
-            error!("Could not save metadata file for {}, {}", new_metadata.subject(), e);
-        }
+        io::save_metadata_to_file(&new_metadata)
+            .map_err(|e| std::io::Error::from(e))
+            .and_then(|_| io::move_note(&new_metadata, &metadata.subject_with_identifier()))
+            .and_then(|_| io::delete_metadata_file(&metadata))
+            .map_err(|e| EditError(e.to_string()))
+    } else {
+        Ok(())
     }
 
 }
