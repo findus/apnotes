@@ -21,10 +21,8 @@ pub fn main() {
     let file = args.get(1).unwrap();
     match subprocess::Exec::cmd("nvim").arg(file).join() {
         Ok(_) => update(file),
-        Err(d) => panic!("{}", d.to_string())
+        Err(d) => error!("{}", d.to_string())
     }
-
-    println!("Ayy lmao")
 
 }
 
@@ -70,6 +68,7 @@ fn replace_uuid(string: &str) -> String {
 }
 
 #[test]
-fn it_works() {
-    println!("{}",replace_uuid("Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@f1ndus.de>"));
+fn should_generate_new_uuid() {
+    let old_uuid = "Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@test.mail>";
+    assert_ne!(old_uuid.to_string(), replace_uuid(old_uuid));
 }

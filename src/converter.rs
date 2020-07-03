@@ -1,18 +1,15 @@
 extern crate pulldown_cmark;
 
-use note::{NotesMetadata, HeaderParser};
-use profile;
-use std::path::Path;
+use note::{NotesMetadata};
 use self::pulldown_cmark::{html, Parser};
-
+use util;
 
 pub fn convert2md(input: &String) -> String {
     html2runes::markdown::convert_string(input.as_str())
 }
 
 pub fn convert_to_html(input: &NotesMetadata) -> String {
-    let path = format!("{}/{}/{}", profile::get_notes_dir(), input.subfolder, input.subject_with_identifier());
-    let path = Path::new(&path);
+    let path = util::get_notes_file_from_metadata(input);
     let text = std::fs::read_to_string(path).unwrap();
 
     let input = text;
