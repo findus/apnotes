@@ -6,7 +6,7 @@ use walkdir::DirEntry;
 use std::hash::Hasher;
 use util;
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Clone)]
 pub struct NotesMetadata {
     pub header: Vec<(String, String)>,
     pub old_remote_id: Option<String>,
@@ -78,7 +78,9 @@ pub struct LocalNote {
 impl LocalNote {
     pub fn new(path: DirEntry) -> LocalNote {
         let metadata_file_path = util::get_hash_path(path.path());
-        let metadata_file = File::open(metadata_file_path).unwrap();
+        let metadata_file = File::open(&metadata_file_path).expect(
+            &format!("Could not load metadata_file at {:?}", &metadata_file_path)
+        );
 
         LocalNote {
             metadata: serde_json::from_reader(metadata_file).unwrap(),

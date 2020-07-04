@@ -42,8 +42,12 @@ fn update(file: &String) -> Result<(), UpdateError> {
 
     let mut first_line= String::new();
     reader.read_line(&mut first_line).expect("Could not read first line");
+    let len = first_line.len();
+    first_line.truncate(len - 1);
 
-    let metadata_file = File::open(metadata_file_path).unwrap();
+    let metadata_file = File::open(&metadata_file_path)
+        .expect(&format!("Could not open {}", &metadata_file_path.to_string_lossy()));
+
     let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
 
     let old_subject = metadata.subject();
@@ -62,33 +66,41 @@ fn update(file: &String) -> Result<(), UpdateError> {
 
     let mut new_metadata_headers: Vec<(String,String)> = new_metadata_headers_iterator.collect();
 
+    println!("First Line: {}", first_line.to_owned());
+
+    if old_subject != first_line {
+        new_metadata_headers.push(("Subject".to_owned(), first_line.to_owned()));
+    } else {
+        new_metadata_headers.push(("Subject".to_owned(), old_subject.to_owned()));
+    }
+
+    let mut new_metadata = NotesMetadata {
+        header: new_metadata_headers.clone(),
+        old_remote_id: Some(metadata_identifier.clone()),
+        subfolder: metadata.subfolder.to_string(),
+        locally_deleted: false,
+        uid: metadata.uid
+    };
+
     if metadata.old_remote_id.is_none() {
         info!("File is changed the for the first time, gonna change uuid");
         let new_uuid_str = replace_uuid(&metadata_identifier);
-
         new_metadata_headers.push(("Message-Id".to_owned(), new_uuid_str.clone()));
+    } else {
+        new_metadata_headers.push(("Message-Id".to_owned(), metadata.message_id()));
+    }
 
-        if old_subject != first_line {
-            new_metadata_headers.push(("Subject".to_owned(), first_line.to_owned()));
-        } else {
-            new_metadata_headers.push(("Subject".to_owned(), old_subject.to_owned()));
-        }
+    new_metadata.header = new_metadata_headers.clone();
 
-        let new_metadata = NotesMetadata {
-            header: new_metadata_headers,
-            old_remote_id: Some(metadata_identifier.clone()),
-            subfolder: metadata.subfolder.to_string(),
-            locally_deleted: false,
-            uid: metadata.uid
-        };
-
+    if old_subject != first_line {
         io::save_metadata_to_file(&new_metadata)
             .map_err(|e| std::io::Error::from(e))
             .and_then(|_| io::move_note(&new_metadata, &metadata.subject_with_identifier()))
             .and_then(|_| io::delete_metadata_file(&metadata))
             .map_err(|e| EditError(e.to_string()))
     } else {
-        Ok(())
+        io::save_metadata_to_file(&new_metadata)
+            .map_err(|e| EditError(e.to_string()))
     }
 
 }

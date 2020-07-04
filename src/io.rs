@@ -48,7 +48,7 @@ pub fn save_metadata_to_file(metadata: &NotesMetadata) -> serde_json::Result<()>
 }
 
 pub fn delete_metadata_file(metadata: &NotesMetadata) -> Result<()> {
-    let old_location = profile::get_notes_dir() + &metadata.subfolder + "/" + &metadata.subject_with_identifier();
+    let old_location = profile::get_notes_dir() + &metadata.subfolder + "/." + &metadata.subject_with_identifier() + "_hash";
     let old_path = std::path::Path::new(&old_location);
     std::fs::remove_file(old_path)
 }
