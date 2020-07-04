@@ -7,7 +7,7 @@ use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
 use imap::Session;
-use self::log::{info, debug, error};
+use self::log::{info, debug, error, warn};
 use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
@@ -42,9 +42,11 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
         .collect();
 
     let mut add_delete_actions = get_added_deleted_notes(local_metadata, remote_metadata);
+    info!("Need top add or delete {} Notes", &add_delete_actions.len());
     //TODO check if present remote notes were explicitely deleted locally
 
     let update_actions = get_update_actions(&metadata);
+    info!("Need top update {} Notes", &update_actions.len());
     let mut d: Vec<(UpdateAction, &NotesMetadata)> = update_actions.iter().map(|(a,b)| (a.clone(),b)).collect();
 
     d.append(&mut add_delete_actions);
@@ -58,11 +60,6 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
 fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, NotesMetadata)> {
     //TODO analyze what happens if title changes remotely, implement logic for local title change
     remote_notes.into_iter().map( |mail_headers| {
-        // let location = profile::get_notes_dir() + &mail_headers.subfolder + "/*";
-        // let glob_result = glob::glob(&location).expect("could not parse glob").collect::<Vec<Result<PathBuf, GlobError>>>().first().unwrap();
-        // let location = glob_result.unwrap();
-
-        //debug!("Compare {}", location.as_path());
 
         let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.identifier() + "*";
         let hash_loc_path = glob::glob(&hash_location).expect("could not parse glob").next().unwrap().unwrap();
@@ -89,6 +86,8 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
                 info!("Changed on both ends, needs merge: {}", &mail_headers.subject());
                 return Some((Merge, mail_headers.clone()))
             }
+        } else {
+            warn!("Could not find metadata_file: {}", &hash_loc_path.to_string_lossy())
         }
         return None
     }).filter_map(|e| {
@@ -185,12 +184,6 @@ pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>, r
         .into_iter()
         .map(|e| (AddLocally,e.to_owned()))
         .collect();
-
-    let only_local_count = only_local.len();
-    let only_remote_count = only_remote.len();
-
-    println!("Found {} remote_only_notes", only_remote_count);
-    println!("Found {} local_only_notes", only_local_count);
 
     only_local.append(&mut only_remote);
     only_local
