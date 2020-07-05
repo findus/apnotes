@@ -11,7 +11,7 @@ use self::log::{info, debug, error, warn};
 use std::fs::File;
 use self::walkdir::WalkDir;
 use std::collections::HashSet;
-use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, AddLocally, AddRemotely};
+use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, AddLocally, AddRemotely, DeleteLocally};
 use apple_imap;
 use io;
 use profile;
@@ -53,7 +53,7 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
     let action_results = execute_actions(&d, session);
     action_results.iter().for_each(|result| {
         match result {
-            Ok(file) => info!("Sucessfully transferred {}", file),
+            Ok(file) => debug!("Sucessfully transferred {}", file),
             Err(error) => warn!("Issue while transferring file: {}", error)
         }
     })
@@ -68,8 +68,8 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
         let hash_loc_path = glob::glob(&hash_location).expect("could not parse glob").next().unwrap().unwrap();
 
         if hash_loc_path.exists() {
-            let f = File::open(hash_loc_path).unwrap();
-            let local_metadata : NotesMetadata = serde_json::from_reader(f).unwrap();
+            let f = File::open(&hash_loc_path).unwrap();
+            let local_metadata: NotesMetadata = serde_json::from_reader(f).unwrap();
 
             let local_uuid = local_metadata.message_id();
             let oldest_remote_uuid = &local_metadata.old_remote_id;
@@ -88,9 +88,9 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
             } else if oldest_remote_uuid.is_some() && remote_uuid != local_uuid {
                 info!("Changed on both ends, needs merge: {}", &mail_headers.subject());
                 return Some((Merge, mail_headers.clone()))
+            } else {
+                warn!("Could not find metadata_file: {}", &hash_loc_path.to_string_lossy())
             }
-        } else {
-            warn!("Could not find metadata_file: {}", &hash_loc_path.to_string_lossy())
         }
         return None
     }).filter_map(|e| {
@@ -111,7 +111,8 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
                 old_remote_id: None,
                 subfolder: metadata.subfolder.clone(),
                 locally_deleted: metadata.locally_deleted,
-                uid: new_uid
+                uid: new_uid,
+                new: false
             };
 
             io::save_metadata_to_file(&new_metadata)
@@ -142,14 +143,25 @@ fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut
             UpdateRemotely => {
                 update_remotely(metadata, session)
             },
+            DeleteLocally => {
+                delete_locally(metadata)
+            },
             UpdateAction::UpdateLocally | UpdateAction::AddLocally => {
                 update_locally(metadata, session)
-            }
+            },
             _ => {
                 unimplemented!("Action is not implemented")
             }
         }
     }).collect()
+}
+
+fn delete_locally(metadata: &NotesMetadata) -> Result<String, UpdateError> {
+    info!("Deleting {} locally", metadata.subject_escaped());
+    io::delete_metadata_file(metadata)
+        .and_then(|_| io::delete_note(metadata))
+        .map(|_| metadata.subject_escaped())
+        .map_err(|e| IoError(e.to_string()))
 }
 
 fn get_local_messages() -> Vec<LocalNote> {
@@ -163,7 +175,6 @@ fn get_local_messages() -> Vec<LocalNote> {
             LocalNote::new(d)
         }).collect()
 }
-
 
 pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>, remote_metadata: HashSet<&'a NotesMetadata>) -> Vec<(UpdateAction, &'a NotesMetadata)> {
 
@@ -180,7 +191,11 @@ pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>, r
     let mut only_local: Vec<(UpdateAction,&NotesMetadata)> = local_metadata
         .difference(&remote_metadata)
         .into_iter()
-        .map(|e| (AddRemotely,e.clone()))
+        .map(|e| if e.new {
+            (AddRemotely,e.clone())
+        } else {
+            (DeleteLocally,e.clone())
+        })
         .collect();
 
     let mut only_remote: Vec<(UpdateAction,&NotesMetadata)> = remote_metadata

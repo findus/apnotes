@@ -79,7 +79,9 @@ fn update(file: &String) -> Result<String, UpdateError> {
         old_remote_id: Some(metadata_identifier.clone()),
         subfolder: metadata.subfolder.to_string(),
         locally_deleted: false,
-        uid: metadata.uid
+        uid: metadata.uid,
+        // check if ok
+        new: true
     };
 
     if metadata.old_remote_id.is_none() {

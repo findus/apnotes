@@ -99,7 +99,8 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
                 old_remote_id: None,
                 subfolder: metadata.subfolder.clone(),
                 locally_deleted: false,
-                uid: first_message.uid.unwrap()
+                uid: first_message.uid.unwrap(),
+                new: false
             };
 
             Some(
@@ -110,8 +111,8 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
                 }
             )
         },
-        Err(_error) => {
-            warn!("Could not load notes from {}!", &metadata.subfolder);
+        Err(error) => {
+            warn!("Could not load notes from {}! {}", &metadata.subfolder, error);
             None
         }
     }
@@ -125,18 +126,19 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
     match messages_result {
         Ok(messages) => {
             debug!("Message Loading for {} successful", &folder_name.to_string());
-            messages.iter().map(|f| {
+            messages.iter().map(|fetch| {
                 NotesMetadata {
-                    header: get_headers(f),
+                    header: get_headers(fetch),
                     old_remote_id: None,
                     subfolder: folder_name.clone(),
                     locally_deleted: false,
-                    uid: f.uid.unwrap()
+                    uid: fetch.uid.unwrap(),
+                    new: false
                 }
             }).collect()
         },
-        Err(_error) => {
-            warn!("Could not load notes from {}!", &folder_name.to_string());
+        Err(error) => {
+            warn!("Could not load notes from {}! Does this Folder contains any messages? {}", &folder_name.to_string(), error);
             Vec::new()
         }
     }
@@ -153,8 +155,8 @@ pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream
             debug!("Message Loading for {} successful", &folder_name.to_string());
             get_notes(messages, folder_name)
         }
-        Err(_error) => {
-            warn!("Could not load notes from {}!", &folder_name.to_string());
+        Err(error) => {
+            warn!("Could not load notes from {}! {}", &folder_name.to_string(), error);
             Vec::new()
         }
     };
@@ -166,7 +168,7 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
             Note {
-                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid.unwrap() },
+                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid.unwrap(), new: false },
                 body: body.clone().unwrap_or("".to_string()),
                 folder: folder_name.to_owned()
             }

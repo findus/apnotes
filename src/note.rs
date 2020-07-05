@@ -12,7 +12,8 @@ pub struct NotesMetadata {
     pub old_remote_id: Option<String>,
     pub subfolder: String,
     pub locally_deleted: bool,
-    pub uid: u32
+    pub uid: u32,
+    pub new: bool
 }
 
 impl HeaderParser for NotesMetadata {

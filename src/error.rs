@@ -2,7 +2,8 @@
 #[derive(Debug)]
 pub enum UpdateError {
     SyncError(String),
-    EditError(String)
+    EditError(String),
+    IoError(String)
 }
 
 impl std::fmt::Display for UpdateError {

@@ -53,6 +53,12 @@ pub fn delete_metadata_file(metadata: &NotesMetadata) -> Result<()> {
     std::fs::remove_file(old_path)
 }
 
+pub fn delete_note(metadata: &NotesMetadata) -> Result<()> {
+    let old_location = profile::get_notes_dir() + &metadata.subfolder + "/" + &metadata.subject_with_identifier();
+    let old_path = std::path::Path::new(&old_location);
+    std::fs::remove_file(old_path)
+}
+
 pub fn move_note(metadata: &NotesMetadata, old_escaped_subject: &String) -> Result<()> {
     let new_location = profile::get_notes_dir() + &metadata.subfolder + "/" + &metadata.subject_with_identifier();
     let new_path = std::path::Path::new(&new_location);
