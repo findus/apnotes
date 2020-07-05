@@ -20,7 +20,7 @@ pub fn save_all_notes_to_file(notes: &Vec<Note>) {
     });
 }
 
-pub fn save_note_to_file(note: &Note) -> serde_json::Result<()> {
+pub fn save_note_to_file(note: &Note) -> serde_json::Result<String> {
     let location = profile::get_notes_dir() + &note.folder + "/" + &note.mail_headers.subject_with_identifier();
     info!("Save to {}", location);
 
@@ -34,7 +34,7 @@ pub fn save_note_to_file(note: &Note) -> serde_json::Result<()> {
     save_metadata_to_file(&note.mail_headers)
 }
 
-pub fn save_metadata_to_file(metadata: &NotesMetadata) -> serde_json::Result<()> {
+pub fn save_metadata_to_file(metadata: &NotesMetadata) -> serde_json::Result<String> {
     let location = profile::get_notes_dir() +  &metadata.subfolder + "/." + &metadata.subject_with_identifier() + "_hash";
     info!("Save metadata {} to {}",metadata.subject(), location);
 
@@ -44,7 +44,7 @@ pub fn save_metadata_to_file(metadata: &NotesMetadata) -> serde_json::Result<()>
 
     let f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
 
-    serde_json::to_writer(f, &metadata)
+    serde_json::to_writer(f, &metadata).map(|_| metadata.subject_escaped())
 }
 
 pub fn delete_metadata_file(metadata: &NotesMetadata) -> Result<()> {

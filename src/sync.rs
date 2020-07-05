@@ -52,7 +52,10 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
     d.append(&mut add_delete_actions);
     let action_results = execute_actions(&d, session);
     action_results.iter().for_each(|result| {
-        println!("{}", result.is_ok())
+        match result {
+            Ok(file) => info!("Sucessfully transferred {}", file),
+            Err(error) => warn!("Issue while transferring file: {}", error)
+        }
     })
 
 }
@@ -99,7 +102,7 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
     }).collect::<Vec<(UpdateAction, NotesMetadata)>>()
 }
 
-fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<(), UpdateError> {
+fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     match apple_imap::update_message(session, metadata) {
         Ok(new_uid) => {
             println!("New UID: {}", new_uid);
@@ -112,6 +115,7 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
             };
 
             io::save_metadata_to_file(&new_metadata)
+                .map(|_| metadata.subject_escaped())
                 .map_err(|e| SyncError(e.line().to_string()))
         },
         Err(e) => {
@@ -121,15 +125,16 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
     }
 }
 
-fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<(), UpdateError> {
+fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();
     io::save_note_to_file(&note).map_err(|e| SyncError(e.to_string()))
 }
 
-fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) -> Vec<Result<(), UpdateError>> {
+fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) -> Vec<Result<String, UpdateError>> {
      actions.iter().map(|(action, metadata)| {
         match action {
             AddRemotely => {
+                info!("{} changed locally, gonna sent updated file to imap server", &metadata.subject_escaped());
                 create_mailbox(session, metadata).map_err(|e| SyncError(e.to_string()))
                     .and_then( |_| session.select(&metadata.subfolder).map_err(|e| SyncError(e.to_string()))
                     .and_then(|_| update_remotely(metadata, session)))
@@ -148,7 +153,6 @@ fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut
 }
 
 fn get_local_messages() -> Vec<LocalNote> {
-
     WalkDir::new(profile::get_notes_dir())
         .follow_links(false)
         .into_iter()

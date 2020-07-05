@@ -32,7 +32,7 @@ pub fn main() {
 
 }
 
-fn update(file: &String) -> Result<(), UpdateError> {
+fn update(file: &String) -> Result<String, UpdateError> {
     info!("Update Message_Id for {}", &file);
     let path = std::path::Path::new(file).to_owned();
     let metadata_file_path = util::get_hash_path(&path);
@@ -97,9 +97,11 @@ fn update(file: &String) -> Result<(), UpdateError> {
             .map_err(|e| std::io::Error::from(e))
             .and_then(|_| io::move_note(&new_metadata, &metadata.subject_with_identifier()))
             .and_then(|_| io::delete_metadata_file(&metadata))
+            .map(|_| new_metadata.subject_escaped())
             .map_err(|e| EditError(e.to_string()))
     } else {
         io::save_metadata_to_file(&new_metadata)
+            .map(|_| new_metadata.subject_escaped())
             .map_err(|e| EditError(e.to_string()))
     }
 
