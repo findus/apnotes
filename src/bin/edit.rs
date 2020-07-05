@@ -13,6 +13,7 @@ use self::regex::Regex;
 use apple_notes_rs::io;
 use log::info;
 use log::error;
+use log::debug;
 use apple_notes_rs::util;
 use std::io::{BufReader, BufRead};
 use apple_notes_rs::error::UpdateError::EditError;
@@ -84,13 +85,9 @@ fn update(file: &String) -> Result<String, UpdateError> {
         new: true
     };
 
-    if metadata.old_remote_id.is_none() {
-        info!("File is changed the for the first time, gonna change uuid");
-        let new_uuid_str = replace_uuid(&metadata_identifier);
-        new_metadata_headers.push(("Message-Id".to_owned(), new_uuid_str.clone()));
-    } else {
-        new_metadata_headers.push(("Message-Id".to_owned(), metadata.message_id()));
-    }
+    debug!("Changing files message id...");
+    let new_uuid_str = replace_uuid(&metadata_identifier);
+    new_metadata_headers.push(("Message-Id".to_owned(), new_uuid_str.clone()));
 
     new_metadata.header = new_metadata_headers.clone();
 

@@ -105,7 +105,6 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
 fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     match apple_imap::update_message(session, metadata) {
         Ok(new_uid) => {
-            println!("New UID: {}", new_uid);
             let new_metadata = NotesMetadata {
                 header: metadata.header.clone(),
                 old_remote_id: None,
@@ -116,8 +115,11 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
             };
 
             io::save_metadata_to_file(&new_metadata)
+                .map_err(|e| std::io::Error::from(e))
+                .and_then(|_| io::move_note(&new_metadata, &metadata.subject_with_identifier()))
+                .and_then(|_| io::delete_metadata_file(&metadata))
                 .map(|_| metadata.subject_escaped())
-                .map_err(|e| SyncError(e.line().to_string()))
+                .map_err(|e| SyncError(e.to_string()))
         },
         Err(e) => {
             error!("Error while updating note {} {}", metadata.subject(), e.to_string());
