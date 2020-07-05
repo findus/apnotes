@@ -38,7 +38,7 @@ impl HeaderParser for NotesMetadata {
     }
 
     fn subject_with_identifier(&self) -> String {
-        format!("{}_{}",self.identifier(), self.subject_escaped())
+        format!("{}_{}",self.uid, self.subject_escaped())
     }
 
     fn subject_escaped(&self) -> String {

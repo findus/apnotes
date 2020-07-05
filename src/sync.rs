@@ -61,7 +61,7 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
     //TODO analyze what happens if title changes remotely, implement logic for local title change
     remote_notes.into_iter().map( |mail_headers| {
 
-        let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.identifier() + "*";
+        let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.uid.to_string() + "_*";
         let hash_loc_path = glob::glob(&hash_location).expect("could not parse glob").next().unwrap().unwrap();
 
         if hash_loc_path.exists() {
