@@ -64,12 +64,10 @@ fn update(file: &String) -> Result<String, UpdateError> {
                 .filter(|(a,_)| a != "Message-Id")
                 .filter(|(a,_)| a != "Subject");
 
-
     let mut new_metadata_headers: Vec<(String,String)> = new_metadata_headers_iterator.collect();
 
-    println!("First Line: {}", first_line.to_owned());
-
     if old_subject != first_line {
+        info!("Title has changed, file is getting renamed");
         new_metadata_headers.push(("Subject".to_owned(), first_line.to_owned()));
     } else {
         new_metadata_headers.push(("Subject".to_owned(), old_subject.to_owned()));
