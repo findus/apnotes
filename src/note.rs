@@ -143,11 +143,11 @@ impl std::hash::Hash for Box<dyn NoteTrait> {
 
 impl std::cmp::PartialEq for NotesMetadata  {
     fn eq(&self, other: &Self) -> bool {
-        self.identifier() == other.identifier()
+        self.identifier() == other.identifier() && self.uid == other.uid
     }
 
     fn ne(&self, other: &Self) -> bool {
-        self.identifier() != other.identifier()
+        self.identifier() != other.identifier() && self.uid == other.uid
     }
 }
 
@@ -157,7 +157,8 @@ impl std::cmp::Eq for NotesMetadata {
 
 impl std::hash::Hash for NotesMetadata {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.identifier().hash(state)
+        self.identifier().hash(state);
+        self.uid.hash(state);
     }
 }
 

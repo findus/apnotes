@@ -63,35 +63,39 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
 fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, NotesMetadata)> {
     //TODO analyze what happens if title changes remotely, implement logic for local title change
     remote_notes.into_iter().map( |mail_headers| {
-
         let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.uid.to_string() + "_*";
-        let hash_loc_path = glob::glob(&hash_location).expect("could not parse glob").next().unwrap().unwrap();
+        match glob::glob(&hash_location).expect("could not parse glob").next() {
+            Some(result) => {
+                let hash_loc_path = result.unwrap();
+                if hash_loc_path.exists() {
+                    let f = File::open(&hash_loc_path).unwrap();
+                    let local_metadata: NotesMetadata = serde_json::from_reader(f).unwrap();
 
-        if hash_loc_path.exists() {
-            let f = File::open(&hash_loc_path).unwrap();
-            let local_metadata: NotesMetadata = serde_json::from_reader(f).unwrap();
+                    let local_uuid = local_metadata.message_id();
+                    let oldest_remote_uuid = &local_metadata.old_remote_id;
 
-            let local_uuid = local_metadata.message_id();
-            let oldest_remote_uuid = &local_metadata.old_remote_id;
+                    let remote_uuid = mail_headers.message_id();
 
-            let remote_uuid = mail_headers.message_id();
-
-            if remote_uuid == local_uuid {
-                debug!("Same: {}", mail_headers.subfolder.to_string() + "/" + &mail_headers.subject());
-                return Some((DoNothing, mail_headers.clone()))
-            } else if remote_uuid != local_uuid && oldest_remote_uuid.is_none() {
-                info!("Changed Remotely: {}", mail_headers.subject());
-                return Some((UpdateLocally, mail_headers.clone()))
-            } else if oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == remote_uuid {
-                info!("Changed Locally: {}", &local_metadata.subject());
-                return Some((UpdateRemotely, local_metadata))
-            } else if oldest_remote_uuid.is_some() && remote_uuid != local_uuid {
-                info!("Changed on both ends, needs merge: {}", &mail_headers.subject());
-                return Some((Merge, mail_headers.clone()))
-            } else {
-                warn!("Could not find metadata_file: {}", &hash_loc_path.to_string_lossy())
-            }
+                    if remote_uuid == local_uuid {
+                        debug!("Same: {}", mail_headers.subfolder.to_string() + "/" + &mail_headers.subject());
+                        return Some((DoNothing, mail_headers.clone()))
+                    } else if remote_uuid != local_uuid && oldest_remote_uuid.is_none() {
+                        info!("Changed Remotely: {}", mail_headers.subject());
+                        return Some((UpdateLocally, mail_headers.clone()))
+                    } else if oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == remote_uuid {
+                        info!("Changed Locally: {}", &local_metadata.subject());
+                        return Some((UpdateRemotely, local_metadata))
+                    } else if oldest_remote_uuid.is_some() && remote_uuid != local_uuid {
+                        info!("Changed on both ends, needs merge: {}", &mail_headers.subject());
+                        return Some((Merge, mail_headers.clone()))
+                    } else {
+                        warn!("Could not find metadata_file: {}", &hash_loc_path.to_string_lossy())
+                    }
+                }
+            },
+            None => return Some((AddLocally, mail_headers.clone()))
         }
+
         return None
     }).filter_map(|e| {
         if e.is_some() && e.as_ref().unwrap().0 != DoNothing {
@@ -178,7 +182,9 @@ fn get_local_messages() -> Vec<LocalNote> {
         }).collect()
 }
 
-pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>, remote_metadata: HashSet<&'a NotesMetadata>) -> Vec<(UpdateAction, &'a NotesMetadata)> {
+pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>,
+                                   remote_metadata: HashSet<&'a NotesMetadata>)
+    -> Vec<(UpdateAction, &'a NotesMetadata)> {
 
     info!("Loading local messages");
     let _local_messages = get_local_messages();
