@@ -4,11 +4,9 @@ extern crate regex;
 extern crate log;
 extern crate uuid;
 
-
 use std::env;
 use std::fs::File;
 use apple_notes_rs::note::{NotesMetadata, HeaderParser};
-
 use self::regex::Regex;
 use apple_notes_rs::io;
 use log::info;
@@ -18,18 +16,36 @@ use apple_notes_rs::util;
 use std::io::{BufReader, BufRead};
 use apple_notes_rs::error::UpdateError::EditError;
 use apple_notes_rs::error::UpdateError;
+use std::time;
 
 pub fn main() {
+    simple_logger::init().unwrap();
     let args: Vec<String> = env::args().collect();
 
     let file = args.get(1).unwrap();
-    match subprocess::Exec::cmd("nvim").arg(file)
+    let result = subprocess::Exec::cmd("xdg-open").arg(file)
         .join()
         .map_err(|e| EditError(e.to_string()))
-        .and_then(|_| self::update(&file)) {
-        Ok(_) => info!("Successfully edited file"),
-        Err(e) => error!("Could not save edited file: {}", e)
-    };
+        .and_then(|_| std::fs::metadata(file).map_err(|e| EditError(e.to_string())))
+        .and_then(|metadata| {
+            let change_duration =
+                time::SystemTime::now()
+                    .duration_since(metadata.modified()
+                        .expect("No System time found"))
+                    .unwrap();
+
+            if change_duration.as_secs() > 10 {
+                Err(EditError("File not changed".to_string()))
+            } else {
+                Ok(())
+            }
+        })
+        .and_then(|_| self::update(&file));
+
+    match result {
+        Ok(_) => info!("Note changed successfully"),
+        Err(e) => error!("{}" ,e)
+    }
 
 }
 

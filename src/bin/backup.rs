@@ -7,8 +7,7 @@ extern crate log;
 
 
 fn main() {
-    env_logger::init();
-
+    simple_logger::init().unwrap();
     /*let mut session = apple_imap::login();
     let folders = list_note_folders(&mut session);
     info!("Loaded {} folders", folders.len());
