@@ -49,8 +49,8 @@ pub fn main() {
 
 }
 
-fn create_new_note(withSubject: String)  {
-    let headers = util::generate_mail_headers(withSubject);
+fn create_new_note(with_subject: String)  {
+    let _headers = util::generate_mail_headers(with_subject);
 }
 
 fn update(file: &String) -> Result<String, UpdateError> {

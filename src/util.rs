@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use note::{NotesMetadata, HeaderParser};
 use profile;
 use uuid::Uuid;
-use std::time::SystemTime;
+
 use chrono::{Utc};
 
 pub fn get_hash_path(path: &Path) -> PathBuf {
