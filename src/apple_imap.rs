@@ -233,7 +233,7 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", metadata.message_id())))
         //Get the first UID
         .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
-        //Save the new UID to the metadata file
+        //Save the new UID to the metadata file, also set seen flag so that mail clients dont get notified on updated message
         .and_then(|new_uid| {
             session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid)
         })

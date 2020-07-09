@@ -49,6 +49,10 @@ pub fn main() {
 
 }
 
+fn create_new_note(withSubject: String)  {
+    let headers = util::generate_mail_headers(withSubject);
+}
+
 fn update(file: &String) -> Result<String, UpdateError> {
     info!("Update Message_Id for {}", &file);
     let path = std::path::Path::new(file).to_owned();
