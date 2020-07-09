@@ -2,7 +2,7 @@ extern crate log;
 extern crate walkdir;
 extern crate glob;
 
-use note::{NotesMetadata, LocalNote, HeaderParser};
+use note::{NotesMetadata, LocalNote, HeaderParser, NoteTrait};
 use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
@@ -178,7 +178,7 @@ fn get_local_messages() -> Vec<LocalNote> {
         .filter(|e| e.file_type().is_file())
         .filter(|e| !e.file_name().to_str().unwrap().to_string().starts_with("."))
         .map(| d| {
-            LocalNote::new(d)
+            LocalNote::new(d.into_path())
         }).collect()
 }
 

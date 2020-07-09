@@ -5,6 +5,7 @@ use std::fs::File;
 use walkdir::DirEntry;
 use std::hash::Hasher;
 use util;
+use std::path::PathBuf;
 
 #[derive(Serialize,Deserialize,Clone)]
 pub struct NotesMetadata {
@@ -67,18 +68,20 @@ pub trait HeaderParser {
 }
 
 pub trait NoteTrait {
+    fn metadata(&self) -> NotesMetadata;
+    fn folder(&self) -> String;
     fn body(&self) -> String;
     fn uuid(&self) -> String;
 }
 
 pub struct LocalNote {
-    pub path: DirEntry,
+    pub path: PathBuf,
     pub metadata: NotesMetadata
 }
 
 impl LocalNote {
-    pub fn new(path: DirEntry) -> LocalNote {
-        let metadata_file_path = util::get_hash_path(path.path());
+    pub fn new(path: PathBuf) -> LocalNote {
+        let metadata_file_path = util::get_hash_path(&path);
         let metadata_file = File::open(&metadata_file_path).expect(
             &format!("Could not load metadata_file at {:?}", &metadata_file_path)
         );
@@ -100,6 +103,10 @@ impl NoteTrait for LocalNote {
     fn uuid(&self) -> String {
         self.metadata.identifier()
     }
+
+    fn folder(&self) -> String { self.path.to_string_lossy().parse().unwrap() }
+
+    fn metadata(&self) -> NotesMetadata{ self.metadata.clone() }
 }
 
 pub struct Note {
@@ -117,6 +124,10 @@ impl NoteTrait for Note {
     fn uuid(&self) -> String {
         self.mail_headers.identifier()
     }
+
+    fn folder(&self) -> String { self.folder.clone() }
+
+    fn metadata(&self) -> NotesMetadata{ self.mail_headers.clone() }
 }
 
 impl std::cmp::PartialEq for Box<dyn NoteTrait>  {
