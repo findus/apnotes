@@ -56,9 +56,5 @@ name = "backup"
 path = "src/bin/backup.rs"
 
 [[bin]]
-name = "sync"
-path = "src/bin/sync.rs"
-
-[[bin]]
 name = "notes"
 path = "src/bin/notes.rs"

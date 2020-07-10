@@ -46,6 +46,7 @@ impl HeaderBuilder {
         headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
         //TODO read mail from settings or pass them as arg
         headers.push(("Message-Id".to_string(), format!("<{}@f1ndus.de>", generate_uuid())));
+        //TODO mail from settings
         headers.push(("From".to_string(), "philipp@f1ndus.de>".to_string()));
 
         HeaderBuilder {
