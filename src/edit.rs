@@ -91,7 +91,7 @@ fn update(file: &str) -> Result<String, UpdateError> {
         locally_deleted: false,
         uid: metadata.uid,
         // check if ok
-        new: true
+        new: false
     };
 
     debug!("Changing files message id...");

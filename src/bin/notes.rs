@@ -7,6 +7,8 @@ use apple_notes_rs::{create_new_note, apple_imap};
 use apple_notes_rs::edit::*;
 use apple_notes_rs::error::UpdateError;
 use apple_notes_rs::sync::sync;
+use std::path::{Path, PathBuf};
+use apple_notes_rs::note::NotesMetadata;
 
 fn main() {
     simple_logger::init().unwrap();
@@ -17,6 +19,11 @@ fn main() {
         .about("Interface for Apple Notes on Linux")
         .subcommand(App::new("edit")
             .about("Edits an existing note")
+            .arg(Arg::with_name("path")
+                .required(true)
+                .takes_value(true)
+                .help("Path to note that should be edited")
+            )
         )
         .subcommand(App::new("sync")
             .about("Syncs local with remote notes and vice versa")
@@ -43,13 +50,29 @@ fn main() {
 
     let _res = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(_sub_matches)) => sync_mails(),
+        ("sync", Some(sub_matches)) => sync_notes(),
+        ("edit", Some(sub_matches)) => edit_notes(sub_matches),
         (_, _) => unreachable!(),
     };
 
 }
 
-fn sync_mails() {
+fn edit_notes(sub_matches: &ArgMatches) {
+    let folder = sub_matches.value_of("path").unwrap().to_string();
+
+    let metadata_file_path =
+        apple_notes_rs::util::get_hash_path(Path::new(&folder));
+
+    let metadata_file = std::fs::File::open(&metadata_file_path)
+        .expect(&format!("Could not open {}", &metadata_file_path.to_string_lossy()));
+
+    let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
+
+    apple_notes_rs::util::get_hash_path(Path::new(&folder));
+    apple_notes_rs::edit::edit(&metadata).unwrap();
+}
+
+fn sync_notes() {
     let mut session = apple_imap::login();
     sync(&mut session);
 }
