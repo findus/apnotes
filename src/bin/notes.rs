@@ -7,7 +7,7 @@ use apple_notes_rs::{create_new_note, apple_imap};
 use apple_notes_rs::edit::*;
 use apple_notes_rs::error::UpdateError;
 use apple_notes_rs::sync::sync;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use apple_notes_rs::note::NotesMetadata;
 
 fn main() {
@@ -50,7 +50,7 @@ fn main() {
 
     let _res = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(sub_matches)) => sync_notes(),
+        ("sync", Some(_sub_matches)) => sync_notes(),
         ("edit", Some(sub_matches)) => edit_notes(sub_matches),
         (_, _) => unreachable!(),
     };
