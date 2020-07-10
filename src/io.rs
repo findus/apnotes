@@ -32,6 +32,7 @@ pub fn save_note_to_file<T: NoteTrait>(note: &T) -> serde_json::Result<String> {
     let mut f = File::create(location).expect("Unable to create file");
     f.write_all(converter::convert2md(&note.body()).as_bytes()).expect("Unable to write file");
 
+    //TODO check if this is needed
     save_metadata_to_file(&note.metadata())
 }
 

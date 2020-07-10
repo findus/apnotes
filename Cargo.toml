@@ -25,6 +25,7 @@ uuid = { version = "0.8", features = ["serde", "v4"] }
 glob = "0.3.0"
 simple_logger = "1.6.0"
 chrono = "0.4.13"
+clap = "2.33.1"
 
 [dependencies.gdk]
 version = "0.11.0"
@@ -61,3 +62,7 @@ path = "src/bin/sync.rs"
 [[bin]]
 name = "edit"
 path = "src/bin/edit.rs"
+
+[[bin]]
+name = "notes"
+path = "src/bin/notes.rs"

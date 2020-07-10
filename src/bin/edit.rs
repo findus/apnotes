@@ -49,27 +49,6 @@ pub fn main() {
 
 }
 
-fn create_new_note(with_subject: String, folder: String)  {
-    let headers = util::generate_mail_headers(with_subject);
-
-    let metadata = NotesMetadata {
-        header: headers,
-        old_remote_id: None,
-        subfolder: folder,
-        locally_deleted: false,
-        uid: 0,
-        new: true
-    };
-
-    let note = LocalNote {
-        path: util::get_notes_file_from_metadata(&metadata),
-        metadata: metadata.clone()
-    };
-
-    io::save_metadata_to_file(&metadata);
-    io::save_note_to_file(&note);
-}
-
 fn update(file: &String) -> Result<String, UpdateError> {
     info!("Update Message_Id for {}", &file);
     let path = std::path::Path::new(file).to_owned();

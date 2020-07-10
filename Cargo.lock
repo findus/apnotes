@@ -24,6 +24,7 @@ version = "0.0.1"
 dependencies = [
  "cascade",
  "chrono",
+ "clap",
  "curl",
  "gdk",
  "gio",
