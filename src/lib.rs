@@ -37,7 +37,7 @@ pub fn create_new_note(with_subject: String, folder: String) -> Result<NotesMeta
     let metadata = NotesMetadata {
         header: headers,
         old_remote_id: None,
-        subfolder: folder,
+        subfolder: format!("Notes.{}",folder),
         locally_deleted: false,
         uid: None,
         new: true
