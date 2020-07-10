@@ -2,7 +2,7 @@ extern crate log;
 extern crate walkdir;
 extern crate glob;
 
-use note::{NotesMetadata, LocalNote, HeaderParser, NoteTrait};
+use note::{NotesMetadata, LocalNote, HeaderParser};
 use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;

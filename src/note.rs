@@ -2,7 +2,7 @@ extern crate mailparse;
 extern crate html2runes;
 
 use std::fs::File;
-use walkdir::DirEntry;
+
 use std::hash::Hasher;
 use util;
 use std::path::PathBuf;

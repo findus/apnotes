@@ -1,6 +1,6 @@
 extern crate log;
 
-use note::{NotesMetadata, HeaderParser, LocalNote};
+use note::{NotesMetadata, HeaderParser};
 use converter;
 use std::fs::File;
 use std::io::Write;
@@ -8,7 +8,7 @@ use self::log::{info, error};
 use note::{Note, NoteTrait};
 use profile;
 use std::io::Result;
-use walkdir::DirEntry;
+
 use util::get_notes_file_path_from_metadata;
 
 pub fn save_all_notes_to_file(notes: &Vec<Note>) {

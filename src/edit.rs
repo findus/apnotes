@@ -3,11 +3,11 @@ extern crate regex;
 extern crate log;
 extern crate uuid;
 
-use std::env;
+
 use std::fs::File;
 use self::regex::Regex;
 use self::log::info;
-use self::log::error;
+
 use self::log::debug;
 use std::io::{BufReader, BufRead};
 use std::time;
@@ -15,7 +15,7 @@ use error::UpdateError::EditError;
 use error::UpdateError;
 use ::{util, io};
 use note::{NotesMetadata, HeaderParser};
-use std::path::Path;
+
 
 pub fn edit(metadata: &NotesMetadata) -> Result<String, UpdateError> {
     let path = util::get_notes_file_path_from_metadata(metadata);

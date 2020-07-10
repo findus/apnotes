@@ -2,7 +2,7 @@ extern crate clap;
 extern crate apple_notes_rs;
 
 use clap::{Arg, App, ArgMatches};
-use apple_notes_rs::io::save_note_to_file;
+
 use apple_notes_rs::{create_new_note, apple_imap};
 use apple_notes_rs::edit::*;
 use apple_notes_rs::error::UpdateError;
@@ -41,9 +41,9 @@ fn main() {
             )
         );
 
-    let res = match app.get_matches().subcommand() {
+    let _res = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(sub_matches)) => sync_mails(),
+        ("sync", Some(_sub_matches)) => sync_mails(),
         (_, _) => unreachable!(),
     };
 
