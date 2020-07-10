@@ -13,13 +13,13 @@ pub fn get_hash_path(path: &Path) -> PathBuf {
     std::path::Path::new(&metadata_file_path).to_owned()
 }
 
-pub fn get_notes_file_from_metadata(metadata: &NotesMetadata) -> PathBuf {
+pub fn get_notes_file_path_from_metadata(metadata: &NotesMetadata) -> PathBuf {
     let path = format!("{}/{}/{}", profile::get_notes_dir(), metadata.subfolder, metadata.subject_with_identifier());
     Path::new(&path).to_path_buf()
 }
 
 pub fn generate_uuid() -> String {
-    Uuid::new_v4().to_string()
+    Uuid::new_v4().to_string().to_uppercase()
 }
 
 /**
@@ -36,7 +36,8 @@ pub struct HeaderBuilder {
 impl HeaderBuilder {
     pub fn new() -> HeaderBuilder {
         let mut headers: Vec<(String,String)> = vec![];
-        headers.push(("Content-Type".to_string(), "text/html;\ncharset=utf-8".to_string()));
+        headers.push(("X-Uniform-Type-Identifier".to_string(), "com.apple.mail-note".to_string()));
+        headers.push(("Content-Type".to_string(), "text/html; charset=utf-8".to_string()));
         headers.push(("Content-Transfer-Encoding".to_string(), "quoted-printable".to_string()));
         headers.push(("Mime-Version".to_string(), "1.0 (Mac OS X Notes 4.6 \\(879.10\\))".to_string()));
         let date = Utc::now().to_rfc2822();
@@ -45,6 +46,7 @@ impl HeaderBuilder {
         headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
         //TODO read mail from settings or pass them as arg
         headers.push(("Message-Id".to_string(), format!("<{}@f1ndus.de>", generate_uuid())));
+        headers.push(("From".to_string(), "philipp@f1ndus.de>".to_string()));
 
         HeaderBuilder {
             headers

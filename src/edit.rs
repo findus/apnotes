@@ -1,32 +1,30 @@
 extern crate subprocess;
-extern crate apple_notes_rs;
 extern crate regex;
 extern crate log;
 extern crate uuid;
 
 use std::env;
 use std::fs::File;
-use apple_notes_rs::note::{NotesMetadata, HeaderParser, LocalNote};
 use self::regex::Regex;
-use apple_notes_rs::io;
-use log::info;
-use log::error;
-use log::debug;
-use apple_notes_rs::util;
+use self::log::info;
+use self::log::error;
+use self::log::debug;
 use std::io::{BufReader, BufRead};
-use apple_notes_rs::error::UpdateError::EditError;
-use apple_notes_rs::error::UpdateError;
 use std::time;
+use error::UpdateError::EditError;
+use error::UpdateError;
+use ::{util, io};
+use note::{NotesMetadata, HeaderParser};
+use std::path::Path;
 
-pub fn main() {
-    simple_logger::init().unwrap();
-    let args: Vec<String> = env::args().collect();
-
-    let file = args.get(1).unwrap();
-    let result = subprocess::Exec::cmd("xdg-open").arg(file)
+pub fn edit(metadata: &NotesMetadata) -> Result<String, UpdateError> {
+    let path = util::get_notes_file_path_from_metadata(metadata);
+    let path = path.as_os_str().to_string_lossy().into_owned();
+    info!("Opening File for editing: {}", path);
+    subprocess::Exec::cmd("xdg-open").arg(&path)
         .join()
         .map_err(|e| EditError(e.to_string()))
-        .and_then(|_| std::fs::metadata(file).map_err(|e| EditError(e.to_string())))
+        .and_then(|_| std::fs::metadata(&path).map_err(|e| EditError(e.to_string())))
         .and_then(|metadata| {
             let change_duration =
                 time::SystemTime::now()
@@ -40,16 +38,10 @@ pub fn main() {
                 Ok(())
             }
         })
-        .and_then(|_| self::update(&file));
-
-    match result {
-        Ok(_) => info!("Note changed successfully"),
-        Err(e) => error!("{}" ,e)
-    }
-
+        .and_then(|_| self::update(&path))
 }
 
-fn update(file: &String) -> Result<String, UpdateError> {
+fn update(file: &str) -> Result<String, UpdateError> {
     info!("Update Message_Id for {}", &file);
     let path = std::path::Path::new(file).to_owned();
     let metadata_file_path = util::get_hash_path(&path);
@@ -60,7 +52,10 @@ fn update(file: &String) -> Result<String, UpdateError> {
     let mut first_line= String::new();
     reader.read_line(&mut first_line).expect("Could not read first line");
     let len = first_line.len();
-    first_line.truncate(len - 1);
+
+    if len > 0 {
+        first_line.truncate(len - 1);
+    }
 
     let metadata_file = File::open(&metadata_file_path)
         .expect(&format!("Could not open {}", &metadata_file_path.to_string_lossy()));

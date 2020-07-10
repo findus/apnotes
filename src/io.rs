@@ -9,6 +9,7 @@ use note::{Note, NoteTrait};
 use profile;
 use std::io::Result;
 use walkdir::DirEntry;
+use util::get_notes_file_path_from_metadata;
 
 pub fn save_all_notes_to_file(notes: &Vec<Note>) {
     notes.into_iter().for_each(|note| {
@@ -21,7 +22,7 @@ pub fn save_all_notes_to_file(notes: &Vec<Note>) {
     });
 }
 
-pub fn save_note_to_file<T: NoteTrait>(note: &T) -> serde_json::Result<String> {
+pub fn save_note_to_file<T: NoteTrait>(note: &T) -> Result<()> {
     let location = profile::get_notes_dir() + &note.folder() + "/" + &note.metadata().subject_with_identifier();
     info!("Save to {}", location);
 
@@ -30,13 +31,17 @@ pub fn save_note_to_file<T: NoteTrait>(note: &T) -> serde_json::Result<String> {
     std::fs::create_dir_all(prefix).unwrap();
 
     let mut f = File::create(location).expect("Unable to create file");
-    f.write_all(converter::convert2md(&note.body()).as_bytes()).expect("Unable to write file");
-
-    //TODO check if this is needed
-    save_metadata_to_file(&note.metadata())
+    f.write_all(converter::convert2md(&note.body()).as_bytes())
 }
 
-pub fn save_metadata_to_file(metadata: &NotesMetadata) -> serde_json::Result<String> {
+pub fn save_text_to_file(metadata: &NotesMetadata) -> Result<()> {
+    let path = get_notes_file_path_from_metadata(&metadata);
+    info!("Saving text to {}", path.to_string_lossy().into_owned());
+    File::create(path)
+        .and_then(|mut file| file.write_all(metadata.subject().as_ref()))
+}
+
+pub fn save_metadata_to_file(metadata: &NotesMetadata) -> Result<String> {
     let location = profile::get_notes_dir() +  &metadata.subfolder + "/." + &metadata.subject_with_identifier() + "_hash";
     info!("Save metadata {} to {}",metadata.subject(), location);
 
@@ -46,7 +51,9 @@ pub fn save_metadata_to_file(metadata: &NotesMetadata) -> serde_json::Result<Str
 
     let f = File::create(&location).expect(format!("Unable to create hash file for {}", location).as_ref());
 
-    serde_json::to_writer(f, &metadata).map(|_| metadata.subject_escaped())
+    serde_json::to_writer(f, &metadata)
+        .map(|_| metadata.subject_escaped())
+        .map_err(|e| std::io::Error::from(e))
 }
 
 pub fn delete_metadata_file(metadata: &NotesMetadata) -> Result<()> {

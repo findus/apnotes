@@ -60,9 +60,5 @@ name = "sync"
 path = "src/bin/sync.rs"
 
 [[bin]]
-name = "edit"
-path = "src/bin/edit.rs"
-
-[[bin]]
 name = "notes"
 path = "src/bin/notes.rs"

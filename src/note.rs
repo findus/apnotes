@@ -13,7 +13,7 @@ pub struct NotesMetadata {
     pub old_remote_id: Option<String>,
     pub subfolder: String,
     pub locally_deleted: bool,
-    pub uid: u32,
+    pub uid: Option<u32>,
     pub new: bool
 }
 
@@ -28,19 +28,23 @@ impl HeaderParser for NotesMetadata {
     fn subject(&self) -> String {
         match self.get_header_value("Subject") {
             Some(subject) => subject,
-            _ => panic!("Could not get Identifier of LocalNote {:?}", self.header)
+            _ => panic!("Could not get Identifier of Note {:?}", self.uid)
         }
     }
 
     fn identifier(&self) -> String {
         match self.get_header_value("X-Universally-Unique-Identifier") {
             Some(subject) => subject,
-            _ => panic!("Could not get uuid of this note {:#?}", self.header)
+            _ => panic!("Could not get uuid of this note {:#?}", self.uid)
         }
     }
 
     fn subject_with_identifier(&self) -> String {
-        format!("{}_{}",self.uid, self.subject_escaped())
+        if self.uid.is_none() {
+            format!("{}_{}","new", self.subject_escaped())
+        } else {
+            format!("{}_{}", self.uid.unwrap(), self.subject_escaped())
+        }
     }
 
     fn subject_escaped(&self) -> String {
@@ -104,7 +108,7 @@ impl NoteTrait for LocalNote {
         self.metadata.identifier()
     }
 
-    fn folder(&self) -> String { self.path.to_string_lossy().parse().unwrap() }
+    fn folder(&self) -> String { self.metadata().subfolder.clone() }
 
     fn metadata(&self) -> NotesMetadata{ self.metadata.clone() }
 }

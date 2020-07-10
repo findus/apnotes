@@ -63,7 +63,7 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
 fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, NotesMetadata)> {
     //TODO analyze what happens if title changes remotely, implement logic for local title change
     remote_notes.into_iter().map( |mail_headers| {
-        let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.uid.to_string() + "_*";
+        let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.uid.unwrap().to_string() + "_*";
         match glob::glob(&hash_location).expect("could not parse glob").next() {
             Some(result) => {
                 let hash_loc_path = result.unwrap();
@@ -114,7 +114,7 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
                 old_remote_id: None,
                 subfolder: metadata.subfolder.clone(),
                 locally_deleted: metadata.locally_deleted,
-                uid: new_uid,
+                uid: Some(new_uid),
                 new: false
             };
 
@@ -134,7 +134,7 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
 
 fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();
-    io::save_note_to_file(&note).map_err(|e| SyncError(e.to_string()))
+    io::save_note_to_file(&note).map(|_| "".to_string()).map_err(|e| SyncError(e.to_string()))
 }
 
 fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) -> Vec<Result<String, UpdateError>> {

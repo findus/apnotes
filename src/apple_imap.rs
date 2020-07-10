@@ -88,7 +88,7 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
     if let Some(result) = session.select(&metadata.subfolder).err() {
         warn!("Could not select folder {} [{}]", &metadata.subfolder, result)
     }
-    let messages_result = session.uid_fetch(metadata.uid.to_string(), "(RFC822 RFC822.HEADER UID)");
+    let messages_result = session.uid_fetch(metadata.uid.unwrap().to_string(), "(RFC822 RFC822.HEADER UID)");
     match messages_result {
         Ok(message) => {
             debug!("Message Loading for {} successful", &metadata.subject());
@@ -99,7 +99,7 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
                 old_remote_id: None,
                 subfolder: metadata.subfolder.clone(),
                 locally_deleted: false,
-                uid: first_message.uid.unwrap(),
+                uid: Some(first_message.uid.unwrap()),
                 new: false
             };
 
@@ -132,7 +132,7 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
                     old_remote_id: None,
                     subfolder: folder_name.clone(),
                     locally_deleted: false,
-                    uid: fetch.uid.unwrap(),
+                    uid: Some(fetch.uid.unwrap()),
                     new: false
                 }
             }).collect()
@@ -168,7 +168,7 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
             Note {
-                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid.unwrap(), new: false },
+                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid, new: false },
                 body: body.clone().unwrap_or("".to_string()),
                 folder: folder_name.to_owned()
             }
@@ -207,7 +207,11 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
 
 pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<u32, Error> {
     //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
-    let uid = format!("{}", metadata.uid);
+    let uid = if metadata.uid.is_some() {
+        format!("{}", metadata.uid.unwrap())
+    } else {
+        format!("new")
+    };
 
     let headers = metadata.header.iter().map( |(k,v)| {
         //TODO make sure that updated message has new message-id
@@ -226,9 +230,21 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         //Select the appropriate mailbox, in which the updated message was saved
         .and_then(|_| session.select(&metadata.subfolder))
         // Set the old (overridden) message to "deleted", so that it can be expunged
-        .and_then(|_| session.uid_store(&uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string()))
+        .and_then(|_| {
+            if metadata.new {
+                Ok(())
+            } else {
+                session.uid_store(&uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string()).map(|_| ())
+            }
+        })
         //Expunge them
-        .and_then(|_| session.uid_expunge(&uid))
+        .and_then(|_| {
+            if metadata.new {
+                Ok(())
+            } else {
+                session.uid_expunge(&uid).map(|_| ())
+            }
+        })
         //Search for the new message, to get the new UID of the updated message
         .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", metadata.message_id())))
         //Get the first UID
@@ -241,5 +257,5 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
 
 
 pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) -> Result<(),Error> {
-    session.create(&note.subfolder)
+    session.create(&note.subfolder).or(Ok(()))
 }

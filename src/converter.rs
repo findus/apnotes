@@ -9,7 +9,7 @@ pub fn convert2md(input: &String) -> String {
 }
 
 pub fn convert_to_html(input: &NotesMetadata) -> String {
-    let path = util::get_notes_file_from_metadata(input);
+    let path = util::get_notes_file_path_from_metadata(input);
     let text = std::fs::read_to_string(path).unwrap();
 
     let input = text;
