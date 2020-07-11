@@ -1,5 +1,6 @@
 extern crate clap;
 extern crate apple_notes_rs;
+extern crate log;
 
 use clap::{Arg, App, ArgMatches};
 
@@ -9,9 +10,10 @@ use apple_notes_rs::error::UpdateError;
 use apple_notes_rs::sync::sync;
 use std::path::{Path};
 use apple_notes_rs::note::NotesMetadata;
+use log::Level;
 
 fn main() {
-    simple_logger::init().unwrap();
+    simple_logger::init_with_level(Level::Info).unwrap();
 
     let app = App::new("My Super Program")
         .version("0.1")

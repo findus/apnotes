@@ -84,9 +84,12 @@ fn update(file: &str) -> Result<String, UpdateError> {
         new_metadata_headers.push(("Subject".to_owned(), old_subject.to_owned()));
     }
 
+    //if there already is an "old" remote id,use that instead of using the current one
+    let old_remote_id = metadata.clone().old_remote_id.unwrap_or(metadata_identifier.clone());
+
     let mut new_metadata = NotesMetadata {
         header: new_metadata_headers.clone(),
-        old_remote_id: Some(metadata_identifier.clone()),
+        old_remote_id: Some(old_remote_id.clone()),
         subfolder: metadata.subfolder.to_string(),
         locally_deleted: false,
         uid: metadata.uid,
