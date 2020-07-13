@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use note::{NotesMetadata, HeaderParser};
+use note::{NotesMetadata, HeaderParser, LocalNote, NoteTrait};
 use profile;
 use uuid::Uuid;
 
@@ -35,6 +35,7 @@ pub struct HeaderBuilder {
 
 impl HeaderBuilder {
     pub fn new() -> HeaderBuilder {
+        let profile = self::profile::load_profile();
         let mut headers: Vec<(String,String)> = vec![];
         headers.push(("X-Uniform-Type-Identifier".to_string(), "com.apple.mail-note".to_string()));
         headers.push(("Content-Type".to_string(), "text/html; charset=utf-8".to_string()));
@@ -45,9 +46,9 @@ impl HeaderBuilder {
         headers.push(("X-Mail-Created-Date".to_string(), date.clone()));
         headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
         //TODO read mail from settings or pass them as arg
-        headers.push(("Message-Id".to_string(), format!("<{}@f1ndus.de>", generate_uuid())));
+        headers.push(("Message-Id".to_string(), format!("<{}@{}", generate_uuid(), profile.domain())));
         //TODO mail from settings
-        headers.push(("From".to_string(), "philipp@f1ndus.de>".to_string()));
+        headers.push(("From".to_string(), profile.email));
 
         HeaderBuilder {
             headers
@@ -66,4 +67,23 @@ impl HeaderBuilder {
 
 pub fn generate_mail_headers(subject: String) -> Vec<(String, String)> {
     HeaderBuilder::new().with_subject(subject).build()
+}
+
+#[test]
+fn header_config_test() {
+    let header = HeaderBuilder::new();
+
+    let test_note = LocalNote {
+        path: Default::default(),
+        metadata: NotesMetadata {
+            header: header.build(),
+            old_remote_id: None,
+            subfolder: "".to_string(),
+            locally_deleted: false,
+            uid: None,
+            new: false
+        }
+    };
+
+    assert!(test_note.metadata().message_id().contains("@f1ndus.de"));
 }

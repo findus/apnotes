@@ -11,7 +11,15 @@ use self::log::{info, warn};
 pub struct Profile {
     pub(crate) username: String,
     pub(crate) password: String,
-    pub(crate) imap_server: String
+    pub(crate) imap_server: String,
+    pub(crate) email: String
+}
+
+impl Profile {
+    pub(crate) fn domain(&self) -> String {
+        let uuid_regex = Regex::new(r".*@(.*)").unwrap();
+        get_with_regex(uuid_regex, &self.email)
+    }
 }
 
 pub fn load_profile() -> Profile {
@@ -30,25 +38,21 @@ pub fn load_profile() -> Profile {
     info!("Read config file from {}", &path.as_os_str().to_str().unwrap());
     let creds = fs::read_to_string(&path).expect(format!("error reading config file at {}", path.into_os_string().to_str().unwrap()).as_ref());
 
-    let username_regex = Regex::new(r"^username=(.*)").unwrap();
+    let username_regex = Regex::new(r"username=(.*)").unwrap();
     let password_regex = Regex::new(r"password=(.*)").unwrap();
     let imap_regex = Regex::new(r"imap_server=(.*)").unwrap();
-
-    fn get_with_regex(regex: Regex, creds: &str) -> String {
-        regex.captures(&creds)
-            .and_then(|captured| captured.get(1))
-            .and_then(|result| Option::from(result.as_str().to_string()))
-            .expect(format!("Could not get value for {}", regex.as_str()).as_ref())
-    }
+    let email_regex = Regex::new(r"email=(.*)").unwrap();
 
     let username = get_with_regex(username_regex, &creds);
     let password = get_with_regex(password_regex, &creds);
     let imap_server = get_with_regex(imap_regex, &creds);
+    let email = get_with_regex(email_regex, &creds);
 
     Profile {
         username,
         password,
-        imap_server
+        imap_server,
+        email
     }
 }
 
@@ -60,4 +64,11 @@ pub fn get_notes_dir() -> String {
         info!("No xdg data dir found, create a new one");
         xdg.create_data_directory("notes").expect("Could not create xdg data dir").to_string_lossy().to_string() +"/"
     }
+}
+
+fn get_with_regex(regex: Regex, creds: &str) -> String {
+    regex.captures(&creds)
+        .and_then(|captured| captured.get(1))
+        .and_then(|result| Option::from(result.as_str().to_string()))
+        .expect(format!("Could not get value for {}", regex.as_str()).as_ref())
 }
