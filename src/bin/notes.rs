@@ -71,7 +71,7 @@ fn edit_notes(sub_matches: &ArgMatches) {
     let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
 
     apple_notes_rs::util::get_hash_path(Path::new(&folder));
-    apple_notes_rs::edit::edit(&metadata).unwrap();
+    apple_notes_rs::edit::edit(&metadata, false).unwrap();
 }
 
 fn sync_notes() {
@@ -84,5 +84,5 @@ fn new(sub_matches: &ArgMatches) {
     let subject = sub_matches.value_of("title").unwrap().to_string();
     create_new_note(subject,folder)
         .map_err(|e| UpdateError::IoError(e.to_string()))
-        .and_then(|metadata| edit(&metadata)).unwrap();
+        .and_then(|metadata| edit(&metadata, true)).unwrap();
 }

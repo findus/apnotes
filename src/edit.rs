@@ -17,7 +17,7 @@ use ::{util, io};
 use note::{NotesMetadata, HeaderParser};
 
 
-pub fn edit(metadata: &NotesMetadata) -> Result<String, UpdateError> {
+pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
     let path = util::get_notes_file_path_from_metadata(metadata);
     let path = path.as_os_str().to_string_lossy().into_owned();
     info!("Opening File for editing: {}", path);
@@ -38,10 +38,10 @@ pub fn edit(metadata: &NotesMetadata) -> Result<String, UpdateError> {
                 Ok(())
             }
         })
-        .and_then(|_| self::update(&path))
+        .and_then(|_| self::update(&path, new))
 }
 
-fn update(file: &str) -> Result<String, UpdateError> {
+fn update(file: &str, new: bool) -> Result<String, UpdateError> {
     info!("Update Message_Id for {}", &file);
     let path = std::path::Path::new(file).to_owned();
     let metadata_file_path = util::get_hash_path(&path);
@@ -94,7 +94,7 @@ fn update(file: &str) -> Result<String, UpdateError> {
         locally_deleted: false,
         uid: metadata.uid,
         // check if ok
-        new: false
+        new: if new { true } else { false }
     };
 
     debug!("Changing files message id...");
