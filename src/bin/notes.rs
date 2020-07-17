@@ -15,7 +15,7 @@ use log::Level;
 fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();
 
-    let app = App::new("My Super Program")
+    let app = App::new("NotesManager")
         .version("0.1")
         .author("Findus")
         .about("Interface for Apple Notes on Linux")

@@ -45,9 +45,7 @@ impl HeaderBuilder {
         headers.push(("Date".to_string(), date.clone()));
         headers.push(("X-Mail-Created-Date".to_string(), date.clone()));
         headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
-        //TODO read mail from settings or pass them as arg
         headers.push(("Message-Id".to_string(), format!("<{}@{}", generate_uuid(), profile.domain())));
-        //TODO mail from settings
         headers.push(("From".to_string(), profile.email));
 
         HeaderBuilder {
@@ -85,5 +83,5 @@ fn header_config_test() {
         }
     };
 
-    assert!(test_note.metadata().message_id().contains("@f1ndus.de"));
+    assert!(test_note.metadata().message_id().contains("@local.host"));
 }
