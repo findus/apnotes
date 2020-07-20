@@ -1,3 +1,2 @@
 # NotesManager
-Tool to Edit, Create, Backup and Sync Notes.app Notes via Linux
-
+Interface for Linux to View, Edit, Create, Backup and Sync Notes from apple devices.
