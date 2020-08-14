@@ -47,9 +47,23 @@ impl HeaderParser for NotesMetadata {
         }
     }
 
+    ///
+    /// Prints an espaced subject, removes any character that might cause problems when
+    /// writing files to disk
+    ///
+    /// Every Filename should include the title of the note, only saving the file with the uuid
+    /// would be quite uncomfortable, with the title, the user has a tool to quickly skim or
+    /// search through the notes with only using the terminal or explorer.
+    ///
     fn subject_escaped(&self) -> String {
+        let regex = regex::Regex::new(r#"[.<>:\\"/\|?*]"#).unwrap();
         match self.get_header_value("Subject") {
-            Some(subject) => format!("{}", subject).replace("/", "_").replace(" ", "_"),
+            Some(subject) => {
+                let escaped_string = format!("{}", subject)
+                    .replace("/", "_").replace(" ", "_")
+                    .replace(|c: char| !c.is_ascii(), "");
+                regex.replace_all(&escaped_string, "").into_owned()
+            },
             _ =>  panic!("Could not get Subject of this note {:?}", self.header)
         }
     }

@@ -29,6 +29,7 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     let profile = self::profile::load_profile();
 
     let domain = profile.imap_server.as_str();
+    info!("Connecting to {}", domain);
     let tls = native_tls::TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap();
 
     // we pass in the domain twice to check that the server's TLS

@@ -89,11 +89,12 @@ pub fn get_notes_dir() -> String {
 pub fn get_notes_dir() -> String {
     let notes_dir_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\notes".to_string()));
     if notes_dir_path.exists() {
-        notes_dir_path.to_string_lossy().to_string()
+        notes_dir_path.to_string_lossy().to_string() + "\\"
     } else {
         info!("No notes dir found, will create a new one");
         std::fs::create_dir(&notes_dir_path).expect("Could not create notes dir");
-        notes_dir_path.to_string_lossy().to_string()
+        let path = notes_dir_path.to_string_lossy().to_string() + "\\";
+        path
     }
 }
 
