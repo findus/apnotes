@@ -1,60 +1,6 @@
-[package]
-name = "apple_notes_rs"
-version = "0.0.1"
-authors = ["Findus"]
-autobins = false
-
-[dependencies]
-curl = "0.4.25"
-regex = "1"
-imap = "2.1.2"
-native-tls = "0.2"
-mailparse = "0.8"
-cascade = "0.1"
-log = "0.4"
-html2runes = "1.0.1"
-xdg = "2.0.0"
-walkdir = "2.3.1"
-jfs = "0.6.2"
-serde_json = "1.0.56"
-serde_derive = "1.0.114"
-serde = "1.0.114"
-pulldown-cmark = "0.7.1"
-subprocess = "0.2.4"
-uuid = { version = "0.8", features = ["serde", "v4"] }
-glob = "0.3.0"
-simple_logger = "1.6.0"
-chrono = "0.4.13"
-clap = "2.33.1"
-
-[dependencies.gdk]
-version = "0.11.0"
-features = ["v3_16"]
-
-[dependencies.gtk]
-version = "0.7.0"
-features = ["v3_16"]
-
-[dependencies.gio]
-version = "0.7.0"
-features = ["v2_44"]
-
-[lib]
-name = "apple_notes_rs"
-path = "src/lib.rs"
-
-[[bin]]
-name = "ui"
-path = "src/bin/ui.rs"
-
-[[bin]]
-name = "fetch"
-path = "src/bin/fetch_all.rs"
-
-[[bin]]
-name = "backup"
-path = "src/bin/backup.rs"
-
-[[bin]]
-name = "notes"
-path = "src/bin/notes.rs"
+[workspace]
+members = [
+    "lib",
+    "ui",
+    "bin"
+]

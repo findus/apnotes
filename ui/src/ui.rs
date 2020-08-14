@@ -1,20 +1,33 @@
+
+#[cfg(target_family = "windows")]
+fn main() {
+
+}
+extern crate apple_notes_rs_lib;
+#[cfg(target_family = "unix")]
 extern crate gtk;
+#[cfg(target_family = "unix")]
 extern crate gio;
+#[cfg(target_family = "unix")]
 extern crate curl;
+#[cfg(target_family = "unix")]
 extern crate core;
+#[cfg(target_family = "unix")]
 extern crate mailparse;
+#[cfg(target_family = "unix")]
 extern crate gdk;
+#[cfg(target_family = "unix")]
 extern crate apple_notes_rs;
-
-
-
+#[cfg(target_family = "unix")]
 use gtk::prelude::*;
+#[cfg(target_family = "unix")]
 use gio::prelude::*;
-
+#[cfg(target_family = "unix")]
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
-use apple_notes_rs::apple_imap::*;
-use apple_notes_rs::note::{HeaderParser};
+use apple_notes_rs_lib::apple_imap::*;
+use apple_notes_rs_lib::note::{HeaderParser};
 
+#[cfg(target_family = "unix")]
 fn main() {
 
     let application = Application::new(

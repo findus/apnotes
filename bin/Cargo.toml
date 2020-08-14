@@ -1,0 +1,28 @@
+[package]
+name = "apple_notes_rs_bin"
+version = "0.0.2"
+authors = ["Findus"]
+autobins = false
+
+[dependencies]
+log = "0.4"
+clap = "2.33.1"
+simple_logger = "1.6.0"
+
+serde_json = "1.0.56"
+serde_derive = "1.0.114"
+serde = "1.0.114"
+
+apple_notes_rs_lib = { path = "../lib" }
+
+[[bin]]
+name = "fetch"
+path = "bin/fetch_all.rs"
+
+[[bin]]
+name = "backup"
+path = "bin/backup.rs"
+
+[[bin]]
+name = "notes"
+path = "bin/notes.rs"

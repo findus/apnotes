@@ -3,7 +3,6 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate walkdir;
 extern crate native_tls;
-extern crate gdk;
 extern crate imap;
 extern crate serde;
 extern crate uuid;

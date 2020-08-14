@@ -7,6 +7,7 @@ use self::regex::Regex;
 use self::xdg::*;
 use std::fs::File;
 use self::log::{info, warn};
+use std::path::PathBuf;
 
 pub struct Profile {
     pub(crate) username: String,
@@ -22,19 +23,35 @@ impl Profile {
     }
 }
 
-pub fn load_profile() -> Profile {
-    let xdg_dir = BaseDirectories::new().expect("Could not find xdg dirs");
-    let path = match xdg_dir.find_config_file("apple_notes/config") {
-        Some(path) => path,
-        None => {
-            warn!("Could not detect config file, gonna create empty one");
-            let mut path = xdg_dir.create_config_directory("apple_notes").expect("Could not create apple_notes config folder");
-            path.push("config");
-            File::create(&path).expect("Unable to create file");
-            path
+#[cfg(target_family = "unix")]
+pub fn get_config_path() -> PathBuf {
+        let xdg_dir = BaseDirectories::new().expect("Could not find xdg dirs");
+        match xdg_dir.find_config_file("apple_notes/config") {
+            Some(path) => path,
+            None => {
+                warn!("Could not detect config file, gonna create empty one");
+                let mut path = xdg_dir.create_config_directory("apple_notes").expect("Could not create apple_notes config folder");
+                path.push("config");
+                File::create(&path).expect("Unable to create file");
+                path.into_path_buf()
+            }
         }
-    };
+}
 
+#[cfg(target_family = "windows")]
+pub fn get_config_path() -> PathBuf {
+    let config_file_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\config".to_string()));
+    if config_file_path.exists() {
+        config_file_path
+    } else {
+        warn!("Could not detect config file, gonna create empty one");
+        File::create(&config_file_path).expect("Unable to create file");
+        config_file_path
+    }
+}
+
+pub fn load_profile() -> Profile {
+    let path = get_config_path();
     info!("Read config file from {}", &path.as_os_str().to_str().unwrap());
     let creds = fs::read_to_string(&path).expect(format!("error reading config file at {}", path.into_os_string().to_str().unwrap()).as_ref());
 
@@ -56,6 +73,7 @@ pub fn load_profile() -> Profile {
     }
 }
 
+#[cfg(target_family = "unix")]
 pub fn get_notes_dir() -> String {
     let xdg = BaseDirectories::new().expect("Could not find xdg data dir");
     if let Some(dir) = xdg.find_data_file("notes") {
@@ -66,9 +84,29 @@ pub fn get_notes_dir() -> String {
     }
 }
 
+#[cfg(target_family = "windows")]
+pub fn get_notes_dir() -> String {
+    let notes_dir_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\notes".to_string()));
+    if notes_dir_path.exists() {
+        notes_dir_path.to_string_lossy().to_string()
+    } else {
+        info!("No notes dir found, will create a new one");
+        std::fs::create_dir(&notes_dir_path).expect("Could not create notes dir");
+        notes_dir_path.to_string_lossy().to_string()
+    }
+}
+
 fn get_with_regex(regex: Regex, creds: &str) -> String {
     regex.captures(&creds)
         .and_then(|captured| captured.get(1))
         .and_then(|result| Option::from(result.as_str().to_string()))
         .expect(format!("Could not get value for {}", regex.as_str()).as_ref())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
 }

@@ -1,10 +1,5 @@
-extern crate apple_notes_rs;
+extern crate apple_notes_rs_lib;
 extern crate log;
-
-
-
-
-
 
 fn main() {
     simple_logger::init().unwrap();

@@ -1,16 +1,16 @@
 extern crate clap;
-extern crate apple_notes_rs;
+extern crate apple_notes_rs_lib;
 extern crate log;
 
 use clap::{Arg, App, ArgMatches};
 
-use apple_notes_rs::{create_new_note, apple_imap};
-use apple_notes_rs::edit::*;
-use apple_notes_rs::error::UpdateError;
-use apple_notes_rs::sync::sync;
 use std::path::{Path};
-use apple_notes_rs::note::NotesMetadata;
 use log::Level;
+use apple_notes_rs_lib::note::NotesMetadata;
+use apple_notes_rs_lib::{apple_imap, create_new_note};
+use apple_notes_rs_lib::sync::sync;
+use apple_notes_rs_lib::error::UpdateError;
+use apple_notes_rs_lib::edit::edit;
 
 fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();
@@ -63,15 +63,15 @@ fn edit_notes(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("path").unwrap().to_string();
 
     let metadata_file_path =
-        apple_notes_rs::util::get_hash_path(Path::new(&folder));
+        apple_notes_rs_lib::util::get_hash_path(Path::new(&folder));
 
     let metadata_file = std::fs::File::open(&metadata_file_path)
         .expect(&format!("Could not open {}", &metadata_file_path.to_string_lossy()));
 
     let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
 
-    apple_notes_rs::util::get_hash_path(Path::new(&folder));
-    apple_notes_rs::edit::edit(&metadata, false).unwrap();
+    apple_notes_rs_lib::util::get_hash_path(Path::new(&folder));
+    apple_notes_rs_lib::edit::edit(&metadata, false).unwrap();
 }
 
 fn sync_notes() {
