@@ -24,8 +24,8 @@ use gtk::prelude::*;
 use gio::prelude::*;
 #[cfg(target_family = "unix")]
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
-use apple_notes_rs_lib::apple_imap::*;
-use apple_notes_rs_lib::note::{HeaderParser};
+
+
 
 #[cfg(target_family = "unix")]
 fn main() {

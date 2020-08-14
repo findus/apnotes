@@ -4,7 +4,7 @@ extern crate log;
 
 use std::fs;
 use self::regex::Regex;
-use self::xdg::*;
+
 use std::fs::File;
 use self::log::{info, warn};
 use std::path::PathBuf;

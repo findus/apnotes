@@ -1,7 +1,7 @@
 extern crate apple_notes_rs_lib;
 extern crate log;
 
-use apple_notes_rs_lib::*;
+
 use apple_notes_rs_lib::apple_imap;
 use apple_notes_rs_lib::io::save_all_notes_to_file;
 

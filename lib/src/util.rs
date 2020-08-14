@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use note::{NotesMetadata, HeaderParser, LocalNote, NoteTrait};
+use note::{NotesMetadata, HeaderParser, LocalNote};
 use profile;
 use uuid::Uuid;
 
