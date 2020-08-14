@@ -1,11 +1,13 @@
 extern crate mailparse;
 extern crate html2runes;
+extern crate log;
 
 use std::fs::File;
 
 use std::hash::Hasher;
 use util;
 use std::path::PathBuf;
+use self::log::{info, error, trace};
 
 #[derive(Serialize,Deserialize,Clone)]
 pub struct NotesMetadata {
@@ -100,6 +102,7 @@ pub struct LocalNote {
 impl LocalNote {
     pub fn new(path: PathBuf) -> LocalNote {
         let metadata_file_path = util::get_hash_path(&path);
+        trace!("{} - {}", &path.to_string_lossy(), &metadata_file_path.to_string_lossy());
         let metadata_file = File::open(&metadata_file_path).expect(
             &format!("Could not load metadata_file at {:?}", &metadata_file_path)
         );

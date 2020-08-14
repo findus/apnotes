@@ -17,6 +17,7 @@ use io;
 use profile;
 use error::UpdateError::*;
 use error::UpdateError;
+use std::path::PathBuf;
 
 #[derive(PartialEq, Clone,Copy)]
 pub enum UpdateAction {
@@ -63,8 +64,12 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
 fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, NotesMetadata)> {
     //TODO analyze what happens if title changes remotely, implement logic for local title change
     remote_notes.into_iter().map( |mail_headers| {
-        let hash_location = profile::get_notes_dir() + &mail_headers.subfolder + "/." + &mail_headers.uid.unwrap().to_string() + "_*";
-        match glob::glob(&hash_location).expect("could not parse glob").next() {
+        let hash_location = profile::get_notes_dir()
+            .join(PathBuf::from(&mail_headers.subfolder))
+            .join(PathBuf::from(format!("{}{}",".".to_string(), &mail_headers.uid.unwrap().to_string())));
+
+        let glob_string = &(hash_location.to_string_lossy().into_owned() + "_*");
+        match glob::glob(glob_string).expect("could not parse glob").next() {
             Some(result) => {
                 let hash_loc_path = result.unwrap();
                 if hash_loc_path.exists() {

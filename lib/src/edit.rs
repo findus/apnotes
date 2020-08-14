@@ -19,9 +19,15 @@ use note::{NotesMetadata, HeaderParser};
 
 pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
     let path = util::get_notes_file_path_from_metadata(metadata);
-    let path = path.as_os_str().to_string_lossy().into_owned();
+    let path = path.to_string_lossy().into_owned();
     info!("Opening File for editing: {}", path);
-    subprocess::Exec::cmd("xdg-open").arg(&path)
+
+    #[cfg(target_family = "unix")]
+        let open_with = "xdg_open".to_owned();
+    #[cfg(target_family = "windows")]
+        let open_with = (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned();
+
+    subprocess::Exec::cmd(open_with).arg(&path)
         .join()
         .map_err(|e| EditError(e.to_string()))
         .and_then(|_| std::fs::metadata(&path).map_err(|e| EditError(e.to_string())))
