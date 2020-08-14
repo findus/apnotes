@@ -45,7 +45,8 @@ pub fn get_config_path() -> PathBuf {
         config_file_path
     } else {
         warn!("Could not detect config file, gonna create empty one");
-        File::create(&config_file_path).expect("Unable to create file");
+        std::fs::create_dir(&config_file_path.parent().unwrap()).expect("Unable to create config folder");
+        File::create(&config_file_path).expect("Unable to create config file");
         config_file_path
     }
 }

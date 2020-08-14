@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
-use note::{NotesMetadata, HeaderParser, LocalNote};
+use note::{NotesMetadata, HeaderParser, LocalNote, NoteTrait};
 use profile;
 use uuid::Uuid;
-
 use chrono::{Utc};
 
 pub fn get_hash_path(path: &Path) -> PathBuf {
