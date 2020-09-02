@@ -8,6 +8,7 @@ use self::regex::Regex;
 use std::fs::File;
 use self::log::{info, warn};
 use std::path::PathBuf;
+use self::xdg::BaseDirectories;
 
 pub struct Profile {
     pub(crate) username: String,
@@ -33,7 +34,7 @@ pub fn get_config_path() -> PathBuf {
                 let mut path = xdg_dir.create_config_directory("apple_notes").expect("Could not create apple_notes config folder");
                 path.push("config");
                 File::create(&path).expect("Unable to create file");
-                path.into_path_buf()
+                path.to_path_buf()
             }
         }
 }
@@ -75,13 +76,13 @@ pub fn load_profile() -> Profile {
 }
 
 #[cfg(target_family = "unix")]
-pub fn get_notes_dir() -> String {
+pub fn get_notes_dir() -> PathBuf {
     let xdg = BaseDirectories::new().expect("Could not find xdg data dir");
     if let Some(dir) = xdg.find_data_file("notes") {
-        dir.to_string_lossy().to_string() + "/"
+        dir
     } else {
         info!("No xdg data dir found, create a new one");
-        xdg.create_data_directory("notes").expect("Could not create xdg data dir").to_string_lossy().to_string() +"/"
+        xdg.create_data_directory("notes").expect("Could not create xdg data dir")
     }
 }
 

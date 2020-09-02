@@ -18,6 +18,7 @@ use profile;
 use error::UpdateError::*;
 use error::UpdateError;
 use std::path::PathBuf;
+use std::string::String;
 
 #[derive(PartialEq, Clone,Copy)]
 pub enum UpdateAction {

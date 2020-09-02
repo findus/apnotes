@@ -9,22 +9,17 @@ extern crate gtk;
 #[cfg(target_family = "unix")]
 extern crate gio;
 #[cfg(target_family = "unix")]
-extern crate curl;
-#[cfg(target_family = "unix")]
 extern crate core;
 #[cfg(target_family = "unix")]
-extern crate mailparse;
-#[cfg(target_family = "unix")]
 extern crate gdk;
-#[cfg(target_family = "unix")]
-extern crate apple_notes_rs;
 #[cfg(target_family = "unix")]
 use gtk::prelude::*;
 #[cfg(target_family = "unix")]
 use gio::prelude::*;
 #[cfg(target_family = "unix")]
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
-
+use apple_notes_rs_lib::apple_imap::{login, list_note_folders, get_messages_from_foldersession};
+use apple_notes_rs_lib::note::HeaderParser;
 
 
 #[cfg(target_family = "unix")]
