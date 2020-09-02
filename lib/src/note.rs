@@ -62,8 +62,8 @@ impl HeaderParser for NotesMetadata {
         match self.get_header_value("Subject") {
             Some(subject) => {
                 let escaped_string = format!("{}", subject)
-                    .replace("/", "_").replace(" ", "_")
-                    .replace(|c: char| !c.is_ascii(), "");
+                    .replace("/", "_").replace(" ", "_");
+                   // .replace(|c: char| !c.is_ascii(), "");
                 regex.replace_all(&escaped_string, "").into_owned()
             },
             _ =>  panic!("Could not get Subject of this note {:?}", self.header)
