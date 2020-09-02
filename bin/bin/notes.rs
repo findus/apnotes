@@ -65,7 +65,7 @@ fn edit_notes(sub_matches: &ArgMatches) {
     let metadata_file_path =
         apple_notes_rs_lib::util::get_hash_path(Path::new(&folder));
 
-fix    let metadata_file = std::fs::File::open(metadata_file_path.as_path())
+    let metadata_file = std::fs::File::open(metadata_file_path.as_path())
         .expect(&format!("Could not open {}", &metadata_file_path.to_string_lossy()));
 
     let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
