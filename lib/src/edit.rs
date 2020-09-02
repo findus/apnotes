@@ -23,7 +23,7 @@ pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> 
     info!("Opening File for editing: {}", path);
 
     #[cfg(target_family = "unix")]
-        let open_with = "xdg_open".to_owned();
+        let open_with = "xdg-open".to_owned();
     #[cfg(target_family = "windows")]
         let open_with = (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned();
 
