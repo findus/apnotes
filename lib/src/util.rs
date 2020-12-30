@@ -72,7 +72,7 @@ fn header_config_test() {
 
     use note::{LocalNote};
 
-    let header = HeaderBuilder::new();
+    let _header = HeaderBuilder::new();
 
     let test_note = LocalNote {
         path: Default::default(),
@@ -84,10 +84,11 @@ fn header_config_test() {
             new: false,
             date: Default::default(),
             uuid: "".to_string(),
+            message_id: "".to_string(),
             mime_version: "".to_string(),
             subject: "".to_string()
         }
     };
 
-    assert!(test_note.metadata().message_id().contains("@local.host"));
+    assert!(test_note.metadata.message_id.contains("@local.host"));
 }

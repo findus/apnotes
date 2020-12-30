@@ -16,7 +16,7 @@ use self::imap::types::{ZeroCopy, Fetch};
 use model::NotesMetadata;
 
 use std::borrow::Borrow;
-use note::{Note, HeaderParser};
+use note::{Note};
 use ::{apple_imap, converter};
 use profile;
 use imap::error::Error;
@@ -221,7 +221,7 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         .collect::<Vec<String>>()
         .join("\n");*/
 
-    let content = converter::convert_to_html(&metadata);
+    let _content = converter::convert_to_html(&metadata);
 
     //let message = format!("{}\n\n{}",headers, content);
     let message = "".clone();

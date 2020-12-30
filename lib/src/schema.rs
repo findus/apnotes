@@ -15,7 +15,9 @@ table! {
         new -> Bool,
         date -> Timestamp,
         uuid -> Text,
+        message_id -> Text,
         mime_version -> Text,
+        subject -> Text,
     }
 }
 

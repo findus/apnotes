@@ -18,8 +18,6 @@ use gtk::prelude::*;
 use gio::prelude::*;
 #[cfg(target_family = "unix")]
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
-use apple_notes_rs_lib::apple_imap::{login, list_note_folders, get_messages_from_foldersession};
-use apple_notes_rs_lib::note::HeaderParser;
 
 
 #[cfg(target_family = "unix")]

@@ -1,7 +1,6 @@
 extern crate log;
 
 use model::NotesMetadata;
-use note::{HeaderParser};
 use converter;
 use std::fs::File;
 use std::io::Write;
@@ -39,7 +38,7 @@ pub fn save_text_to_file(metadata: &NotesMetadata) -> Result<()> {
     let path = get_notes_file_path_from_metadata(&metadata);
     info!("Saving text to {}", path.to_string_lossy().into_owned());
     File::create(path)
-        .and_then(|mut file| file.write_all(metadata.subject().as_ref()))
+        .and_then(|mut file| file.write_all(metadata.subject.as_ref()))
 }
 
 pub fn save_metadata_to_file(metadata: &NotesMetadata) -> Result<String> {

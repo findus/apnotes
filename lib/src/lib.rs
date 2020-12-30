@@ -37,7 +37,7 @@ pub fn fetch_all() {
 }
 
 pub fn create_new_note(with_subject: String, folder: String) -> Result<NotesMetadata>  {
-    let headers = util::generate_mail_headers(with_subject);
+    let _headers = util::generate_mail_headers(with_subject);
 
     let metadata = NotesMetadata {
         old_remote_id: None,

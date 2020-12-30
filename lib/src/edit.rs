@@ -14,7 +14,6 @@ use std::time;
 use error::UpdateError::EditError;
 use error::UpdateError;
 use ::{util, io};
-use note::{HeaderParser};
 use model::NotesMetadata;
 
 pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
@@ -74,24 +73,13 @@ fn update(file: &str, new: bool) -> Result<String, UpdateError> {
         info!("Title of note changed, will update metadata_file subject and file-name");
     }
 
-    let metadata_identifier = metadata.message_id();
-   /* let new_metadata_headers_iterator =
-            metadata.header.clone()
-                .into_iter()
-                .filter(|(a,_)| a != "Message-Id")
-                .filter(|(a,_)| a != "Subject");
-
-    let mut new_metadata_headers: Vec<(String,String)> = new_metadata_headers_iterator.collect();
-*/
-    if old_subject != first_line {
-        info!("Title has changed, file is getting renamed");
-       // new_metadata_headers.push(("Subject".to_owned(), first_line.to_owned()));
-    } else {
-      //  new_metadata_headers.push(("Subject".to_owned(), old_subject.to_owned()));
-    }
+    let metadata_identifier = metadata.message_id.clone();
 
     //if there already is an "old" remote id,use that instead of using the current one
     let old_remote_id = metadata.clone().old_remote_id.unwrap_or(metadata_identifier.clone());
+
+    debug!("Changing files message id...");
+    let new_message_id = replace_uuid(&metadata_identifier);
 
     let mut new_metadata = NotesMetadata {
         old_remote_id: Some(old_remote_id.clone()),
@@ -100,16 +88,19 @@ fn update(file: &str, new: bool) -> Result<String, UpdateError> {
         uid: metadata.uid,
         // check if ok
         new: if new { true } else { false },
-        date: Default::default(),
-        uuid: "".to_string(),
-        mime_version: "".to_string()
+        date: metadata.date.clone(),
+        uuid: metadata.uuid.clone(),
+        message_id: new_message_id.clone(),
+        mime_version: metadata.mime_version.clone(),
+        subject: metadata.subject.clone()
     };
 
-    debug!("Changing files message id...");
-    let new_uuid_str = replace_uuid(&metadata_identifier);
-    //new_metadata_headers.push(("Message-Id".to_owned(), new_uuid_str.clone()));
-
-    //new_metadata.header = new_metadata_headers.clone();
+    if old_subject != first_line {
+        info!("Title has changed, file is getting renamed");
+        new_metadata.subject = first_line.to_owned();
+    } else {
+        new_metadata.subject = first_line.to_owned();
+    }
 
     if old_subject != first_line {
         io::save_metadata_to_file(&new_metadata)

@@ -3,7 +3,7 @@ extern crate walkdir;
 extern crate glob;
 
 use model::NotesMetadata;
-use note::{LocalNote, HeaderParser};
+use note::{LocalNote};
 use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
@@ -137,7 +137,7 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
                 .map_err(|e| SyncError(e.to_string()))
         },
         Err(e) => {
-            error!("Error while updating note {} {}", metadata.subject(), e.to_string());
+            error!("Error while updating note {} {}", metadata.subject.clone(), e.to_string());
             Err(SyncError(e.to_string()))
         }
     }
