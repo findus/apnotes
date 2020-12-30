@@ -6,11 +6,11 @@ use clap::{Arg, App, ArgMatches};
 
 use std::path::{Path};
 use log::Level;
-use apple_notes_rs_lib::note::NotesMetadata;
 use apple_notes_rs_lib::{apple_imap, create_new_note};
 use apple_notes_rs_lib::sync::sync;
 use apple_notes_rs_lib::error::UpdateError;
 use apple_notes_rs_lib::edit::edit;
+use apple_notes_rs_lib::model::NotesMetadata;
 
 fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();

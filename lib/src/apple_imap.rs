@@ -13,9 +13,10 @@ use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
+use model::NotesMetadata;
 
 use std::borrow::Borrow;
-use note::{Note, NotesMetadata, HeaderParser};
+use note::{Note, HeaderParser};
 use ::{apple_imap, converter};
 use profile;
 use imap::error::Error;
@@ -96,12 +97,14 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
             let first_message = message.first().unwrap();
 
             let new_metadata = NotesMetadata {
-                header: get_headers(message.first().unwrap()),
                 old_remote_id: None,
                 subfolder: metadata.subfolder.clone(),
                 locally_deleted: false,
-                uid: Some(first_message.uid.unwrap()),
-                new: false
+                uid: Some(first_message.uid.unwrap() as i64),
+                new: false,
+                date: Default::default(),
+                uuid: "".to_string(),
+                mime_version: "".to_string()
             };
 
             Some(
@@ -129,12 +132,14 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
             debug!("Message Loading for {} successful", &folder_name.to_string());
             messages.iter().map(|fetch| {
                 NotesMetadata {
-                    header: get_headers(fetch),
                     old_remote_id: None,
                     subfolder: folder_name.clone(),
                     locally_deleted: false,
-                    uid: Some(fetch.uid.unwrap()),
-                    new: false
+                    uid: Some(fetch.uid.unwrap() as i64),
+                    new: false,
+                    date: Default::default(),
+                    uuid: "".to_string(),
+                    mime_version: "".to_string()
                 }
             }).collect()
         },
@@ -169,7 +174,7 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
             Note {
-                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid, new: false },
+                mail_headers: NotesMetadata { old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid.map(|int| int as i64), new: false, date: Default::default(), uuid: "".to_string(), mime_version: "".to_string() },
                 body: body.clone().unwrap_or("".to_string()),
                 folder: folder_name.to_owned()
             }
@@ -214,16 +219,17 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         format!("new")
     };
 
-    let headers = metadata.header.iter().map( |(k,v)| {
+  /*  let headers = metadata.header.iter().map( |(k,v)| {
         //TODO make sure that updated message has new message-id
         format!("{}: {}",k,v)
     })
         .collect::<Vec<String>>()
-        .join("\n");
+        .join("\n");*/
 
     let content = converter::convert_to_html(&metadata);
 
-    let message = format!("{}\n\n{}",headers, content);
+    //let message = format!("{}\n\n{}",headers, content);
+    let message = "".clone();
 
     session
         //Write new message into the mailbox

@@ -2,7 +2,8 @@ extern crate log;
 extern crate walkdir;
 extern crate glob;
 
-use note::{NotesMetadata, LocalNote, HeaderParser};
+use model::NotesMetadata;
+use note::{LocalNote, HeaderParser};
 use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
@@ -116,12 +117,14 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
     match apple_imap::update_message(session, metadata) {
         Ok(new_uid) => {
             let new_metadata = NotesMetadata {
-                header: metadata.header.clone(),
                 old_remote_id: None,
                 subfolder: metadata.subfolder.clone(),
                 locally_deleted: metadata.locally_deleted,
-                uid: Some(new_uid),
-                new: false
+                uid: Some(new_uid as i64),
+                new: false,
+                date: Default::default(),
+                uuid: "".to_string(),
+                mime_version: "".to_string()
             };
 
             io::save_metadata_to_file(&new_metadata)

@@ -1,8 +1,8 @@
 extern crate pulldown_cmark;
 
-use note::{NotesMetadata};
 use self::pulldown_cmark::{html, Parser};
 use util;
+use model::NotesMetadata;
 
 pub fn convert2md(input: &String) -> String {
     html2runes::markdown::convert_string(input.as_str())

@@ -8,23 +8,15 @@ use std::hash::Hasher;
 use util;
 use std::path::PathBuf;
 use self::log::{info, error, trace};
-
-#[derive(Serialize,Deserialize,Clone)]
-pub struct NotesMetadata {
-    pub header: Vec<(String, String)>,
-    pub old_remote_id: Option<String>,
-    pub subfolder: String,
-    pub locally_deleted: bool,
-    pub uid: Option<u32>,
-    pub new: bool
-}
+use model::NotesMetadata;
 
 impl HeaderParser for NotesMetadata {
     fn get_header_value(&self, search_string: &str) -> Option<String> {
-        self.header
+        /*self.header
             .iter()
             .find(|(key, _)| key == search_string)
-            .and_then(|val| Some(val.1.clone()))
+            .and_then(|val| Some(val.1.clone()))*/
+        None
     }
 
     fn subject(&self) -> String {
@@ -66,14 +58,14 @@ impl HeaderParser for NotesMetadata {
                    // .replace(|c: char| !c.is_ascii(), "");
                 regex.replace_all(&escaped_string, "").into_owned()
             },
-            _ =>  panic!("Could not get Subject of this note {:?}", self.header)
+            _ =>  panic!("Could not get Subject of this note {:?}", "")
         }
     }
 
     fn message_id(&self) -> String {
         match self.get_header_value("Message-Id") {
             Some(subject) => subject,
-            _ =>  panic!("Could not get Message-Id of this note {:?}", self.header)
+            _ =>  panic!("Could not get Message-Id of this note {:?}", "")
         }
     }
 }

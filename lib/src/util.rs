@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
-use note::{NotesMetadata, HeaderParser, LocalNote, NoteTrait};
+use model::NotesMetadata;
+use note::{HeaderParser, LocalNote, NoteTrait};
 use profile;
 use uuid::Uuid;
 use chrono::{Utc};
@@ -74,12 +75,14 @@ fn header_config_test() {
     let test_note = LocalNote {
         path: Default::default(),
         metadata: NotesMetadata {
-            header: header.build(),
             old_remote_id: None,
             subfolder: "".to_string(),
             locally_deleted: false,
             uid: None,
-            new: false
+            new: false,
+            date: Default::default(),
+            uuid: "".to_string(),
+            mime_version: "".to_string()
         }
     };
 

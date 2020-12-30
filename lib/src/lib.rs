@@ -8,6 +8,8 @@ extern crate serde;
 extern crate uuid;
 extern crate core;
 extern crate chrono;
+#[macro_use]
+extern crate diesel;
 
 pub mod apple_imap;
 pub mod note;
@@ -18,11 +20,15 @@ pub mod io;
 pub mod util;
 pub mod error;
 pub mod edit;
+pub mod db;
+pub mod model;
+pub mod schema;
 
 use crate::apple_imap::*;
 use io::save_all_notes_to_file;
-use note::{NotesMetadata, LocalNote};
+use note::{LocalNote};
 use std::io::Result;
+use model::NotesMetadata;
 
 pub fn fetch_all() {
     let mut session = login();
@@ -34,12 +40,14 @@ pub fn create_new_note(with_subject: String, folder: String) -> Result<NotesMeta
     let headers = util::generate_mail_headers(with_subject);
 
     let metadata = NotesMetadata {
-        header: headers,
         old_remote_id: None,
         subfolder: format!("Notes.{}",folder),
         locally_deleted: false,
         uid: None,
-        new: true
+        new: true,
+        date: Default::default(),
+        uuid: "".to_string(),
+        mime_version: "".to_string()
     };
 
     let note = LocalNote {

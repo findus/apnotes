@@ -2,5 +2,6 @@
 members = [
     "lib",
     "ui",
+    "ui_iced",
     "bin"
 ]

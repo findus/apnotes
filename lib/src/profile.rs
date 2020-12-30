@@ -8,6 +8,8 @@ use self::regex::Regex;
 use std::fs::File;
 use self::log::{info, warn};
 use std::path::PathBuf;
+
+#[cfg(target_family = "unix")]
 use self::xdg::BaseDirectories;
 
 pub struct Profile {
