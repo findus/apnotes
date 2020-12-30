@@ -121,7 +121,7 @@ impl NoteTrait for LocalNote {
     }
 
     fn uuid(&self) -> String {
-        self.metadata.identifier()
+        self.metadata.uuid.clone() //TODO check if this still works if multiple notes exists (merge)
     }
 
     fn folder(&self) -> String { self.metadata().subfolder.clone() }
@@ -142,7 +142,7 @@ impl NoteTrait for Note {
     }
 
     fn uuid(&self) -> String {
-        self.mail_headers.identifier()
+        self.mail_headers.uuid.clone()
     }
 
     fn folder(&self) -> String { self.folder.clone() }
@@ -172,11 +172,11 @@ impl std::hash::Hash for Box<dyn NoteTrait> {
 
 impl std::cmp::PartialEq for NotesMetadata  {
     fn eq(&self, other: &Self) -> bool {
-        self.identifier() == other.identifier() && self.uid == other.uid
+        self.uuid == other.uuid && self.uid == other.uid
     }
 
     fn ne(&self, other: &Self) -> bool {
-        self.identifier() != other.identifier() && self.uid == other.uid
+        self.uuid != other.uuid && self.uid == other.uid
     }
 }
 
@@ -186,7 +186,7 @@ impl std::cmp::Eq for NotesMetadata {
 
 impl std::hash::Hash for NotesMetadata {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.identifier().hash(state);
+        self.uuid.hash(state);
         self.uid.hash(state);
     }
 }

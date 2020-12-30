@@ -78,22 +78,22 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
                     let f = File::open(&hash_loc_path).unwrap();
                     let local_metadata: NotesMetadata = serde_json::from_reader(f).unwrap();
 
-                    let local_uuid = local_metadata.message_id();
+                    let local_uuid = local_metadata.message_id.clone();
                     let oldest_remote_uuid = &local_metadata.old_remote_id;
 
-                    let remote_uuid = mail_headers.message_id();
+                    let remote_uuid = mail_headers.message_id.clone();
 
                     if remote_uuid == local_uuid {
-                        debug!("Same: {}", mail_headers.subfolder.to_string() + "/" + &mail_headers.subject());
+                        debug!("Same: {}", mail_headers.subfolder.to_string() + "/" + &mail_headers.subject.clone());
                         return Some((DoNothing, mail_headers.clone()))
                     } else if remote_uuid != local_uuid && oldest_remote_uuid.is_none() {
-                        info!("Changed Remotely: {}", mail_headers.subject());
+                        info!("Changed Remotely: {}", mail_headers.subject.clone());
                         return Some((UpdateLocally, mail_headers.clone()))
                     } else if oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == remote_uuid {
-                        info!("Changed Locally: {}", &local_metadata.subject());
+                        info!("Changed Locally: {}", &local_metadata.subject.clone());
                         return Some((UpdateRemotely, local_metadata))
                     } else if oldest_remote_uuid.is_some() && remote_uuid != local_uuid {
-                        info!("Changed on both ends, needs merge: {}", &mail_headers.subject());
+                        info!("Changed on both ends, needs merge: {}", &mail_headers.subject.clone());
                         return Some((Merge, mail_headers.clone()))
                     } else {
                         warn!("Could not find metadata_file: {}", &hash_loc_path.to_string_lossy())
@@ -122,9 +122,11 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
                 locally_deleted: metadata.locally_deleted,
                 uid: Some(new_uid as i64),
                 new: false,
-                date: Default::default(),
-                uuid: "".to_string(),
-                mime_version: "".to_string()
+                date: metadata.date.clone(),
+                uuid: metadata.uuid.clone(),
+                message_id: metadata.message_id.clone(),
+                mime_version: metadata.mime_version.clone(),
+                subject: metadata.subject.clone()
             };
 
             io::save_metadata_to_file(&new_metadata)
