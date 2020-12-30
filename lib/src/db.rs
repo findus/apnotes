@@ -5,11 +5,6 @@ Windows: Register sqlite dll with "lib /MACHINE:X64 /def:sqlite3.def /out:sqlite
 **/
 
 use diesel::*;
-use diesel::prelude::*;
-use model::NotesMetadata;
-use diesel::sqlite::Sqlite;
-use diesel::backend::Backend;
-use diesel::deserialize::FromSql;
 
 pub fn establish_connection() -> SqliteConnection {
     let database_url = env::var("DATABASE_URL")
@@ -23,6 +18,7 @@ pub fn establish_connection() -> SqliteConnection {
 fn test() {
 
     use schema::metadata::dsl::*;
+    use model::NotesMetadata;
 
     let connection = establish_connection();
     let results = metadata

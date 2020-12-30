@@ -48,7 +48,7 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
 
 pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<Note> {
     let folders = list_note_folders(session);
-    info!("Loading remote messagges");
+    info!("Loading remote messages");
     folders.iter().map(|folder_name| {
         apple_imap::get_messages_from_foldersession(session, folder_name.to_string())
     })
@@ -96,16 +96,12 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
             debug!("Message Loading for {} successful", &metadata.subject());
             let first_message = message.first().unwrap();
 
-            let new_metadata = NotesMetadata {
-                old_remote_id: None,
-                subfolder: metadata.subfolder.clone(),
-                locally_deleted: false,
-                uid: Some(first_message.uid.unwrap() as i64),
-                new: false,
-                date: Default::default(),
-                uuid: "".to_string(),
-                mime_version: "".to_string()
-            };
+            let new_metadata =
+                NotesMetadata::new(
+                    get_headers(message.first().unwrap()),
+                    metadata.subfolder.clone(),
+                    first_message.uid.unwrap(),
+                );
 
             Some(
                 Note {

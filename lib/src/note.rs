@@ -7,29 +7,36 @@ use std::fs::File;
 use std::hash::Hasher;
 use util;
 use std::path::PathBuf;
-use self::log::{info, error, trace};
+use self::log::{trace};
 use model::NotesMetadata;
 
-impl HeaderParser for NotesMetadata {
+pub type NoteHeader = Vec<(String, String)>;
+
+impl HeaderParser for NoteHeader {
     fn get_header_value(&self, search_string: &str) -> Option<String> {
-        /*self.header
-            .iter()
+        self.iter()
             .find(|(key, _)| key == search_string)
-            .and_then(|val| Some(val.1.clone()))*/
-        None
+            .and_then(|val| Some(val.1.clone()))
+    }
+
+    fn date(&self) -> String {
+        match self.get_header_value("Date") {
+            Some(date) => date,
+            _ => panic!("Could not get date of Note {:?}", self)
+        }
     }
 
     fn subject(&self) -> String {
         match self.get_header_value("Subject") {
             Some(subject) => subject,
-            _ => panic!("Could not get Identifier of Note {:?}", self.uid)
+            _ => panic!("Could not get subject of Note {:?}", self)
         }
     }
 
     fn identifier(&self) -> String {
         match self.get_header_value("X-Universally-Unique-Identifier") {
             Some(subject) => subject,
-            _ => panic!("Could not get uuid of this note {:#?}", self.uid)
+            _ => panic!("Could not get uuid of this note {:#?}", self)
         }
     }
 
@@ -58,14 +65,21 @@ impl HeaderParser for NotesMetadata {
                    // .replace(|c: char| !c.is_ascii(), "");
                 regex.replace_all(&escaped_string, "").into_owned()
             },
-            _ =>  panic!("Could not get Subject of this note {:?}", "")
+            _ =>  panic!("Could not get Subject of this note {:?}", self)
         }
     }
 
     fn message_id(&self) -> String {
         match self.get_header_value("Message-Id") {
             Some(subject) => subject,
-            _ =>  panic!("Could not get Message-Id of this note {:?}", "")
+            _ =>  panic!("Could not get Message-Id of this note {:?}", self)
+        }
+    }
+
+    fn mime_version(&self) -> String {
+        match self.get_header_value("Mime-Version") {
+            Some(subject) => subject,
+            _ =>  panic!("Could not get Mime-Version of this note {:?}", self)
         }
     }
 }
@@ -77,6 +91,8 @@ pub trait HeaderParser {
     fn subject_with_identifier(&self) -> String;
     fn subject_escaped(&self) -> String;
     fn message_id(&self) -> String;
+    fn date(&self) -> String;
+    fn mime_version(&self) -> String;
 }
 
 pub trait NoteTrait {
