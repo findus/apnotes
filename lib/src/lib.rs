@@ -47,7 +47,9 @@ pub fn create_new_note(with_subject: String, folder: String) -> Result<NotesMeta
         new: true,
         date: Default::default(),
         uuid: "".to_string(),
-        mime_version: "".to_string()
+        mime_version: "".to_string(),
+        subject: "".to_string(),
+        message_id: "".to_string() //TODO create initial values
     };
 
     let note = LocalNote {

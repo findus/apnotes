@@ -40,14 +40,6 @@ impl HeaderParser for NoteHeader {
         }
     }
 
-    fn subject_with_identifier(&self) -> String {
-        if self.uid.is_none() {
-            format!("{}_{}","new", self.subject_escaped())
-        } else {
-            format!("{}_{}", self.uid.unwrap(), self.subject_escaped())
-        }
-    }
-
     ///
     /// Prints an espaced subject, removes any character that might cause problems when
     /// writing files to disk
@@ -88,7 +80,6 @@ pub trait HeaderParser {
     fn get_header_value(&self, search_string: &str) -> Option<String>;
     fn subject(&self) -> String;
     fn identifier(&self) -> String;
-    fn subject_with_identifier(&self) -> String;
     fn subject_escaped(&self) -> String;
     fn message_id(&self) -> String;
     fn date(&self) -> String;

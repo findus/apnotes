@@ -70,6 +70,9 @@ pub fn generate_mail_headers(subject: String) -> Vec<(String, String)> {
 
 #[test]
 fn header_config_test() {
+
+    use note::{LocalNote};
+
     let header = HeaderBuilder::new();
 
     let test_note = LocalNote {
@@ -82,7 +85,8 @@ fn header_config_test() {
             new: false,
             date: Default::default(),
             uuid: "".to_string(),
-            mime_version: "".to_string()
+            mime_version: "".to_string(),
+            subject: "".to_string()
         }
     };
 

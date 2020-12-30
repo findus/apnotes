@@ -14,6 +14,7 @@ pub struct NotesMetadata {
 
     pub date: String, //TODO type
     pub uuid: String,
+    pub message_id: String,
     pub mime_version: String,
     pub subject: String
 }
@@ -29,7 +30,8 @@ impl NotesMetadata {
             date: header.date(),
             uuid: header.identifier(),
             mime_version: header.mime_version(),
-            subject: header.subject()
+            subject: header.subject(),
+            message_id: header.message_id()
         }
     }
 }

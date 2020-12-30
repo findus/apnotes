@@ -93,7 +93,7 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
     let messages_result = session.uid_fetch(metadata.uid.unwrap().to_string(), "(RFC822 RFC822.HEADER UID)");
     match messages_result {
         Ok(message) => {
-            debug!("Message Loading for {} successful", &metadata.subject());
+            debug!("Message Loading for {} successful", &metadata.subject);
             let first_message = message.first().unwrap();
 
             let new_metadata =
@@ -127,16 +127,11 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
         Ok(messages) => {
             debug!("Message Loading for {} successful", &folder_name.to_string());
             messages.iter().map(|fetch| {
-                NotesMetadata {
-                    old_remote_id: None,
-                    subfolder: folder_name.clone(),
-                    locally_deleted: false,
-                    uid: Some(fetch.uid.unwrap() as i64),
-                    new: false,
-                    date: Default::default(),
-                    uuid: "".to_string(),
-                    mime_version: "".to_string()
-                }
+                NotesMetadata::new(
+                    get_headers(fetch),
+                    folder_name.clone(),
+                    fetch.uid.expect("No UID found"),
+                )
             }).collect()
         },
         Err(error) => {
@@ -170,7 +165,11 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
         let headers = get_headers(fetch.borrow());
         let body = get_body(fetch.borrow());
             Note {
-                mail_headers: NotesMetadata { old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid.map(|int| int as i64), new: false, date: Default::default(), uuid: "".to_string(), mime_version: "".to_string() },
+                mail_headers: NotesMetadata::new(
+                    headers,
+                    folder_name.clone(),
+                    fetch.uid.unwrap()
+                ),
                 body: body.clone().unwrap_or("".to_string()),
                 folder: folder_name.to_owned()
             }
@@ -249,7 +248,7 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
             }
         })
         //Search for the new message, to get the new UID of the updated message
-        .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", metadata.message_id())))
+        .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", metadata.message_id)))
         //Get the first UID
         .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
         //Save the new UID to the metadata file, also set seen flag so that mail clients dont get notified on updated message
