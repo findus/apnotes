@@ -14,6 +14,7 @@ use diesel::result::Error;
 use model::{NotesMetadata, Body};
 use schema::metadata::dsl::metadata;
 use self::log::*;
+use schema::body::columns::metadata_uuid;
 
 pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {
@@ -34,12 +35,25 @@ pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
 /// same note, in that case 2 notes exists on the imap
 /// server.
 ///
+/// If multiple notes exists tell user that a merge needs to happen
+///
 pub fn append_note(connection: &SqliteConnection, body: &Body) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {
         diesel::insert_into(schema::body::table)
             .values(body)
             .execute(connection)?;
 
+        Ok(())
+    })
+}
+
+/// In case of a successful merge this method replaces all unmerged notes with a single
+/// merged note
+pub fn update_merged_note(connection: &SqliteConnection, body: &Body) -> Result<(), Error> {
+    connection.transaction::<_,Error,_>(|| {
+        diesel::delete(schema::body::dsl::body.filter(metadata_uuid.eq(body.metadata_uuid.clone())))
+            .execute(connection)?;
+        append_note(connection,body);
         Ok(())
     })
 }
@@ -98,7 +112,7 @@ fn insert_single_note() {
     let con = establish_connection();
     delete_everything(&con);
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
-    let body = Body::new(0, m_data.uuid.clone());
+    let body = Body::new(Some(0), m_data.uuid.clone());
 
     insert_into_db(&con,(&m_data,&body));
 
@@ -125,7 +139,7 @@ fn no_duplicate_entries() {
     let con = establish_connection();
     delete_everything(&con);
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
-    let body = Body::new(0, m_data.uuid.clone());
+    let body = Body::new(Some(0), m_data.uuid.clone());
 
     match insert_into_db(&con,(&m_data,&body))
         .and_then(|_| insert_into_db(&con,(&m_data,&body))) {
@@ -145,8 +159,8 @@ fn append_additional_note() {
     let con = establish_connection();
     delete_everything(&con);
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
-    let body = Body::new(0, m_data.uuid.clone());
-    let additional_body = Body::new(1, m_data.uuid.clone());
+    let body = Body::new(Some(0), m_data.uuid.clone());
+    let additional_body = Body::new(Some(1), m_data.uuid.clone());
 
     match insert_into_db(&con,(&m_data,&body))
         .and_then(|_| append_note(&con, &additional_body))
@@ -165,6 +179,53 @@ fn append_additional_note() {
         },
         Err(e) => panic!("DB Transaction failed: {}", e.to_string())
     }
+}
 
+#[test]
+/// This test adds 2 bodies to a note and replaces it with a "merged" one
+/// the old bodies should be gone now and a new single one should be present
+fn replace_with_merged_body() {
+    use util::HeaderBuilder;
+    use dotenv::dotenv;
 
+    //Setup
+    dotenv::dotenv().ok();
+    simple_logger::init_with_level(Level::Debug).unwrap();
+    let con = establish_connection();
+    delete_everything(&con);
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
+    let body = Body::new(Some(0), m_data.uuid.clone());
+    let additional_body = Body::new(Some(1), m_data.uuid.clone());
+
+    match insert_into_db(&con,(&m_data,&body))
+        .and_then(|_| append_note(&con, &additional_body))
+        .and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
+        Ok((note, mut bodies)) => {
+            assert_eq!(note, m_data);
+            assert_eq!(bodies.len(), 2);
+
+            let first_note = bodies.pop().unwrap();
+            let second_note = bodies.pop().unwrap();
+
+            //TODO check if order is always the same
+            assert_eq!(second_note, body);
+            assert_eq!(first_note, additional_body);
+        },
+        Err(e) => panic!("DB Transaction failed: {}", e.to_string())
+    }
+
+    //Actual test
+
+    let merged_body = Body::new(None, m_data.uuid.clone());
+    match update_merged_note(&con,&merged_body).
+        and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
+        Ok((note, mut bodies)) => {
+            assert_eq!(m_data,note);
+            assert_eq!(bodies.len(),1_usize);
+            assert_eq!(bodies.pop().unwrap(),merged_body);
+        },
+        Err(e) => {
+            panic!("Error while updating merged body: {}", e.to_string());
+        }
+    }
 }

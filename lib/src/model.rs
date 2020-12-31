@@ -46,12 +46,12 @@ pub struct Body {
 }
 
 impl Body {
-    pub fn new(uid: i64, metadata_reference: String) -> Body {
+    pub fn new(uid: Option<i64>, metadata_reference: String) -> Body {
         let profile = profile::load_profile();
         Body {
             message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
             text: None,
-            uid: Some(uid),
+            uid,
             metadata_uuid: metadata_reference
         }
     }
