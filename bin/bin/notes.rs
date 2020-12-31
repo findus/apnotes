@@ -6,10 +6,10 @@ use clap::{Arg, App, ArgMatches};
 
 use std::path::{Path};
 use log::Level;
-use apple_notes_rs_lib::{apple_imap, create_new_note};
-use apple_notes_rs_lib::sync::sync;
+use apple_notes_rs_lib::{apple_imap};
+//use apple_notes_rs_lib::sync::sync;
 use apple_notes_rs_lib::error::UpdateError;
-use apple_notes_rs_lib::edit::edit;
+//use apple_notes_rs_lib::edit::edit;
 use apple_notes_rs_lib::model::NotesMetadata;
 
 fn main() {
@@ -51,15 +51,15 @@ fn main() {
         );
 
     let _res = match app.get_matches().subcommand() {
-        ("new",  Some(sub_matches)) => new(sub_matches),
+       // ("new",  Some(sub_matches)) => new(sub_matches),
         ("sync", Some(_sub_matches)) => sync_notes(),
-        ("edit", Some(sub_matches)) => edit_notes(sub_matches),
+      //  ("edit", Some(sub_matches)) => edit_notes(sub_matches),
         (_, _) => unreachable!(),
     };
 
 }
 
-fn edit_notes(sub_matches: &ArgMatches) {
+/*fn edit_notes(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("path").unwrap().to_string();
 
     let metadata_file_path =
@@ -72,17 +72,17 @@ fn edit_notes(sub_matches: &ArgMatches) {
 
     apple_notes_rs_lib::util::get_hash_path(Path::new(&folder));
     apple_notes_rs_lib::edit::edit(&metadata, false).unwrap();
-}
+}*/
 
 fn sync_notes() {
     let mut session = apple_imap::login();
-    sync(&mut session);
+    //sync(&mut session);
 }
 
-fn new(sub_matches: &ArgMatches) {
+/*fn new(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("folder").unwrap().to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
     create_new_note(subject,folder)
         .map_err(|e| UpdateError::IoError(e.to_string()))
         .and_then(|metadata| edit(&metadata, true)).unwrap();
-}
+}*/

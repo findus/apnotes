@@ -10,14 +10,14 @@ pub fn get_hash_path(path: &Path) -> PathBuf {
     std::path::Path::new(&folder).join(&new_file_name).to_owned()
 }
 
-pub fn get_notes_file_path_from_metadata(metadata: &NotesMetadata) -> PathBuf {
+/*pub fn get_notes_file_path_from_metadata(metadata: &NotesMetadata) -> PathBuf {
     let pathbuf = PathBuf::new()
         .join(profile::get_notes_dir())
         .join(PathBuf::from(&metadata.subfolder))
         .join(PathBuf::from(metadata.subject_with_identifier()));
     pathbuf
 }
-
+*/
 pub fn generate_uuid() -> String {
     Uuid::new_v4().to_string().to_uppercase()
 }
@@ -65,30 +65,4 @@ impl HeaderBuilder {
 
 pub fn generate_mail_headers(subject: String) -> Vec<(String, String)> {
     HeaderBuilder::new().with_subject(subject).build()
-}
-
-#[test]
-fn header_config_test() {
-
-    use note::{LocalNote};
-
-    let _header = HeaderBuilder::new();
-
-    let test_note = LocalNote {
-        path: Default::default(),
-        metadata: NotesMetadata {
-            old_remote_id: None,
-            subfolder: "".to_string(),
-            locally_deleted: false,
-            uid: None,
-            new: false,
-            date: Default::default(),
-            uuid: "".to_string(),
-            message_id: "".to_string(),
-            mime_version: "".to_string(),
-            subject: "".to_string()
-        }
-    };
-
-    assert!(test_note.metadata.message_id.contains("@local.host"));
 }

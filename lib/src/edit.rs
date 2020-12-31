@@ -16,7 +16,7 @@ use error::UpdateError;
 use ::{util, io};
 use model::NotesMetadata;
 
-pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
+/*pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
     let path = util::get_notes_file_path_from_metadata(metadata);
     let path = path.to_string_lossy().into_owned();
     info!("Opening File for editing: {}", path);
@@ -128,4 +128,4 @@ fn replace_uuid(string: &str) -> String {
 fn should_generate_new_uuid() {
     let old_uuid = "Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@test.mail>";
     assert_ne!(old_uuid.to_string(), replace_uuid(old_uuid));
-}
+}*/

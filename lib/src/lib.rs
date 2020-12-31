@@ -1,5 +1,4 @@
 extern crate serde_json;
-#[macro_use]
 extern crate serde_derive;
 extern crate walkdir;
 extern crate native_tls;
@@ -25,43 +24,39 @@ pub mod model;
 pub mod schema;
 
 use crate::apple_imap::*;
-use io::save_all_notes_to_file;
-use note::{LocalNote};
-use std::io::Result;
-use model::NotesMetadata;
+//use io::save_all_notes_to_file;
+use std::io::{Result, Error};
+use model::{NotesMetadata, Body};
 
-pub fn fetch_all() {
+/*pub fn fetch_all() {
     let mut session = login();
     let notes = apple_imap::fetch_notes(&mut session);
-    save_all_notes_to_file(&notes);
-}
+    //save_all_notes_to_file(&notes);
+}*/
 
-pub fn create_new_note(with_subject: String, folder: String) -> Result<NotesMetadata>  {
+/*pub fn create_new_note(with_subject: String, folder: String) -> Result<NotesMetadata> {
     let _headers = util::generate_mail_headers(with_subject);
 
-    let metadata = NotesMetadata {
+    let profile = self::profile::load_profile();
+
+    let note = NotesMetadata {
         old_remote_id: None,
         subfolder: format!("Notes.{}",folder),
         locally_deleted: false,
-        uid: None,
         new: true,
         date: Default::default(),
         uuid: "".to_string(),
         mime_version: "".to_string(),
-        subject: "".to_string(),
-        message_id: "".to_string() //TODO create initial values
     };
 
-    let note = LocalNote {
-        path: util::get_notes_file_path_from_metadata(&metadata),
-        metadata: metadata.clone()
+    let body = Body {
+        message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
+        text: "".to_string(),
+        uid: None,
+        metadata_uuid: note.uuid.clone()
     };
 
     //TODO error handling
-    io::save_metadata_to_file(&metadata)
-        .and_then(|_| io::save_note_to_file(&note))
-        .and_then(|_| io::save_text_to_file(&metadata))
-        .map(|_| metadata)
-        .map_err(|e| std::io::Error::from(e))
-
-}
+    let connection = io::establish_connection();
+    io::insert_into_db(&connection, &note)
+}*/

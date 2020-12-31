@@ -3,7 +3,6 @@ extern crate walkdir;
 extern crate glob;
 
 use model::NotesMetadata;
-use note::{LocalNote};
 use apple_imap::*;
 use std::net::TcpStream;
 use native_tls::TlsStream;
@@ -33,7 +32,7 @@ pub enum UpdateAction {
     DoNothing
 }
 
-pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
+/*pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
     let metadata = fetch_headers(session);
     let remote_metadata = metadata.iter().collect();
 
@@ -61,9 +60,9 @@ pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
         }
     })
 
-}
+}*/
 
-fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, NotesMetadata)> {
+/*fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, NotesMetadata)> {
     //TODO analyze what happens if title changes remotely, implement logic for local title change
     remote_notes.into_iter().map( |mail_headers| {
         let hash_location = profile::get_notes_dir()
@@ -111,9 +110,9 @@ fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, N
             None
         }
     }).collect::<Vec<(UpdateAction, NotesMetadata)>>()
-}
+}*/
 
-fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
+/*fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     match apple_imap::update_message(session, metadata) {
         Ok(new_uid) => {
             let new_metadata = NotesMetadata {
@@ -141,15 +140,15 @@ fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<Tcp
             Err(SyncError(e.to_string()))
         }
     }
-}
+}*/
 
-fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
+/*fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();
     io::save_note_to_file(&note).map(|_| "".to_string()).map_err(|e| SyncError(e.to_string()))
         .and_then(|_| io::save_metadata_to_file(&metadata).map_err(|e| SyncError(e.to_string())))
-}
+}*/
 
-fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) -> Vec<Result<String, UpdateError>> {
+/*fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut Session<TlsStream<TcpStream>>) -> Vec<Result<String, UpdateError>> {
      actions.iter().map(|(action, metadata)| {
         match action {
             AddRemotely => {
@@ -172,29 +171,18 @@ fn execute_actions(actions: &Vec<(UpdateAction, &NotesMetadata)>, session:  &mut
             }
         }
     }).collect()
-}
+}*/
 
-fn delete_locally(metadata: &NotesMetadata) -> Result<String, UpdateError> {
+/*fn delete_locally(metadata: &NotesMetadata) -> Result<String, UpdateError> {
     info!("Deleting {} locally", metadata.subject_escaped());
     io::delete_metadata_file(metadata)
         .and_then(|_| io::delete_note(metadata))
         .map(|_| metadata.subject_escaped())
         .map_err(|e| IoError(e.to_string()))
-}
+}*/
 
-fn get_local_messages() -> Vec<LocalNote> {
-    WalkDir::new(profile::get_notes_dir())
-        .follow_links(false)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .filter(|e| !e.file_name().to_str().unwrap().to_string().starts_with("."))
-        .map(| d| {
-            LocalNote::new(d.into_path())
-        }).collect()
-}
 
-pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>,
+/*pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>,
                                    remote_metadata: HashSet<&'a NotesMetadata>)
     -> Vec<(UpdateAction, &'a NotesMetadata)> {
 
@@ -227,4 +215,4 @@ pub fn get_added_deleted_notes<'a>(local_metadata: HashSet<&'a NotesMetadata>,
     only_local.append(&mut only_remote);
     only_local
 
-}
+}*/

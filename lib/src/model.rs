@@ -1,38 +1,65 @@
 
 use note::{NoteHeader, HeaderParser};
+use ::{util, profile};
+use profile::Profile;
 
-#[derive(Clone,Queryable,Deserialize,Serialize)]
+use schema::metadata;
+use schema::body;
+
+#[derive(Identifiable,Clone,Queryable,Insertable)]
+#[table_name="metadata"]
+#[primary_key(uuid)]
 pub struct NotesMetadata {
-
     pub old_remote_id: Option<String>,
     pub subfolder: String,
     pub locally_deleted: bool,
-
-    //IMAP UID
-    pub uid: Option<i64>,
     pub new: bool,
-
     pub date: String, //TODO type
     pub uuid: String,
-    pub message_id: String,
     pub mime_version: String,
-    pub subject: String
 }
 
 impl NotesMetadata {
-    pub fn new(header: NoteHeader, subfolder: String, uid: u32) -> Self {
+    pub fn new(header: NoteHeader, subfolder: String, uid: u32, body: Option<Vec<Body>>) -> Self {
         NotesMetadata {
             old_remote_id: None,
             subfolder,
             locally_deleted: false,
-            uid: Some(uid as i64),
             new: false,
             date: header.date(),
             uuid: header.identifier(),
             mime_version: header.mime_version(),
-            subject: header.subject(),
-            message_id: header.message_id()
         }
+    }
+
+}
+
+#[derive(Identifiable,Clone,Queryable,Insertable,Associations)]
+#[table_name="body"]
+#[belongs_to(NotesMetadata, foreign_key="metadata_uuid")]
+#[primary_key(message_id)]
+pub struct Body {
+    pub message_id: String,
+    pub text: String,
+    pub uid: Option<i64>,
+    pub metadata_uuid: String
+}
+
+impl Body {
+    pub fn new(uid: i64) -> Body {
+        let profile = profile::load_profile();
+        Body {
+            message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
+            text: "".to_string(),
+            uid: Some(uid),
+            //TODO set
+            metadata_uuid: "".to_string()
+        }
+    }
+
+    pub fn subject(&self) -> String {
+        //return self.text.split("\\n").into_iter().map(|e| e.into_string()).collect::<Vec<String>>().first().unwrap().clone()
+        return "todo".to_string()
     }
 
     pub fn subject_with_identifier(&self) -> String {
@@ -53,20 +80,9 @@ impl NotesMetadata {
    ///
     pub fn subject_escaped(&self) -> String {
         let regex = regex::Regex::new(r#"[.<>:\\"/\|?*]"#).unwrap();
-        let escaped_string = format!("{}", self.subject)
+        let escaped_string = format!("{}", self.subject())
             .replace("/", "_").replace(" ", "_");
         // .replace(|c: char| !c.is_ascii(), "");
         regex.replace_all(&escaped_string, "").into_owned()
     }
-
-    pub fn subject(&self) -> String {
-        self.subject.clone()
-    }
-}
-
-#[derive(Queryable)]
-pub struct Body {
-    pub message_id: String,
-    pub body: String,
-    pub meta_data: NotesMetadata
 }

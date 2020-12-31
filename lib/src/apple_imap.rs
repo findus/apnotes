@@ -13,16 +13,16 @@ use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{ZeroCopy, Fetch};
-use model::NotesMetadata;
+use model::{NotesMetadata, Body};
 
 use std::borrow::Borrow;
-use note::{Note};
+use note::{NoteHeader, HeaderParser};
 use ::{apple_imap, converter};
 use profile;
 use imap::error::Error;
 
 pub trait MailFetcher {
-    fn fetch_mails() -> Vec<Note>;
+    fn fetch_mails() -> Vec<NotesMetadata>;
 }
 
 pub fn login() -> Session<TlsStream<TcpStream>> {
@@ -46,7 +46,7 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     return imap_session.unwrap();
 }
 
-pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<Note> {
+/*pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
     let folders = list_note_folders(session);
     info!("Loading remote messages");
     folders.iter().map(|folder_name| {
@@ -54,7 +54,7 @@ pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<Note> {
     })
         .flatten()
         .collect()
-}
+}*/
 
 pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
     info!("Fetching Headers of Remote Notes...");
@@ -86,37 +86,50 @@ pub fn fetch_uid_of_message_id(_session: &mut Session<TlsStream<TcpStream>>, _me
 
 }
 
-pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<Note> {
+/*pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<NotesMetadata> {
     if let Some(result) = session.select(&metadata.subfolder).err() {
         warn!("Could not select folder {} [{}]", &metadata.subfolder, result)
     }
-    let messages_result = session.uid_fetch(metadata.uid.unwrap().to_string(), "(RFC822 RFC822.HEADER UID)");
+
+    assert_eq!(&metadata.needs_merge(), &false);
+    let note = &metadata.notes
+        .first()
+        .expect(&format!("No notes available for {}", metadata.uuid.clone()));
+
+    let uid = &note.uid
+        .expect(&format!("Note does not have a UID {}", metadata.uuid.clone()))
+        .to_string();
+
+    let messages_result = session.uid_fetch(uid, "(RFC822 RFC822.HEADER UID)");
     match messages_result {
         Ok(message) => {
-            debug!("Message Loading for {} successful", &metadata.subject);
-            let first_message = message.first().unwrap();
+            debug!("Message Loading for {} successful", &note.subject());
 
-            let new_metadata =
+            let first_message = message.first().unwrap();
+            let headers = get_headers(message.first().unwrap());
+
+            let body = Body {
+                message_id: headers.message_id(),
+                body: get_body(first_message).unwrap(),
+                uid: first_message.uid.map(|uid| uid as i64)
+            };
+
+            Some(
                 NotesMetadata::new(
                     get_headers(message.first().unwrap()),
                     metadata.subfolder.clone(),
                     first_message.uid.unwrap(),
-                );
-
-            Some(
-                Note {
-                    mail_headers: new_metadata,
-                    folder: metadata.subfolder.to_string(),
-                    body: get_body(first_message).unwrap()
-                }
+                    Some(vec![body])
+                )
             )
+
         },
         Err(error) => {
             warn!("Could not load notes from {}! {}", &metadata.subfolder, error);
             None
         }
     }
-}
+}*/
 
 pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
     if let Some(result) = session.select(&folder_name).err() {
@@ -131,6 +144,8 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
                     get_headers(fetch),
                     folder_name.clone(),
                     fetch.uid.expect("No UID found"),
+                    // todo how to handle this, allow zero len data because only metadata was fetched?
+                    None
                 )
             }).collect()
         },
@@ -141,7 +156,7 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
     }
 }
 
-pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<Note> {
+/*pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
 
     if let Some(result) = session.select(&folder_name).err() {
         warn!("Could not select folder {} [{}]", folder_name, result)
@@ -158,28 +173,26 @@ pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream
         }
     };
     messages
-}
+}*/
 
-pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<Note> {
+/*pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<NotesMetadata> {
     fetch_vector.into_iter().map(|fetch| {
         let headers = get_headers(fetch.borrow());
+        //TODO check if duplicate notes are present that needs to be merged
         let body = get_body(fetch.borrow());
-            Note {
-                mail_headers: NotesMetadata::new(
-                    headers,
-                    folder_name.clone(),
-                    fetch.uid.unwrap()
-                ),
-                body: body.clone().unwrap_or("".to_string()),
-                folder: folder_name.to_owned()
-            }
+        let body = Body {
+            message_id: "".to_string(),
+            body: body.expect(&format!("No body found for {}", headers.identifier())),
+            uid: Some(fetch.uid.expect(&format!("No UID found for {}", headers.identifier())) as i64),
+        };
+        NotesMetadata::new(headers, folder_name.clone(), fetch.uid.unwrap(), Some(vec![body]))
     }).collect()
-}
+}*/
 
 /**
 Returns empty vector if something fails
 */
-pub fn get_headers(fetch: &Fetch) -> Vec<(String, String)> {
+pub fn get_headers(fetch: &Fetch) -> NoteHeader {
     match mailparse::parse_headers(fetch.header().unwrap()) {
         Ok((header, _)) => header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect(),
         _ => Vec::new()
@@ -205,7 +218,7 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
 
     return result;
 }
-
+/*
 pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<u32, Error> {
     //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
     let uid = if metadata.uid.is_some() {
@@ -255,7 +268,7 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         .and_then(|new_uid| {
             session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid)
         })
-}
+}*/
 
 
 pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) -> Result<(),Error> {

@@ -93,61 +93,23 @@ pub trait NoteTrait {
     fn uuid(&self) -> String;
 }
 
-pub struct LocalNote {
-    pub path: PathBuf,
-    pub metadata: NotesMetadata
-}
+impl NoteTrait for NotesMetadata {
+    fn metadata(&self) -> NotesMetadata { self.clone() }
 
-impl LocalNote {
-    pub fn new(path: PathBuf) -> LocalNote {
-        let metadata_file_path = util::get_hash_path(&path);
-        trace!("{} - {}", &path.to_string_lossy(), &metadata_file_path.to_string_lossy());
-        let metadata_file = File::open(&metadata_file_path).expect(
-            &format!("Could not load metadata_file at {:?}", &metadata_file_path)
-        );
-
-        LocalNote {
-            metadata: serde_json::from_reader(metadata_file).unwrap(),
-            path
-        }
-    }
-
-}
-
-impl NoteTrait for LocalNote {
+    fn folder(&self) -> String { self.subfolder.clone() }
 
     fn body(&self) -> String {
-        " ".to_string()
+        /*assert_eq!(self.needs_merge(), false);
+        self.notes.first()
+            .expect(&format!("No note found for {}", self.uuid.clone()))
+            .body
+            .clone()*/
+        unimplemented!()
     }
 
     fn uuid(&self) -> String {
-        self.metadata.uuid.clone() //TODO check if this still works if multiple notes exists (merge)
+        self.uuid.clone()
     }
-
-    fn folder(&self) -> String { self.metadata().subfolder.clone() }
-
-    fn metadata(&self) -> NotesMetadata{ self.metadata.clone() }
-}
-
-pub struct Note {
-    pub mail_headers: NotesMetadata,
-    pub folder: String,
-    pub body: String,
-}
-
-impl NoteTrait for Note {
-
-    fn body(&self) -> String {
-        self.body.clone()
-    }
-
-    fn uuid(&self) -> String {
-        self.mail_headers.uuid.clone()
-    }
-
-    fn folder(&self) -> String { self.folder.clone() }
-
-    fn metadata(&self) -> NotesMetadata{ self.mail_headers.clone() }
 }
 
 impl std::cmp::PartialEq for Box<dyn NoteTrait>  {
@@ -172,11 +134,11 @@ impl std::hash::Hash for Box<dyn NoteTrait> {
 
 impl std::cmp::PartialEq for NotesMetadata  {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid && self.uid == other.uid
+        self.uuid == other.uuid
     }
 
     fn ne(&self, other: &Self) -> bool {
-        self.uuid != other.uuid && self.uid == other.uid
+        self.uuid != other.uuid
     }
 }
 
@@ -187,7 +149,6 @@ impl std::cmp::Eq for NotesMetadata {
 impl std::hash::Hash for NotesMetadata {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.uuid.hash(state);
-        self.uid.hash(state);
     }
 }
 

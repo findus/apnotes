@@ -5,14 +5,7 @@ Windows: Register sqlite dll with "lib /MACHINE:X64 /def:sqlite3.def /out:sqlite
 **/
 
 use diesel::*;
-
-pub fn establish_connection() -> SqliteConnection {
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
-
-    SqliteConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
-}
+use io::establish_connection;
 
 #[test]
 fn test() {
