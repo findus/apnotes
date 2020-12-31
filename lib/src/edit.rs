@@ -4,17 +4,17 @@ extern crate log;
 extern crate uuid;
 
 
-use std::fs::File;
-use self::regex::Regex;
-use self::log::info;
 
-use self::log::debug;
-use std::io::{BufReader, BufRead};
-use std::time;
-use error::UpdateError::EditError;
-use error::UpdateError;
-use ::{util, io};
-use model::NotesMetadata;
+
+
+
+
+
+
+
+
+
+
 
 /*pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
     let path = util::get_notes_file_path_from_metadata(metadata);

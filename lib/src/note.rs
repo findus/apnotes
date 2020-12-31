@@ -2,12 +2,12 @@ extern crate mailparse;
 extern crate html2runes;
 extern crate log;
 
-use std::fs::File;
+
 
 use std::hash::Hasher;
-use util;
-use std::path::PathBuf;
-use self::log::{trace};
+
+
+
 use model::NotesMetadata;
 
 pub type NoteHeader = Vec<(String, String)>;
@@ -112,20 +112,6 @@ impl NoteTrait for NotesMetadata {
     }
 }
 
-impl std::cmp::PartialEq for Box<dyn NoteTrait>  {
-    fn eq(&self, other: &Self) -> bool {
-        self.uuid() == other.uuid().clone()
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.uuid() != other.uuid().clone()
-    }
-}
-
-impl std::cmp::Eq for Box<dyn NoteTrait> {
-
-}
-
 impl std::hash::Hash for Box<dyn NoteTrait> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.uuid().hash(state)
@@ -140,10 +126,6 @@ impl std::cmp::PartialEq for NotesMetadata  {
     fn ne(&self, other: &Self) -> bool {
         self.uuid != other.uuid
     }
-}
-
-impl std::cmp::Eq for NotesMetadata {
-
 }
 
 impl std::hash::Hash for NotesMetadata {

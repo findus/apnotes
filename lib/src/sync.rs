@@ -2,23 +2,23 @@ extern crate log;
 extern crate walkdir;
 extern crate glob;
 
-use model::NotesMetadata;
-use apple_imap::*;
-use std::net::TcpStream;
-use native_tls::TlsStream;
-use imap::Session;
-use self::log::{info, debug, error, warn};
-use std::fs::File;
-use self::walkdir::WalkDir;
-use std::collections::HashSet;
-use sync::UpdateAction::{DoNothing, UpdateLocally, UpdateRemotely, Merge, AddLocally, AddRemotely, DeleteLocally};
-use apple_imap;
-use io;
-use profile;
-use error::UpdateError::*;
-use error::UpdateError;
-use std::path::PathBuf;
-use std::string::String;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #[derive(PartialEq, Clone,Copy)]
 pub enum UpdateAction {

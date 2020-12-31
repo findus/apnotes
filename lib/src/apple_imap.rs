@@ -12,12 +12,12 @@ use self::log::{info, warn, debug};
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
-use self::imap::types::{ZeroCopy, Fetch};
-use model::{NotesMetadata, Body};
+use self::imap::types::{Fetch};
+use model::{NotesMetadata};
 
-use std::borrow::Borrow;
-use note::{NoteHeader, HeaderParser};
-use ::{apple_imap, converter};
+
+use note::{NoteHeader};
+use ::{apple_imap};
 use profile;
 use imap::error::Error;
 
@@ -142,10 +142,7 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
             messages.iter().map(|fetch| {
                 NotesMetadata::new(
                     get_headers(fetch),
-                    folder_name.clone(),
-                    fetch.uid.expect("No UID found"),
-                    // todo how to handle this, allow zero len data because only metadata was fetched?
-                    None
+                    folder_name.clone()
                 )
             }).collect()
         },

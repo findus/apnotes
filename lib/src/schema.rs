@@ -3,7 +3,7 @@ table! {
         message_id -> Text,
         text -> Nullable<Text>,
         uid -> Nullable<BigInt>,
-        metadata_uuid -> Nullable<Text>,
+        metadata_uuid -> Text,
     }
 }
 

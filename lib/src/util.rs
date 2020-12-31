@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use model::NotesMetadata;
+
 use profile;
 use uuid::Uuid;
 use chrono::{Utc};

@@ -1,18 +1,7 @@
 extern crate log;
 
-use model::NotesMetadata;
-use ::{converter, schema};
-use std::fs::{File};
-use std::io::Write;
-use self::log::{info, error};
-use note::{NoteTrait};
-use profile;
-use std::io::Result;
+use model::{NotesMetadata, Body};
 
-//use util::get_notes_file_path_from_metadata;
-use diesel::{SqliteConnection, Connection};
-use std::env;
-use diesel::*;
 
 /*pub fn save_all_notes_to_file(notes: &Vec<NotesMetadata>) {
     notes.into_iter().for_each(|note| {
@@ -79,36 +68,3 @@ pub fn move_note(metadata: &NotesMetadata, old_escaped_subject: &String) -> Resu
     info!("Move {} to {}", old_location.to_string_lossy(), new_location.to_string_lossy());
     std::fs::rename(old_path,new_path)
 }*/
-
-pub fn delete_everything(connection: &SqliteConnection) {
-    diesel::delete(schema::metadata::dsl::metadata)
-        .execute(connection)
-        .expect("Error deleting DB");
-}
-
-pub fn insert_into_db(connection: &SqliteConnection, note: &NotesMetadata ) {
-    diesel::insert_into(schema::metadata::table)
-        .values(note)
-        .execute(connection)
-        .expect("oops");
-}
-
-pub fn establish_connection() -> SqliteConnection {
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
-
-    SqliteConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
-}
-
-#[test]
-fn delete() {
-    let con = establish_connection();
-    delete_everything(&con);
-}
-
-#[test]
-fn insert() {
-    let con = establish_connection();
-    delete_everything(&con);
-}

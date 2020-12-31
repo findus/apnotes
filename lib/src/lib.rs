@@ -23,10 +23,10 @@ pub mod db;
 pub mod model;
 pub mod schema;
 
-use crate::apple_imap::*;
+
 //use io::save_all_notes_to_file;
-use std::io::{Result, Error};
-use model::{NotesMetadata, Body};
+
+
 
 /*pub fn fetch_all() {
     let mut session = login();

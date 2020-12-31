@@ -1,12 +1,12 @@
 
 use note::{NoteHeader, HeaderParser};
 use ::{util, profile};
-use profile::Profile;
+
 
 use schema::metadata;
 use schema::body;
 
-#[derive(Identifiable,Clone,Queryable,Insertable)]
+#[derive(Identifiable,Clone,Queryable,Insertable,Debug)]
 #[table_name="metadata"]
 #[primary_key(uuid)]
 pub struct NotesMetadata {
@@ -20,7 +20,7 @@ pub struct NotesMetadata {
 }
 
 impl NotesMetadata {
-    pub fn new(header: NoteHeader, subfolder: String, uid: u32, body: Option<Vec<Body>>) -> Self {
+    pub fn new(header: NoteHeader, subfolder: String) -> Self {
         NotesMetadata {
             old_remote_id: None,
             subfolder,
@@ -34,26 +34,25 @@ impl NotesMetadata {
 
 }
 
-#[derive(Identifiable,Clone,Queryable,Insertable,Associations)]
+#[derive(Identifiable,Clone,Queryable,Insertable,Associations,PartialEq,Debug)]
 #[table_name="body"]
 #[belongs_to(NotesMetadata, foreign_key="metadata_uuid")]
 #[primary_key(message_id)]
 pub struct Body {
     pub message_id: String,
-    pub text: String,
+    pub text: Option<String>,
     pub uid: Option<i64>,
     pub metadata_uuid: String
 }
 
 impl Body {
-    pub fn new(uid: i64) -> Body {
+    pub fn new(uid: i64, metadata_reference: String) -> Body {
         let profile = profile::load_profile();
         Body {
             message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
-            text: "".to_string(),
+            text: None,
             uid: Some(uid),
-            //TODO set
-            metadata_uuid: "".to_string()
+            metadata_uuid: metadata_reference
         }
     }
 

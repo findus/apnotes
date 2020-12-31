@@ -14,6 +14,6 @@ CREATE TABLE body (
     message_id VARCHAR PRIMARY KEY NOT NULL,
     text VARCHAR,
     uid BIGINT,
-    metadata_uuid VARCHAR,
+    metadata_uuid VARCHAR NOT NULL,
     FOREIGN KEY(metadata_uuid) REFERENCES metadata(uuid)
 );
