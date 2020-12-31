@@ -27,6 +27,23 @@ pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
     })
 }
 
+/// Appends a note to an already present note
+///
+/// Multiple notes only occur if you altered a note locally
+/// and server-side, or if 2 separate devices edited the
+/// same note, in that case 2 notes exists on the imap
+/// server.
+///
+pub fn append_note(connection: &SqliteConnection, body: &Body) -> Result<(), Error> {
+    connection.transaction::<_,Error,_>(|| {
+        diesel::insert_into(schema::body::table)
+            .values(body)
+            .execute(connection)?;
+
+        Ok(())
+    })
+}
+
 /// Inserts the provided post into the sqlite db
 pub fn insert_into_db(connection: &SqliteConnection, note: (&NotesMetadata, &Body) ) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {
@@ -69,13 +86,6 @@ pub fn establish_connection() -> SqliteConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
-#[test]
-fn delete() {
-    let con = establish_connection();
-    delete_everything(&con);
-}
-
-
 /// Should insert a single metadata object with a body
 ///
 /// This test should return this note correctly after it got
@@ -107,7 +117,6 @@ fn insert_single_note() {
 
 /// Should crash because it inserts multiple notes with the same
 /// uuid
-
 #[test]
 fn no_duplicate_entries() {
     use util::HeaderBuilder;
@@ -123,4 +132,39 @@ fn no_duplicate_entries() {
         Err(e) => assert_eq!(e.to_string(),"UNIQUE constraint failed: metadata.uuid") ,
         _ => panic!("This insert operation should panic"),
     };
+}
+
+/// Appends an additional note to a super-note and checks if both are there
+#[test]
+fn append_additional_note() {
+    use util::HeaderBuilder;
+    use dotenv::dotenv;
+
+    dotenv::dotenv().ok();
+    simple_logger::init_with_level(Level::Debug).unwrap();
+    let con = establish_connection();
+    delete_everything(&con);
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
+    let body = Body::new(0, m_data.uuid.clone());
+    let additional_body = Body::new(1, m_data.uuid.clone());
+
+    match insert_into_db(&con,(&m_data,&body))
+        .and_then(|_| append_note(&con, &additional_body))
+        .and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
+        Ok((note, mut bodies)) => {
+            assert_eq!(note,m_data);
+            assert_eq!(bodies.len(),2);
+
+            let first_note = bodies.pop().unwrap();
+            let second_note = bodies.pop().unwrap();
+
+            //TODO check if order is always the same
+            assert_eq!(second_note,body);
+            assert_eq!(first_note,additional_body);
+
+        },
+        Err(e) => panic!("DB Transaction failed: {}", e.to_string())
+    }
+
+
 }
