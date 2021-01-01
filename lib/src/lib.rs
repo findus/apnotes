@@ -11,6 +11,7 @@ extern crate chrono;
 extern crate diesel;
 extern crate dotenv;
 extern crate alloc;
+extern crate mailparse;
 
 pub mod apple_imap;
 pub mod note;

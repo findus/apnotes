@@ -13,7 +13,7 @@ use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
-use model::{NotesMetadata};
+use model::{NotesMetadata, Body};
 use note::{NoteHeader};
 use ::{apple_imap};
 use profile;
@@ -43,6 +43,26 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
         .map_err(|e| e.0);
 
     return imap_session.unwrap();
+}
+
+pub fn fetch_note_content(session: &mut Session<TlsStream<TcpStream>>, subfolder: String, uid: i64) -> Option<String> {
+
+    if let Some(result) = session.select(&subfolder).err() {
+        warn!("Could not select folder {} [{}]", &subfolder, result)
+    }
+
+    let messages_result = session.uid_fetch(uid.to_string(), "(RFC822 UID)");
+    match messages_result {
+        Ok(message) => {
+            debug!("Message Loading for message with UID {} successful", uid);
+            let first_message = message.first().expect("Expected message");
+            get_body(first_message)
+        },
+        Err(error) => {
+            warn!("Could not load notes from {}! {}", &subfolder, error);
+            None
+        }
+    }
 }
 
 /**
