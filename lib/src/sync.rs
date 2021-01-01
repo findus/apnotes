@@ -7,22 +7,50 @@ use self::itertools::Itertools;
 use note::{NoteHeader, HeaderParser};
 
 
-#[derive(PartialEq, Clone,Copy)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum UpdateAction {
+    /// Deletes the note on the imap server
+    /// Apply to all notes that:
+    ///     have their "locally_deleted" Flag set to true inside the db
     DeleteRemote,
+    /// Apply to all notes that
+    ///     are not getting transmitted anymore and dont have the
+    ///     "new" flag inside the db
     DeleteLocally,
+    /// Apply to all notes that:
+    ///     have their "locally_edited" flag set
+    ///     their "old_remote_id" value equals the remotes message-id
     UpdateRemotely,
+    /// Apply to all notes that:
+    ///     have their locally_edited flag set to false
+    ///     remotes message-id != the locals message-id
     UpdateLocally,
+    /// Apply to all notes that:
+    ///     have old_remote id set to non null string
+    ///     remotes message-id != the locals message-id
+    ///   OR
+    ///     Metadata has > 1 bodies as entries
     Merge,
+    /// Apply to all notes that:
+    ///     have new flag set to true
+    ///     their uuid is not present remotely
     AddRemotely,
+    /// Apply to all notes that:
+    ///
+    ///     their uuid is not present locally
     AddLocally,
     DoNothing
 }
 
+pub fn sync() {
+    let mut session = ::apple_imap::login();
+    let headers = ::apple_imap::fetch_headers(&mut session);
+}
+
 ///Groups headers that have the same uuid
 /// Also sorts the returning vector based of the inner vectors length (ascending)
-// TODO check what happens if notes get moved, do they still have the same uuid?
-pub fn collect_mergable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteHeader>> {
+// TODO check what happens if notes get moved to another folder, do they still have the same uuid?
+pub fn collect_mergeable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteHeader>> {
 
     let mut data_grouped: Vec<Vec<NoteHeader>> = Vec::new();
     for (_key, group) in &header_metadata.into_iter()
@@ -33,6 +61,7 @@ pub fn collect_mergable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteH
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
 }
 
+/// Tests if metadata with multiple bodies is getting properly grouped
 #[test]
 fn test_mergable_notes_grouping() {
     use util::HeaderBuilder;
