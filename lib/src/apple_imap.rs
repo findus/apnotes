@@ -59,6 +59,11 @@ pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMeta
 }
 **/
 
+/// Iterate thorugh all Note-Imap folders and fetches the mail header content plus
+/// the folder name.
+///
+/// The generated dataset can be used to check for duplicated notes that needs
+/// to be merged
 pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NoteHeader> {
     info!("Fetching Headers of Remote Notes...");
     let folders = list_note_folders(session);
