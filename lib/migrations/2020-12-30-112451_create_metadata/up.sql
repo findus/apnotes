@@ -3,8 +3,9 @@
 CREATE TABLE metadata (
     old_remote_id VARCHAR,
     subfolder VARCHAR NOT NULL,
-    locally_deleted BOOLEAN NOT NULL, -- Bool
-    new BOOLEAN NOT NULL, -- Bool
+    locally_deleted BOOLEAN NOT NULL,
+    locally_edited BOOLEAN NOT NULL,
+    new BOOLEAN NOT NULL,
     date TIMESTAMP NOT NULL,
     uuid VARCHAR PRIMARY KEY NOT NULL,
     mime_version VARCHAR NOT NULL

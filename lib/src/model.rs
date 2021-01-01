@@ -13,6 +13,7 @@ pub struct NotesMetadata {
     pub old_remote_id: Option<String>,
     pub subfolder: String,
     pub locally_deleted: bool,
+    pub locally_edited: bool,
     pub new: bool,
     pub date: String, //TODO type
     pub uuid: String,
@@ -25,6 +26,7 @@ impl NotesMetadata {
             old_remote_id: None,
             subfolder,
             locally_deleted: false,
+            locally_edited: false,
             new: false,
             date: header.date(),
             uuid: header.identifier(),

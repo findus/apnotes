@@ -12,6 +12,7 @@ table! {
         old_remote_id -> Nullable<Text>,
         subfolder -> Text,
         locally_deleted -> Bool,
+        locally_edited -> Bool,
         new -> Bool,
         date -> Timestamp,
         uuid -> Text,

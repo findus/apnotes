@@ -21,6 +21,7 @@ pub enum UpdateAction {
 
 ///Groups headers that have the same uuid
 /// Also sorts the returning vector based of the inner vectors length (ascending)
+// TODO check what happens if notes get moved, do they still have the same uuid?
 pub fn collect_mergable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteHeader>> {
 
     let mut data_grouped: Vec<Vec<NoteHeader>> = Vec::new();
