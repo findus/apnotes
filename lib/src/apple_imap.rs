@@ -13,13 +13,14 @@ use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
-use model::{NotesMetadata};
+use model::{NotesMetadata, Body};
 
 
-use note::{NoteHeader};
+use note::{NoteHeader, HeaderParser};
 use ::{apple_imap};
 use profile;
 use imap::error::Error;
+use imap::types::ZeroCopy;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<NotesMetadata>;
@@ -46,7 +47,8 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     return imap_session.unwrap();
 }
 
-/*pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
+/**
+pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
     let folders = list_note_folders(session);
     info!("Loading remote messages");
     folders.iter().map(|folder_name| {
@@ -54,8 +56,8 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     })
         .flatten()
         .collect()
-}*/
-
+}
+**/
 pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
     info!("Fetching Headers of Remote Notes...");
     let folders = list_note_folders(session);
@@ -153,7 +155,8 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
     }
 }
 
-/*pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
+/**
+pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
 
     if let Some(result) = session.select(&folder_name).err() {
         warn!("Could not select folder {} [{}]", folder_name, result)
@@ -170,21 +173,37 @@ pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, fold
         }
     };
     messages
-}*/
+}
+**/
 
-/*pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<NotesMetadata> {
+/**
+pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<NotesMetadata> {
+
+    let connection = crate::db::establish_connection();
     fetch_vector.into_iter().map(|fetch| {
-        let headers = get_headers(fetch.borrow());
+        let headers = get_headers(&fetch);
+        let body = get_body(&fetch);
+
+       match crate::db::fetch_single_note(&connection,headers.identifier()) {
+           Ok((metadata,notes)) =>  {
+
+           },
+           Err(e) => {
+
+           }
+       }
+
         //TODO check if duplicate notes are present that needs to be merged
-        let body = get_body(fetch.borrow());
         let body = Body {
             message_id: "".to_string(),
-            body: body.expect(&format!("No body found for {}", headers.identifier())),
             uid: Some(fetch.uid.expect(&format!("No UID found for {}", headers.identifier())) as i64),
+            text: None,
+            metadata_uuid: "".to_string()
         };
         NotesMetadata::new(headers, folder_name.clone(), fetch.uid.unwrap(), Some(vec![body]))
     }).collect()
-}*/
+}
+**/
 
 /**
 Returns empty vector if something fails

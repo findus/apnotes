@@ -73,12 +73,16 @@ pub fn insert_into_db(connection: &SqliteConnection, note: (&NotesMetadata, &Bod
     })
 }
 
-pub fn fetch_single_note(connection: &SqliteConnection, id: String) -> Result<(NotesMetadata, Vec<Body>), Error> {
+pub fn fetch_single_note(connection: &SqliteConnection, id: String) -> Result<Option<(NotesMetadata, Vec<Body>)>, Error> {
     let mut notes: Vec<NotesMetadata> = metadata
         .filter(schema::metadata::dsl::uuid.eq(&id))
         .load::<NotesMetadata>(connection)?;
 
-    assert!(&notes.len() >= &1_usize);
+    assert!(notes.len() <= 1);
+
+    if notes.len() == 0 {
+        return Ok(None)
+    }
 
     let first_note = notes.remove(0);
 
@@ -87,9 +91,11 @@ pub fn fetch_single_note(connection: &SqliteConnection, id: String) -> Result<(N
     let body = ::model::Body::belonging_to(&first_note)
         .load::<Body>(connection)?;
 
+    assert!(&body.len() >= &1_usize);
+
     debug!("This note has {} subnotes ", body.len());
 
-    Ok((first_note,body))
+    Ok(Some((first_note,body)))
 }
 
 pub fn establish_connection() -> SqliteConnection {
@@ -107,8 +113,8 @@ pub fn establish_connection() -> SqliteConnection {
 #[test]
 fn insert_single_note() {
     use util::HeaderBuilder;
-
-    simple_logger::init_with_level(Level::Debug).unwrap();
+    //Setup
+    dotenv::dotenv().ok();
     let con = establish_connection();
     delete_everything(&con);
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
@@ -117,7 +123,7 @@ fn insert_single_note() {
     insert_into_db(&con,(&m_data,&body));
 
     match fetch_single_note(&con, m_data.uuid.clone()) {
-        Ok((note, mut bodies)) => {
+        Ok(Some((note, mut bodies))) => {
             assert_eq!(note,m_data);
             assert_eq!(bodies.len(),1);
 
@@ -125,6 +131,7 @@ fn insert_single_note() {
             assert_eq!(first_note,body);
 
         },
+        Ok(None) => panic!("No note found"),
         Err(e) => panic!("Fetch DB Call failed {}", e.to_string())
     }
 }
@@ -134,8 +141,8 @@ fn insert_single_note() {
 #[test]
 fn no_duplicate_entries() {
     use util::HeaderBuilder;
-
-    simple_logger::init_with_level(Level::Debug).unwrap();
+    //Setup
+    dotenv::dotenv().ok();
     let con = establish_connection();
     delete_everything(&con);
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
@@ -155,7 +162,6 @@ fn append_additional_note() {
     use dotenv::dotenv;
 
     dotenv::dotenv().ok();
-    simple_logger::init_with_level(Level::Debug).unwrap();
     let con = establish_connection();
     delete_everything(&con);
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
@@ -165,7 +171,7 @@ fn append_additional_note() {
     match insert_into_db(&con,(&m_data,&body))
         .and_then(|_| append_note(&con, &additional_body))
         .and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
-        Ok((note, mut bodies)) => {
+        Ok(Some((note, mut bodies))) => {
             assert_eq!(note,m_data);
             assert_eq!(bodies.len(),2);
 
@@ -177,6 +183,7 @@ fn append_additional_note() {
             assert_eq!(first_note,additional_body);
 
         },
+        Ok(None) => panic!("No Note found, should at least find one"),
         Err(e) => panic!("DB Transaction failed: {}", e.to_string())
     }
 }
@@ -190,7 +197,6 @@ fn replace_with_merged_body() {
 
     //Setup
     dotenv::dotenv().ok();
-    simple_logger::init_with_level(Level::Debug).unwrap();
     let con = establish_connection();
     delete_everything(&con);
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
@@ -200,7 +206,7 @@ fn replace_with_merged_body() {
     match insert_into_db(&con,(&m_data,&body))
         .and_then(|_| append_note(&con, &additional_body))
         .and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
-        Ok((note, mut bodies)) => {
+        Ok(Some((note, mut bodies))) => {
             assert_eq!(note, m_data);
             assert_eq!(bodies.len(), 2);
 
@@ -211,6 +217,7 @@ fn replace_with_merged_body() {
             assert_eq!(second_note, body);
             assert_eq!(first_note, additional_body);
         },
+        Ok(None) => panic!("No Note found, should at least find one"),
         Err(e) => panic!("DB Transaction failed: {}", e.to_string())
     }
 
@@ -219,11 +226,12 @@ fn replace_with_merged_body() {
     let merged_body = Body::new(None, m_data.uuid.clone());
     match update_merged_note(&con,&merged_body).
         and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
-        Ok((note, mut bodies)) => {
+        Ok(Some((note, mut bodies))) => {
             assert_eq!(m_data,note);
             assert_eq!(bodies.len(),1_usize);
             assert_eq!(bodies.pop().unwrap(),merged_body);
         },
+        Ok(None) => panic!("No Note found, should at least find one"),
         Err(e) => {
             panic!("Error while updating merged body: {}", e.to_string());
         }
