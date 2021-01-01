@@ -10,12 +10,29 @@ use schema::body;
 #[table_name="metadata"]
 #[primary_key(uuid)]
 pub struct NotesMetadata {
+    /// Stores old message-id after editing
+    /// the note. If the notes are getting synced
+    /// this is neede to check if the remote note
+    /// also changed, if this is the case
     pub old_remote_id: Option<String>,
+    /// Stores the subfolder name of the folder in which
+    /// the note is saved
     pub subfolder: String,
     pub locally_deleted: bool,
     pub locally_edited: bool,
+    /// Indicator for newly created notes, so that they
+    /// dont get deleted while syncing
     pub new: bool,
     pub date: String, //TODO type
+    /// UUID for the message. This uuid never changes after
+    /// creating a note.
+    ///
+    /// However multiple notes with the name can exist remotely
+    /// if notes are getting edited simultaneously on multiple
+    /// devices, the notes app recognizes this and duplicates
+    /// the note the first with the content that was edited on
+    /// device1, and the second with the content that was
+    /// edited on device2.
     pub uuid: String,
     pub mime_version: String,
 }
@@ -41,9 +58,18 @@ impl NotesMetadata {
 #[belongs_to(NotesMetadata, foreign_key="metadata_uuid")]
 #[primary_key(message_id)]
 pub struct Body {
+    /// Identifier for a note in a certain state. This
+    /// ID changes every time the note gets edited.
+    ///
+    /// If you sync the notes and the remote message-id
+    /// changed it is likely that the note got edited
+    /// on another device.
     pub message_id: String,
     pub text: Option<String>,
+    /// The IMAP UID identifier
     pub uid: Option<i64>,
+    /// Foreign key to a Metadata Object, every Metadata
+    /// Object can have n Bodies
     pub metadata_uuid: String
 }
 
