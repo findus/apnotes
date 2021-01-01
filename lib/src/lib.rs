@@ -10,6 +10,7 @@ extern crate chrono;
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
+extern crate alloc;
 
 pub mod apple_imap;
 pub mod note;

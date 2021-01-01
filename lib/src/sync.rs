@@ -1,24 +1,14 @@
 extern crate log;
 extern crate walkdir;
 extern crate glob;
+extern crate itertools;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+use self::itertools::Itertools;
+use alloc::vec::IntoIter;
+use diesel::query_builder::QueryFragment;
+use note::{NoteHeader, HeaderParser};
+use util::HeaderBuilder;
+use diesel::RunQueryDsl;
 
 #[derive(PartialEq, Clone,Copy)]
 pub enum UpdateAction {
@@ -30,6 +20,46 @@ pub enum UpdateAction {
     AddRemotely,
     AddLocally,
     DoNothing
+}
+
+///Groups headers that have the same uuid
+/// Also sorts the returning vector based of the inner vectors length (ascending)
+pub fn collect_mergable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteHeader>> {
+
+    let mut data_grouped: Vec<Vec<NoteHeader>> = Vec::new();
+    for (key, group) in &header_metadata.into_iter()
+        .sorted_by_key(|entry| entry.identifier())
+        .group_by(|elt| (elt as &NoteHeader).identifier()) {
+        data_grouped.push((group.collect()));
+    };
+    data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
+}
+
+#[test]
+fn test_mergable_notes_grouping() {
+    let metadata_1 = HeaderBuilder::new().with_subject("Note".to_string()).build();
+    let metadata_2 = metadata_1.clone();
+    let metadata_3 = HeaderBuilder::new().with_subject("Another Note".to_string()).build();
+
+    let mut collected: Vec<Vec<NoteHeader>> =
+        collect_mergable_notes(vec![
+            metadata_1.clone(),
+            metadata_3.clone(),
+            metadata_2.clone()]
+        );
+
+    //Should be 2, because 2 metadata object should be grouped
+    assert_eq!(collected.len(),2);
+
+    let first = &collected.first().unwrap();
+    assert_eq!(first.len(),1);
+    assert_eq!(first.first().unwrap().identifier(),metadata_3.identifier());
+
+    let second = &collected[1];
+    assert_eq!(second.len(),2);
+    assert_eq!(second.first().unwrap().identifier(),metadata_1.identifier());
+    assert_eq!(second[1].identifier(),metadata_1.identifier());
+
 }
 
 /*pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
