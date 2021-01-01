@@ -1,6 +1,6 @@
 extern crate iced;
 
-use iced::{canvas::{self, Canvas, LineCap, Path, Stroke}, executor, Application, Color, Command, Container, Element, Length, Point, Settings, Subscription, Vector, Button};
+use iced::{executor, Application, Command, Container, Element, Length, Settings};
 
 pub fn main() {
     Clock::run(Settings {

@@ -2,15 +2,13 @@ extern crate clap;
 extern crate apple_notes_rs_lib;
 extern crate log;
 
-use clap::{Arg, App, ArgMatches};
-
-use std::path::{Path};
+use clap::{Arg, App};
 use log::Level;
-use apple_notes_rs_lib::{apple_imap};
+//use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
-use apple_notes_rs_lib::error::UpdateError;
+//use apple_notes_rs_lib::error::UpdateError;
 //use apple_notes_rs_lib::edit::edit;
-use apple_notes_rs_lib::model::NotesMetadata;
+//use apple_notes_rs_lib::model::NotesMetadata;
 
 fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();
@@ -75,7 +73,7 @@ fn main() {
 }*/
 
 fn sync_notes() {
-    let mut session = apple_imap::login();
+    //let mut session = apple_imap::login();
     //sync(&mut session);
 }
 

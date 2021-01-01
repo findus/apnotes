@@ -53,7 +53,7 @@ pub fn update_merged_note(connection: &SqliteConnection, body: &Body) -> Result<
     connection.transaction::<_,Error,_>(|| {
         diesel::delete(schema::body::dsl::body.filter(metadata_uuid.eq(body.metadata_uuid.clone())))
             .execute(connection)?;
-        append_note(connection,body);
+        append_note(connection,body)?;
         Ok(())
     })
 }
@@ -116,11 +116,11 @@ fn insert_single_note() {
     //Setup
     dotenv::dotenv().ok();
     let con = establish_connection();
-    delete_everything(&con);
+    delete_everything(&con).expect("Should delete the db");
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
 
-    insert_into_db(&con,(&m_data,&body));
+    insert_into_db(&con,(&m_data,&body)).expect("Should insert note into the db");
 
     match fetch_single_note(&con, m_data.uuid.clone()) {
         Ok(Some((note, mut bodies))) => {
@@ -144,7 +144,7 @@ fn no_duplicate_entries() {
     //Setup
     dotenv::dotenv().ok();
     let con = establish_connection();
-    delete_everything(&con);
+    delete_everything(&con).expect("Should delete everything");
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
 
@@ -159,11 +159,11 @@ fn no_duplicate_entries() {
 #[test]
 fn append_additional_note() {
     use util::HeaderBuilder;
-    use dotenv::dotenv;
+    
 
     dotenv::dotenv().ok();
     let con = establish_connection();
-    delete_everything(&con);
+    delete_everything(&con).expect("Should delete everything");
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
     let additional_body = Body::new(Some(1), m_data.uuid.clone());
@@ -193,12 +193,12 @@ fn append_additional_note() {
 /// the old bodies should be gone now and a new single one should be present
 fn replace_with_merged_body() {
     use util::HeaderBuilder;
-    use dotenv::dotenv;
+    
 
     //Setup
     dotenv::dotenv().ok();
     let con = establish_connection();
-    delete_everything(&con);
+    delete_everything(&con).expect("Should delete everything");
     let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
     let additional_body = Body::new(Some(1), m_data.uuid.clone());

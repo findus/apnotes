@@ -4,11 +4,8 @@ extern crate glob;
 extern crate itertools;
 
 use self::itertools::Itertools;
-use alloc::vec::IntoIter;
-use diesel::query_builder::QueryFragment;
 use note::{NoteHeader, HeaderParser};
-use util::HeaderBuilder;
-use diesel::RunQueryDsl;
+
 
 #[derive(PartialEq, Clone,Copy)]
 pub enum UpdateAction {
@@ -27,21 +24,22 @@ pub enum UpdateAction {
 pub fn collect_mergable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteHeader>> {
 
     let mut data_grouped: Vec<Vec<NoteHeader>> = Vec::new();
-    for (key, group) in &header_metadata.into_iter()
+    for (_key, group) in &header_metadata.into_iter()
         .sorted_by_key(|entry| entry.identifier())
         .group_by(|header| (header as &NoteHeader).identifier()) {
-        data_grouped.push((group.collect()));
+        data_grouped.push(group.collect());
     };
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
 }
 
 #[test]
 fn test_mergable_notes_grouping() {
+    use util::HeaderBuilder;
     let metadata_1 = HeaderBuilder::new().with_subject("Note".to_string()).build();
     let metadata_2 = metadata_1.clone();
     let metadata_3 = HeaderBuilder::new().with_subject("Another Note".to_string()).build();
 
-    let mut collected: Vec<Vec<NoteHeader>> =
+    let collected: Vec<Vec<NoteHeader>> =
         collect_mergable_notes(vec![
             metadata_1.clone(),
             metadata_3.clone(),

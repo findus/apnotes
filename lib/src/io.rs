@@ -1,6 +1,6 @@
 extern crate log;
 
-use model::{NotesMetadata, Body};
+
 
 
 /*pub fn save_all_notes_to_file(notes: &Vec<NotesMetadata>) {
