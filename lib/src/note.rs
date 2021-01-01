@@ -40,6 +40,13 @@ impl HeaderParser for NoteHeader {
         }
     }
 
+    fn folder(&self) -> String {
+        match self.get_header_value("Folder") {
+            Some(folder) => folder,
+            _ => panic!("Could not get folder of this note {:#?}", self)
+        }
+    }
+
     ///
     /// Prints an espaced subject, removes any character that might cause problems when
     /// writing files to disk
@@ -84,6 +91,7 @@ pub trait HeaderParser {
     fn message_id(&self) -> String;
     fn date(&self) -> String;
     fn mime_version(&self) -> String;
+    fn folder(&self) -> String;
 }
 
 pub trait NoteTrait {

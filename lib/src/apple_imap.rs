@@ -58,7 +58,8 @@ pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMeta
         .collect()
 }
 **/
-pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
+
+pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NoteHeader> {
     info!("Fetching Headers of Remote Notes...");
     let folders = list_note_folders(session);
     folders.iter().map(|folder_name| {
@@ -84,16 +85,14 @@ pub fn copy_uid(session: &mut Session<TlsStream<TcpStream>>, id: &str, mailbox: 
     }
 }
 
-pub fn fetch_uid_of_message_id(_session: &mut Session<TlsStream<TcpStream>>, _metadata: &NotesMetadata) {
-
-}
-
-/*pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<NotesMetadata> {
+/**
+pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<NotesMetadata> {
     if let Some(result) = session.select(&metadata.subfolder).err() {
         warn!("Could not select folder {} [{}]", &metadata.subfolder, result)
     }
 
     assert_eq!(&metadata.needs_merge(), &false);
+
     let note = &metadata.notes
         .first()
         .expect(&format!("No notes available for {}", metadata.uuid.clone()));
@@ -131,21 +130,19 @@ pub fn fetch_uid_of_message_id(_session: &mut Session<TlsStream<TcpStream>>, _me
             None
         }
     }
-}*/
+}
+**/
 
-pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
+pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NoteHeader> {
     if let Some(result) = session.select(&folder_name).err() {
-        warn!("Could not select folder {} [{}]", folder_name, result)
+        warn!("Could not select folder {} [{}]", &folder_name, result)
     }
     let messages_result = session.fetch("1:*", "(RFC822.HEADER UID)");
     match messages_result {
         Ok(messages) => {
             debug!("Message Loading for {} successful", &folder_name.to_string());
-            messages.iter().map(|fetch| {
-                NotesMetadata::new(
-                    get_headers(fetch),
-                    folder_name.clone()
-                )
+            messages.iter().map( |fetch|{
+                get_headers(fetch, folder_name.clone())
             }).collect()
         },
         Err(error) => {
@@ -176,8 +173,9 @@ pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream
 }
 **/
 
+
 /**
-pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<NotesMetadata> {
+pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<Fetch> {
 
     let connection = crate::db::establish_connection();
     fetch_vector.into_iter().map(|fetch| {
@@ -185,11 +183,38 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
         let body = get_body(&fetch);
 
        match crate::db::fetch_single_note(&connection,headers.identifier()) {
-           Ok((metadata,notes)) =>  {
-
+           Ok(Some((metadata,notes))) =>  {
+               //Note aleady exists, append
+               debug!("Found note for fetched note, append to body table ({})", metadata.uuid);
+               let body = Body {
+                   message_id: headers.message_id(),
+                   text: body,
+                   uid: Some(fetch.uid.unwrap() as i64),
+                   metadata_uuid: metadata.uuid
+               };
+               crate::db::append_note(&connection,&body);
+           },
+           Ok(None) => {
+               crate::db::insert_into_db(&connection, (
+                   &NotesMetadata {
+                       old_remote_id: None,
+                       subfolder: folder_name.clone(),
+                       locally_deleted: false,
+                       new: false,
+                       date: headers.date(),
+                       uuid: headers.identifier(),
+                       mime_version: headers.mime_version()
+                   },
+                   &Body {
+                       message_id: headers.message_id(),
+                       text: body,
+                       uid: Some(fetch.uid.unwrap() as i64),
+                       metadata_uuid: headers.identifier()
+                   }
+                   ));
            },
            Err(e) => {
-
+               panic!("{}",e.to_string());
            }
        }
 
@@ -208,9 +233,13 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
 /**
 Returns empty vector if something fails
 */
-pub fn get_headers(fetch: &Fetch) -> NoteHeader {
+pub fn get_headers(fetch: &Fetch, foldername: String) -> NoteHeader {
     match mailparse::parse_headers(fetch.header().unwrap()) {
-        Ok((header, _)) => header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect(),
+        Ok((header, _)) => {
+            let mut headers: NoteHeader = header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect();
+            headers.push(("Folder".to_string(),foldername.to_string()));
+            headers
+        },
         _ => Vec::new()
     }
 }
@@ -234,7 +263,8 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
 
     return result;
 }
-/*
+
+/**
 pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<u32, Error> {
     //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
     let uid = if metadata.uid.is_some() {
@@ -284,7 +314,8 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         .and_then(|new_uid| {
             session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid)
         })
-}*/
+}
+**/
 
 
 pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) -> Result<(),Error> {
