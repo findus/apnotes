@@ -29,7 +29,7 @@ pub fn collect_mergable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteH
     let mut data_grouped: Vec<Vec<NoteHeader>> = Vec::new();
     for (key, group) in &header_metadata.into_iter()
         .sorted_by_key(|entry| entry.identifier())
-        .group_by(|elt| (elt as &NoteHeader).identifier()) {
+        .group_by(|header| (header as &NoteHeader).identifier()) {
         data_grouped.push((group.collect()));
     };
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
