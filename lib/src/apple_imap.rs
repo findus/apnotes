@@ -14,13 +14,10 @@ use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
 use model::{NotesMetadata};
-
-
 use note::{NoteHeader};
 use ::{apple_imap};
 use profile;
 use imap::error::Error;
-
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<NotesMetadata>;
@@ -32,7 +29,8 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
 
     let domain = profile.imap_server.as_str();
     info!("Connecting to {}", domain);
-    let tls = native_tls::TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap();
+
+    let tls = native_tls::TlsConnector::builder().build().unwrap();
 
     // we pass in the domain twice to check that the server's TLS
     // certificate is valid for the domain we're connecting to.
