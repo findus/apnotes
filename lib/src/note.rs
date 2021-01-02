@@ -240,11 +240,11 @@ impl std::hash::Hash for NotesMetadata {
 
 impl std::cmp::PartialEq for Body  {
     fn eq(&self, other: &Self) -> bool {
-        self.message_id == other.message_id
+        self.message_id == other.message_id && self.metadata_uuid == other.metadata_uuid
     }
 
     fn ne(&self, other: &Self) -> bool {
-        self.message_id != other.message_id
+        self.message_id != other.message_id || self.metadata_uuid != other.metadata_uuid
     }
 }
 

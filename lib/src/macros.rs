@@ -9,7 +9,8 @@ use note::LocalNote;
 macro_rules! note {
     ($metadata:expr $(, $body:expr)+) => {
         {
-            let uuid = $metadata.uuid.clone();
+            let localnote = $metadata;
+            let uuid = localnote.uuid.clone();
             let mut temp_set = Vec::new();
             $(
                 let mut mutable_body = $body;
@@ -17,7 +18,7 @@ macro_rules! note {
                 temp_set.push(mutable_body);
             )*
             LocalNote {
-                metadata: $metadata,
+                metadata: localnote,
                 body: temp_set
             }
         }

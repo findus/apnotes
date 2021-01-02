@@ -124,12 +124,14 @@ pub fn fetch_single_note(connection: &SqliteConnection, id: String) -> Result<Op
 }
 
 pub fn establish_connection() -> SqliteConnection {
+
     let database_url = env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
 
     SqliteConnection::establish(&database_url)
         .expect(&format!("Error connecting to {}", database_url))
 }
+
 
 /// Checks if all notes are getting fetched properly
 #[test]
@@ -138,8 +140,6 @@ pub fn fetch_all_test() {
     let body1 = BodyMetadataBuilder::new().build();
     let body2 = BodyMetadataBuilder::new().build();
     let body3 = BodyMetadataBuilder::new().build();
-
-    println!("{}", body1.metadata_uuid);
 
     let note = note![
             NotesMetadataBuilder::new().build(),
@@ -153,21 +153,49 @@ pub fn fetch_all_test() {
     ];
 
     let con = establish_connection();
-    //delete_everything(&con).expect("Should delete the db");
-    println!("{}", note.metadata.uuid);
-    println!("{}", &note.body.first().unwrap().metadata_uuid);
+    delete_everything(&con).expect("Should delete the db");
     insert_into_db(&con, &note).expect("Should insert note into the db");
     insert_into_db(&con, &note_with_2_bodies).expect("Should insert note into the db");
 
     match fetch_all_notes(&con) {
         Ok(notes) => {
-            let first_body = note.body.first().unwrap();
-            println!("{}", first_body.metadata_uuid);
-            let first_notes: Vec<LocalNote> = notes.into_iter().filter(|e| e.metadata.uuid == first_body.metadata_uuid).collect();
-            assert_eq!(first_notes.len(),1);
-            let first: &LocalNote = first_notes.first().unwrap();
+            let body_in_first_note = note.body.first().unwrap();
+
+            // Check if the first note with only one body has correct body assigned to metadata object
+            let first_note: Vec<&LocalNote> = notes.iter().filter(|e| e.metadata.uuid == body_in_first_note.metadata_uuid).collect();
+            assert_eq!(first_note.len(),1);
+            let first: &LocalNote = first_note.first().unwrap();
             assert_eq!(first.body.len(), 1);
-            assert_eq!(first.body[0].message_id, note.body.first().unwrap().message_id);
+            assert_eq!(&first.body[0], note.body.first().unwrap());
+
+            // Check the same with the object that has 2 bodies
+            let second_bodies = &note_with_2_bodies.body;
+            assert_eq!(second_bodies.len(),2);
+
+            let first_body = &note_with_2_bodies.body[0];
+            let second_body =  &note_with_2_bodies.body[1];
+
+            let first_note: Vec<&LocalNote> = notes
+                .iter()
+                .filter(|e| e.metadata.uuid == first_body.metadata_uuid)
+                .collect();
+            assert!(first_body.is_inside_localnote(first_note.first().unwrap()));
+
+            let second_note: Vec<&LocalNote> = notes
+                .iter()
+                .filter(|e| e.metadata.uuid == second_body.metadata_uuid)
+                .collect();
+            assert!(first_body.is_inside_localnote(second_note.first().unwrap()));
+
+            //Negative test, this note should not be present
+
+            let third_note: Vec<&LocalNote> = notes
+                .iter()
+                .filter(|e| e.metadata.uuid == second_body.metadata_uuid)
+                .collect();
+            assert_eq!(third_note.len(),1);
+            assert_eq!(body_in_first_note.is_inside_localnote(third_note.first().unwrap()), false);
+
         },
         _ => panic!("could not fetch notes")
     }
@@ -274,7 +302,7 @@ fn append_additional_note() {
 /// the old bodies should be gone now and a new single one should be present
 fn replace_with_merged_body() {
     use util::HeaderBuilder;
-    
+
 
     //Setup
     dotenv::dotenv().ok();

@@ -1,4 +1,4 @@
-use note::{NoteHeaders, HeaderParser, NoteTrait};
+use note::{NoteHeaders, HeaderParser, NoteTrait, LocalNote};
 use ::{util, profile};
 use schema::metadata;
 use schema::body;
@@ -107,5 +107,14 @@ impl Body {
             .replace("/", "_").replace(" ", "_");
         // .replace(|c: char| !c.is_ascii(), "");
         regex.replace_all(&escaped_string, "").into_owned()
+    }
+
+    #[cfg(test)]
+    pub fn is_inside_localnote(&self, local_note: &LocalNote) -> bool {
+        if local_note.metadata.uuid == self.metadata_uuid {
+            return local_note.body.iter().filter(|e| e == &self).collect::<Vec<_>>().len() == 1
+        } else {
+            return false
+        }
     }
 }
