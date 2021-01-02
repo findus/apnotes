@@ -15,6 +15,9 @@ use model::{NotesMetadata, Body};
 use schema::metadata::dsl::metadata;
 use self::log::*;
 use schema::body::columns::metadata_uuid;
+use std::collections::HashSet;
+use note::{LocalNote, NoteTrait};
+use builder::*;
 
 pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {
@@ -59,21 +62,43 @@ pub fn update_merged_note(connection: &SqliteConnection, body: &Body) -> Result<
 }
 
 /// Inserts the provided post into the sqlite db
-pub fn insert_into_db(connection: &SqliteConnection, note: (&NotesMetadata, &Body) ) -> Result<(), Error> {
+pub fn insert_into_db(connection: &SqliteConnection, note: &LocalNote) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {
         diesel::insert_into(schema::metadata::table)
-            .values(note.0)
+            .values(&note.metadata)
             .execute(connection)?;
 
-        diesel::insert_into(schema::body::table)
-            .values(note.1)
-            .execute(connection)?;
+        for note_content in &note.body {
+            diesel::insert_into(schema::body::table)
+                .values(note_content)
+                .execute(connection)?;
+        }
 
         Ok(())
     })
 }
 
+pub fn fetch_all_notes(connection: &SqliteConnection) -> Result<HashSet<LocalNote>,Error> {
+    let notes: Vec<NotesMetadata> = metadata
+        .load::<NotesMetadata>(connection)?;
+
+    let note_bodies: Vec<Body> = ::model::Body::belonging_to(&notes)
+        .load::<Body>(connection)?;
+
+    let grouped = note_bodies.grouped_by(&notes);
+
+    let d = notes.into_iter().zip(grouped).map(|(m_data,bodies)| {
+        LocalNote {
+            metadata: m_data,
+            body: bodies
+        }
+    }).collect();
+
+    Ok(d)
+}
+
 pub fn fetch_single_note(connection: &SqliteConnection, id: String) -> Result<Option<(NotesMetadata, Vec<Body>)>, Error> {
+
     let mut notes: Vec<NotesMetadata> = metadata
         .filter(schema::metadata::dsl::uuid.eq(&id))
         .load::<NotesMetadata>(connection)?;
@@ -106,6 +131,22 @@ pub fn establish_connection() -> SqliteConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
+/// Checks if all notes are getting fetched properly
+#[test]
+pub fn fetch_all_test() {
+
+    let note = note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+    ];
+
+    let con = establish_connection();
+    delete_everything(&con).expect("Should delete the db");
+    insert_into_db(&con, &note).expect("Should insert note into the db");
+
+
+}
+
 /// Should insert a single metadata object with a body
 ///
 /// This test should return this note correctly after it got
@@ -113,22 +154,25 @@ pub fn establish_connection() -> SqliteConnection {
 #[test]
 fn insert_single_note() {
     use util::HeaderBuilder;
-    //Setup
-    dotenv::dotenv().ok();
     let con = establish_connection();
     delete_everything(&con).expect("Should delete the db");
     let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
 
-    insert_into_db(&con,(&m_data,&body)).expect("Should insert note into the db");
+    let note = note!(
+        m_data,
+        body
+    );
 
-    match fetch_single_note(&con, m_data.uuid.clone()) {
-        Ok(Some((note, mut bodies))) => {
-            assert_eq!(note,m_data);
+    insert_into_db(&con, &note).expect("Should insert note into the db");
+
+    match fetch_single_note(&con, note.uuid().clone()) {
+        Ok(Some((fetched_note, mut bodies))) => {
+            assert_eq!(note.metadata,fetched_note);
             assert_eq!(bodies.len(),1);
 
             let first_note = bodies.pop().unwrap();
-            assert_eq!(first_note,body);
+            assert_eq!(&first_note,note.body.first().unwrap());
 
         },
         Ok(None) => panic!("No note found"),
@@ -148,8 +192,13 @@ fn no_duplicate_entries() {
     let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
 
-    match insert_into_db(&con,(&m_data,&body))
-        .and_then(|_| insert_into_db(&con,(&m_data,&body))) {
+    let note = note!(
+        m_data,
+        body
+    );
+
+    match insert_into_db(&con,&note)
+        .and_then(|_| insert_into_db(&con,&note)) {
         Err(e) => assert_eq!(e.to_string(),"UNIQUE constraint failed: metadata.uuid") ,
         _ => panic!("This insert operation should panic"),
     };
@@ -167,11 +216,16 @@ fn append_additional_note() {
     let body = Body::new(Some(0), m_data.uuid.clone());
     let additional_body = Body::new(Some(1), m_data.uuid.clone());
 
-    match insert_into_db(&con,(&m_data,&body))
+    let note = note!(
+        m_data,
+        body.clone()
+    );
+
+    match insert_into_db(&con,&note)
         .and_then(|_| append_note(&con, &additional_body))
-        .and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
-        Ok(Some((note, mut bodies))) => {
-            assert_eq!(note,m_data);
+        .and_then(|_| fetch_single_note(&con, note.metadata.uuid.clone())) {
+        Ok(Some((fetched_note, mut bodies))) => {
+            assert_eq!(fetched_note,note.metadata);
             assert_eq!(bodies.len(),2);
 
             let first_note = bodies.pop().unwrap();
@@ -202,11 +256,16 @@ fn replace_with_merged_body() {
     let body = Body::new(Some(0), m_data.uuid.clone());
     let additional_body = Body::new(Some(1), m_data.uuid.clone());
 
-    match insert_into_db(&con,(&m_data,&body))
+    let note = note!(
+        m_data,
+        body.clone()
+    );
+
+    match insert_into_db(&con,&note)
         .and_then(|_| append_note(&con, &additional_body))
-        .and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
-        Ok(Some((note, mut bodies))) => {
-            assert_eq!(note, m_data);
+        .and_then(|_| fetch_single_note(&con, note.metadata.uuid.clone())) {
+        Ok(Some((fetched_note, mut bodies))) => {
+            assert_eq!(fetched_note, note.metadata);
             assert_eq!(bodies.len(), 2);
 
             let first_note = bodies.pop().unwrap();
@@ -222,11 +281,11 @@ fn replace_with_merged_body() {
 
     //Actual test
 
-    let merged_body = Body::new(None, m_data.uuid.clone());
+    let merged_body = Body::new(None, note.metadata.uuid.clone());
     match update_merged_note(&con,&merged_body).
-        and_then(|_| fetch_single_note(&con, m_data.uuid.clone())) {
-        Ok(Some((note, mut bodies))) => {
-            assert_eq!(m_data,note);
+        and_then(|_| fetch_single_note(&con, note.metadata.uuid.clone())) {
+        Ok(Some((fetched_note, mut bodies))) => {
+            assert_eq!(note.metadata,fetched_note);
             assert_eq!(bodies.len(),1_usize);
             assert_eq!(bodies.pop().unwrap(),merged_body);
         },

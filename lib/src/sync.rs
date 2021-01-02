@@ -79,11 +79,17 @@ fn get_added_note_actions(remote_note_headers: &GroupedRemoteNoteHeaders,
         .collect()
 }
 
-fn get_sync_actions(remote_note_headers: GroupedRemoteNoteHeaders, local_notes: HashSet<LocalNote>) {
+fn get_sync_actions(remote_note_headers: GroupedRemoteNoteHeaders, local_notes: HashSet<LocalNote>) -> Vec<UpdateAction> {
 
     info!("Found {} local Notes", local_notes.len());
     info!("Found {} remote notes", remote_note_headers.len());
-    let delete_actions = get_deleted_note_actions(Some(&remote_note_headers), &local_notes);
+    let mut concated_actions = vec![];
+    let mut delete_actions = get_deleted_note_actions(Some(&remote_note_headers), &local_notes);
+    let mut add_actions = get_added_note_actions(&remote_note_headers, &local_notes);
+
+    concated_actions.append(&mut delete_actions);
+    concated_actions.append(&mut add_actions);
+    concated_actions
 
      /*
     for noteheader in grouped_not_headers.drain() != None {
@@ -126,8 +132,9 @@ pub fn sync() {
     let mut imap_session = ::apple_imap::login();
     let db_connection = ::db::establish_connection();
     let headers = ::apple_imap::fetch_headers(&mut imap_session);
-    let mut grouped_not_headers = collect_mergeable_notes(headers);
-
+    let grouped_not_headers = collect_mergeable_notes(headers);
+    //let local_notes = ::db::
+    //let actions = get_sync_actions(grouped_not_headers,)
 }
 
 ///Groups headers that have the same uuid
