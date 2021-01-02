@@ -135,14 +135,42 @@ pub fn establish_connection() -> SqliteConnection {
 #[test]
 pub fn fetch_all_test() {
 
+    let body1 = BodyMetadataBuilder::new().build();
+    let body2 = BodyMetadataBuilder::new().build();
+    let body3 = BodyMetadataBuilder::new().build();
+
+    println!("{}", body1.metadata_uuid);
+
     let note = note![
             NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
+            body1
+    ];
+
+    let note_with_2_bodies = note![
+            NotesMetadataBuilder::new().build(),
+            body2,
+            body3
     ];
 
     let con = establish_connection();
-    delete_everything(&con).expect("Should delete the db");
+    //delete_everything(&con).expect("Should delete the db");
+    println!("{}", note.metadata.uuid);
+    println!("{}", &note.body.first().unwrap().metadata_uuid);
     insert_into_db(&con, &note).expect("Should insert note into the db");
+    insert_into_db(&con, &note_with_2_bodies).expect("Should insert note into the db");
+
+    match fetch_all_notes(&con) {
+        Ok(notes) => {
+            let first_body = note.body.first().unwrap();
+            println!("{}", first_body.metadata_uuid);
+            let first_notes: Vec<LocalNote> = notes.into_iter().filter(|e| e.metadata.uuid == first_body.metadata_uuid).collect();
+            assert_eq!(first_notes.len(),1);
+            let first: &LocalNote = first_notes.first().unwrap();
+            assert_eq!(first.body.len(), 1);
+            assert_eq!(first.body[0].message_id, note.body.first().unwrap().message_id);
+        },
+        _ => panic!("could not fetch notes")
+    }
 
 
 }

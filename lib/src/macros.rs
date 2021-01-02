@@ -1,5 +1,9 @@
 //Make sure to mod this as first item in lib.rs
 
+use builder::NotesMetadataBuilder;
+use builder::BodyMetadataBuilder;
+use note::LocalNote;
+
 /// Small macro that sets the metadata_uuid foreign key
 /// for all provided bodies
 macro_rules! note {
@@ -30,4 +34,23 @@ macro_rules! set {
             temp_set // Return the populated HashSet
         }
     };
+}
+
+#[test]
+fn note_macro_uuid() {
+    let metadata = NotesMetadataBuilder::new().build();
+    let body = BodyMetadataBuilder::new().build();
+
+    let note: LocalNote = note!(
+            metadata.clone(),
+            body.clone()
+    );
+
+    let note2: LocalNote = note!(
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+    );
+
+    println!("{}", note2.metadata.uuid);
+    assert_eq!(note.metadata.uuid, note.body.first().unwrap().metadata_uuid);
 }
