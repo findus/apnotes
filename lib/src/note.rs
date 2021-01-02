@@ -218,6 +218,23 @@ impl std::hash::Hash for NotesMetadata {
         self.uuid.hash(state);
     }
 }
+
+impl std::cmp::PartialEq for Body  {
+    fn eq(&self, other: &Self) -> bool {
+        self.message_id == other.message_id
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.message_id != other.message_id
+    }
+}
+
+impl std::hash::Hash for Body {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.message_id.hash(state);
+    }
+}
+
 impl std::cmp::PartialEq for RemoteNoteMetaData  {
     fn eq(&self, other: &Self) -> bool {
         self.headers.uuid() == other.headers.uuid()

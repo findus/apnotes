@@ -159,7 +159,6 @@ fn no_duplicate_entries() {
 #[test]
 fn append_additional_note() {
     use util::HeaderBuilder;
-    
 
     dotenv::dotenv().ok();
     let con = establish_connection();

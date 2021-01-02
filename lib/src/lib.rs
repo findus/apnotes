@@ -13,18 +13,22 @@ extern crate dotenv;
 extern crate alloc;
 extern crate mailparse;
 
+#[macro_use]
+pub mod macros;
 pub mod apple_imap;
 pub mod note;
 pub mod converter;
 pub mod profile;
 pub mod sync;
 pub mod io;
+#[macro_use]
 pub mod util;
 pub mod error;
 pub mod edit;
 pub mod db;
 pub mod model;
 pub mod schema;
+pub mod builder;
 
 
 //use io::save_all_notes_to_file;

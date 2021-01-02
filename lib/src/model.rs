@@ -3,7 +3,7 @@ use ::{util, profile};
 use schema::metadata;
 use schema::body;
 
-#[derive(Identifiable,Clone,Queryable,Insertable,Debug)]
+#[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
 #[table_name="metadata"]
 #[primary_key(uuid)]
 pub struct NotesMetadata {
@@ -49,51 +49,7 @@ impl NotesMetadata {
     }
 }
 
-
-struct NotesMetadataBuilder {
-    notesMetadata: NotesMetadata
-}
-
-impl NotesMetadataBuilder {
-    pub fn new() -> NotesMetadataBuilder {
-        let mut notesMetadata = NotesMetadata {
-            old_remote_id: None,
-            subfolder: "".to_string(),
-            locally_deleted: false,
-            locally_edited: false,
-            new: false,
-            date: "".to_string(),
-            uuid: "".to_string(),
-            mime_version: "".to_string()
-        };
-    }
-
-    pub fn with_uuid(mut self, uuid: String) -> Self {
-        self.notesMetadata.uuid = uuid;
-        self
-    }
-
-    pub fn is_new(mut self, new: bool) -> Self {
-        self.notesMetadata.new = new;
-        self
-    }
-
-    pub fn is_flagged_for_deletion(mut self, del: bool) -> Self {
-        self.notesMetadata.locally_deleted = del;
-        self
-    }
-
-    pub fn with_folder(mut self, folder: String) -> Self {
-        self.notesMetadata.subfolder = folder;
-        self
-    }
-
-    pub fn build(self) -> NotesMetadata {
-        self.notesMetadata
-    }
-}
-
-#[derive(Identifiable,Clone,Queryable,Insertable,Associations,PartialEq,Debug)]
+#[derive(Identifiable,Clone,Queryable,Insertable,Associations,Debug,Eq)]
 #[table_name="body"]
 #[belongs_to(NotesMetadata, foreign_key="metadata_uuid")]
 #[primary_key(message_id)]
