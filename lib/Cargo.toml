@@ -29,3 +29,6 @@ clap = "2.33.1"
 diesel = { features = ["sqlite"] }
 dotenv = "0.15.0"
 itertools = "0.10.0"
+
+[dev-dependencies]
+ctor = "0.1.17"

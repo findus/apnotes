@@ -261,6 +261,7 @@ pub fn get_headers(fetch: &Fetch, foldername: String) -> NoteHeader {
         Ok((header, _)) => {
             let mut headers: NoteHeader = header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect();
             headers.push(("Folder".to_string(),foldername.to_string()));
+            headers.push(("Uid".to_string(),fetch.uid.unwrap().to_string()));
             headers
         },
         _ => Vec::new()

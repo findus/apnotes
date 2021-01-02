@@ -38,7 +38,7 @@ pub struct NotesMetadata {
 }
 
 impl NotesMetadata {
-    pub fn new(header: NoteHeader, subfolder: String) -> Self {
+    pub fn new(header: &NoteHeader, subfolder: String) -> Self {
         NotesMetadata {
             old_remote_id: None,
             subfolder,

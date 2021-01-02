@@ -117,7 +117,7 @@ fn insert_single_note() {
     dotenv::dotenv().ok();
     let con = establish_connection();
     delete_everything(&con).expect("Should delete the db");
-    let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
 
     insert_into_db(&con,(&m_data,&body)).expect("Should insert note into the db");
@@ -145,7 +145,7 @@ fn no_duplicate_entries() {
     dotenv::dotenv().ok();
     let con = establish_connection();
     delete_everything(&con).expect("Should delete everything");
-    let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
 
     match insert_into_db(&con,(&m_data,&body))
@@ -164,7 +164,7 @@ fn append_additional_note() {
     dotenv::dotenv().ok();
     let con = establish_connection();
     delete_everything(&con).expect("Should delete everything");
-    let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
     let additional_body = Body::new(Some(1), m_data.uuid.clone());
 
@@ -199,7 +199,7 @@ fn replace_with_merged_body() {
     dotenv::dotenv().ok();
     let con = establish_connection();
     delete_everything(&con).expect("Should delete everything");
-    let m_data: ::model::NotesMetadata = NotesMetadata::new(HeaderBuilder::new().build(), "test".to_string());
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
     let body = Body::new(Some(0), m_data.uuid.clone());
     let additional_body = Body::new(Some(1), m_data.uuid.clone());
 

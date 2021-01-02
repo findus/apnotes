@@ -2,9 +2,13 @@ extern crate log;
 extern crate walkdir;
 extern crate glob;
 extern crate itertools;
+#[cfg(test)]
+extern crate ctor;
 
 use self::itertools::Itertools;
 use note::{NoteHeader, HeaderParser};
+use self::log::*;
+use model::{NotesMetadata, Body};
 
 
 #[derive(PartialEq, Clone, Copy)]
@@ -44,7 +48,42 @@ pub enum UpdateAction {
 
 pub fn sync() {
     let mut session = ::apple_imap::login();
+    let db_connection = ::db::establish_connection();
     let headers = ::apple_imap::fetch_headers(&mut session);
+    let grouped = collect_mergeable_notes(headers);
+
+    info!("Found {} Super-Notes", grouped.len());
+    grouped.into_iter().for_each(|mut note_header_collection| {
+
+        let first_notes_headers =
+            note_header_collection.pop()
+            .expect("Could not find note headers");
+
+        if note_header_collection.len() > 1 {
+            warn!("Note [{}] has more than one body needs to be merged",
+                  first_notes_headers.identifier());
+        } else {
+            let local_note = ::db::fetch_single_note(&db_connection, first_notes_headers.identifier())
+                .expect("Error while querying local note");
+            if local_note.is_none() {
+                //Add locally
+                let subfolder = first_notes_headers.folder().clone();
+                let uid = first_notes_headers.uid();
+                let notemetadata =
+                    NotesMetadata::new(&first_notes_headers, subfolder.clone() );
+                let text =
+                    ::apple_imap::fetch_note_content(&mut session,subfolder, uid);
+                let body = Body {
+                    message_id: first_notes_headers.message_id(),
+                    text: Some(::converter::convert2md(&text.unwrap())),
+                    uid: Some(uid),
+                    metadata_uuid: notemetadata.uuid.clone()
+                };
+                ::db::insert_into_db(&db_connection,(&notemetadata,&body));
+            }
+        }
+    });
+
 }
 
 ///Groups headers that have the same uuid
@@ -61,6 +100,8 @@ pub fn collect_mergeable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<Note
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
 }
 
+
+
 /// Tests if metadata with multiple bodies is getting properly grouped
 #[test]
 fn test_mergable_notes_grouping() {
@@ -70,7 +111,7 @@ fn test_mergable_notes_grouping() {
     let metadata_3 = HeaderBuilder::new().with_subject("Another Note".to_string()).build();
 
     let collected: Vec<Vec<NoteHeader>> =
-        collect_mergable_notes(vec![
+        collect_mergeable_notes(vec![
             metadata_1.clone(),
             metadata_3.clone(),
             metadata_2.clone()]
@@ -88,6 +129,18 @@ fn test_mergable_notes_grouping() {
     assert_eq!(second.first().unwrap().identifier(),metadata_1.identifier());
     assert_eq!(second[1].identifier(),metadata_1.identifier());
 
+}
+
+#[cfg(test)]
+#[ctor::ctor]
+fn init() {
+    dotenv::dotenv().ok();
+    simple_logger::init_with_level(Level::Debug).unwrap();
+}
+
+#[test]
+fn test() {
+    sync();
 }
 
 /*pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {

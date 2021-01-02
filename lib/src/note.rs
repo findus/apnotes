@@ -47,6 +47,13 @@ impl HeaderParser for NoteHeader {
         }
     }
 
+    fn uid(&self) -> i64 {
+        match self.get_header_value("Uid") {
+            Some(uid) => uid.parse::<i64>().unwrap(),
+            _ => panic!("Could not get folder of this note {:#?}", self)
+        }
+    }
+
     ///
     /// Prints an espaced subject, removes any character that might cause problems when
     /// writing files to disk
@@ -92,6 +99,7 @@ pub trait HeaderParser {
     fn date(&self) -> String;
     fn mime_version(&self) -> String;
     fn folder(&self) -> String;
+    fn uid(&self) -> i64;
 }
 
 pub trait NoteTrait {
