@@ -49,6 +49,10 @@ pub enum UpdateAction {
     DoNothing
 }
 
+/// Iterates through all provided local notes and checks if the deletion flag got set
+/// If this is the case a DeleteRemote Actions gets returned for this note
+///
+/// TODO: What to do if local note is flagged for deletion but got updated remotely
 fn get_deleted_note_actions(remote_note_headers: Option<&GroupedRemoteNoteHeaders>,
                             local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction>
 {
