@@ -14,10 +14,12 @@ use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
 use model::{NotesMetadata, Body};
-use note::{NoteHeader};
+use note::{RemoteNoteHeaderCollection, RemoteNoteMetaData};
 use ::{apple_imap};
 use profile;
 use imap::error::Error;
+use std::collections::HashSet;
+use note::NoteHeaders;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<NotesMetadata>;
@@ -82,7 +84,7 @@ pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMeta
 ///
 /// The generated dataset can be used to check for duplicated notes that needs
 /// to be merged
-pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NoteHeader> {
+pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> RemoteNoteHeaderCollection {
     info!("Fetching Headers of Remote Notes...");
     let folders = list_note_folders(session);
     folders.iter().map(|folder_name| {
@@ -156,7 +158,7 @@ pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: 
 }
 **/
 
-pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NoteHeader> {
+pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<RemoteNoteMetaData> {
     if let Some(result) = session.select(&folder_name).err() {
         warn!("Could not select folder {} [{}]", &folder_name, result)
     }
@@ -256,15 +258,17 @@ pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec
 /**
 Returns empty vector if something fails
 */
-pub fn get_headers(fetch: &Fetch, foldername: String) -> NoteHeader {
+pub fn get_headers(fetch: &Fetch, foldername: String) -> RemoteNoteMetaData {
     match mailparse::parse_headers(fetch.header().unwrap()) {
         Ok((header, _)) => {
-            let mut headers: NoteHeader = header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect();
-            headers.push(("Folder".to_string(),foldername.to_string()));
-            headers.push(("Uid".to_string(),fetch.uid.unwrap().to_string()));
-            headers
+            let  headers = header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect();
+            RemoteNoteMetaData {
+                headers,
+                folder: foldername.to_string(),
+                uid: fetch.uid.unwrap() as i64,
+            }
         },
-        _ => Vec::new()
+        _ => panic!("No Headers presentfor fetch with uid {}", fetch.uid.unwrap())
     }
 }
 

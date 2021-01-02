@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use profile;
 use uuid::Uuid;
 use chrono::{Utc};
+use note::NoteHeaders;
 
 pub fn get_hash_path(path: &Path) -> PathBuf {
     let folder = path.parent().unwrap().to_string_lossy().into_owned();
@@ -58,11 +59,11 @@ impl HeaderBuilder {
         self
     }
 
-    pub fn build(self) -> Vec<(String, String)> {
+    pub fn build(self) -> NoteHeaders {
         self.headers
     }
 }
 
-pub fn generate_mail_headers(subject: String) -> Vec<(String, String)> {
+pub fn generate_mail_headers(subject: String) -> Vec<(String,String)> {
     HeaderBuilder::new().with_subject(subject).build()
 }

@@ -6,58 +6,74 @@ extern crate itertools;
 extern crate ctor;
 
 use self::itertools::Itertools;
-use note::{NoteHeader, HeaderParser};
+use note::{NoteHeaders, HeaderParser, LocalNote, NoteTrait, RemoteNoteHeaderCollection, RemoteNoteMetaData};
 use self::log::*;
-use model::{NotesMetadata, Body};
+use std::collections::HashSet;
+use ::note::{GroupedRemoteNoteHeaders};
 
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone)]
+/// Defines the Action that has to be done to the
+/// message with the corresponding uuid
 pub enum UpdateAction {
     /// Deletes the note on the imap server
     /// Apply to all notes that:
     ///     have their "locally_deleted" Flag set to true inside the db
-    DeleteRemote,
+    DeleteRemote(String),
     /// Apply to all notes that
     ///     are not getting transmitted anymore and dont have the
     ///     "new" flag inside the db
-    DeleteLocally,
+    DeleteLocally(String),
     /// Apply to all notes that:
     ///     have their "locally_edited" flag set
     ///     their "old_remote_id" value equals the remotes message-id
-    UpdateRemotely,
+    UpdateRemotely(String),
     /// Apply to all notes that:
     ///     have their locally_edited flag set to false
     ///     remotes message-id != the locals message-id
-    UpdateLocally,
+    UpdateLocally(String),
     /// Apply to all notes that:
     ///     have old_remote id set to non null string
     ///     remotes message-id != the locals message-id
     ///   OR
     ///     Metadata has > 1 bodies as entries
-    Merge,
+    Merge(String),
     /// Apply to all notes that:
     ///     have new flag set to true
     ///     their uuid is not present remotely
-    AddRemotely,
+    AddRemotely(String),
     /// Apply to all notes that:
     ///
     ///     their uuid is not present locally
-    AddLocally,
+    AddLocally(String),
     DoNothing
 }
 
-pub fn sync() {
-    let mut session = ::apple_imap::login();
-    let db_connection = ::db::establish_connection();
-    let headers = ::apple_imap::fetch_headers(&mut session);
-    let grouped = collect_mergeable_notes(headers);
+fn get_deleted_note_actions(remote_note_headers: GroupedRemoteNoteHeaders,
+                            local_notes: HashSet<LocalNote>) -> Vec<UpdateAction>
+{
+    local_notes
+        .iter()
+        .filter(|local_note| local_note.0.locally_deleted)
+        .map(|deleted_local_note| UpdateAction::DeleteRemote(deleted_local_note.uuid()))
+        .collect()
+}
 
-    info!("Found {} Super-Notes", grouped.len());
-    grouped.into_iter().for_each(|mut note_header_collection| {
+fn get_sync_actions(remote_note_headers: HashSet<HashSet<NoteHeaders>>, local_notes: HashSet<LocalNote>) {
+
+    //info!("Found {} Super-Notes", grouped.len());
+
+
+     /*
+    for noteheader in grouped_not_headers.drain() != None {
+
+    }*/
+    // check db if deletable notes are present
+   /* grouped.into_iter().for_each(|mut note_header_collection| {
 
         let first_notes_headers =
             note_header_collection.pop()
-            .expect("Could not find note headers");
+                .expect("Could not find note headers");
 
         if note_header_collection.len() > 1 {
             warn!("Note [{}] has more than one body needs to be merged",
@@ -72,7 +88,7 @@ pub fn sync() {
                 let notemetadata =
                     NotesMetadata::new(&first_notes_headers, subfolder.clone() );
                 let text =
-                    ::apple_imap::fetch_note_content(&mut session,subfolder, uid);
+                    ::apple_imap::fetch_note_content(&mut imap_session, subfolder, uid);
                 let body = Body {
                     message_id: first_notes_headers.message_id(),
                     text: Some(::converter::convert2md(&text.unwrap())),
@@ -82,19 +98,26 @@ pub fn sync() {
                 ::db::insert_into_db(&db_connection,(&notemetadata,&body));
             }
         }
-    });
+    });*/
+}
+
+pub fn sync() {
+    let mut imap_session = ::apple_imap::login();
+    let db_connection = ::db::establish_connection();
+    let headers = ::apple_imap::fetch_headers(&mut imap_session);
+    let mut grouped_not_headers = collect_mergeable_notes(headers);
 
 }
 
 ///Groups headers that have the same uuid
 /// Also sorts the returning vector based of the inner vectors length (ascending)
 // TODO check what happens if notes get moved to another folder, do they still have the same uuid?
-pub fn collect_mergeable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<NoteHeader>> {
+pub fn collect_mergeable_notes(header_metadata: RemoteNoteHeaderCollection) -> GroupedRemoteNoteHeaders {
 
-    let mut data_grouped: Vec<Vec<NoteHeader>> = Vec::new();
+    let mut data_grouped: Vec<Vec<RemoteNoteMetaData>> = Vec::new();
     for (_key, group) in &header_metadata.into_iter()
-        .sorted_by_key(|entry| entry.identifier())
-        .group_by(|header| (header as &NoteHeader).identifier()) {
+        .sorted_by_key(|entry| entry.headers.uuid())
+        .group_by(|header| (header as &RemoteNoteMetaData).headers.uuid()) {
         data_grouped.push(group.collect());
     };
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
@@ -106,12 +129,28 @@ pub fn collect_mergeable_notes(header_metadata: Vec<NoteHeader>) -> Vec<Vec<Note
 #[test]
 fn test_mergable_notes_grouping() {
     use util::HeaderBuilder;
-    let metadata_1 = HeaderBuilder::new().with_subject("Note".to_string()).build();
-    let metadata_2 = metadata_1.clone();
-    let metadata_3 = HeaderBuilder::new().with_subject("Another Note".to_string()).build();
 
-    let collected: Vec<Vec<NoteHeader>> =
+    let metadata_1 = RemoteNoteMetaData {
+        headers:  HeaderBuilder::new().with_subject("Note".to_string()).build(),
+        folder: "test".to_string(),
+        uid: 1
+    };
+
+    let metadata_2 = RemoteNoteMetaData {
+        headers:  metadata_1.headers.clone(),
+        folder: "test".to_string(),
+        uid: 2
+    };
+
+    let metadata_3 = RemoteNoteMetaData {
+        headers:  HeaderBuilder::new().with_subject("Another Note".to_string()).build(),
+        folder: "test".to_string(),
+        uid: 3
+    };
+
+    let collected: GroupedRemoteNoteHeaders =
         collect_mergeable_notes(vec![
+
             metadata_1.clone(),
             metadata_3.clone(),
             metadata_2.clone()]
@@ -120,14 +159,14 @@ fn test_mergable_notes_grouping() {
     //Should be 2, because 2 metadata object should be grouped
     assert_eq!(collected.len(),2);
 
-    let first = &collected.first().unwrap();
+    /*let first = &collected.get(&metadata_1).unwrap();
     assert_eq!(first.len(),1);
-    assert_eq!(first.first().unwrap().identifier(),metadata_3.identifier());
+    assert_eq!(first.first().unwrap().uuid(), metadata_3.uuid());*/
 
-    let second = &collected[1];
+   /* let second = &collected[1];
     assert_eq!(second.len(),2);
-    assert_eq!(second.first().unwrap().identifier(),metadata_1.identifier());
-    assert_eq!(second[1].identifier(),metadata_1.identifier());
+    assert_eq!(second.first().unwrap().uuid(), metadata_1.uuid());
+    assert_eq!(second[1].uuid(), metadata_1.uuid());*/
 
 }
 

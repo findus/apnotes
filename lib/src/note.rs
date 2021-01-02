@@ -8,49 +8,97 @@ use std::hash::Hasher;
 
 
 
-use model::NotesMetadata;
+use model::{NotesMetadata, Body};
+use std::collections::HashSet;
 
-pub type NoteHeader = Vec<(String, String)>;
+pub type LocalNote = (NotesMetadata, Vec<Body>);
 
-impl HeaderParser for NoteHeader {
+impl NoteTrait for LocalNote {
+    fn metadata(&self) -> NotesMetadata {
+        unimplemented!()
+    }
+
+    fn folder(&self) -> String {
+        unimplemented!()
+    }
+
+    fn body(&self) -> String {
+        unimplemented!()
+    }
+
+    fn uuid(&self) -> String {
+        self.0.uuid()
+    }
+}
+
+pub type RemoteNoteHeaderCollection = Vec<RemoteNoteMetaData>;
+
+impl NoteTrait for RemoteNoteHeaderCollection {
+    fn metadata(&self) -> NotesMetadata {
+        unimplemented!()
+    }
+
+    fn folder(&self) -> String {
+        unimplemented!()
+    }
+
+    fn body(&self) -> String {
+        unimplemented!()
+    }
+
+    fn uuid(&self) -> String {
+        self.iter().last().expect("At least one Element must be present").headers.uuid()
+    }
+}
+
+/// The note headers fetched from the server, grouped by uuid
+pub type GroupedRemoteNoteHeaders = HashSet<RemoteNoteHeaderCollection>;
+
+impl NoteTrait for GroupedRemoteNoteHeaders {
+    fn metadata(&self) -> NotesMetadata {
+        unimplemented!()
+    }
+
+    fn folder(&self) -> String {
+        unimplemented!()
+    }
+
+    fn body(&self) -> String {
+        unimplemented!()
+    }
+
+    fn uuid(&self) -> String {
+        self.iter().map(|note| note.uuid()).last().unwrap()
+    }
+}
+
+pub type NoteHeaders = Vec<(String,String)>;
+
+#[derive(Clone,Eq)]
+pub struct RemoteNoteMetaData {
+    pub(crate) headers: NoteHeaders,
+    pub(crate) folder: String,
+    pub(crate) uid: i64
+}
+
+impl HeaderParser for NoteHeaders {
     fn get_header_value(&self, search_string: &str) -> Option<String> {
         self.iter()
             .find(|(key, _)| key == search_string)
             .and_then(|val| Some(val.1.clone()))
     }
 
-    fn date(&self) -> String {
-        match self.get_header_value("Date") {
-            Some(date) => date,
-            _ => panic!("Could not get date of Note {:?}", self)
-        }
-    }
-
     fn subject(&self) -> String {
         match self.get_header_value("Subject") {
             Some(subject) => subject,
-            _ => panic!("Could not get subject of Note {:?}", self)
+            _ => panic!("Could not get subject of Note {:?}", self.uuid())
         }
     }
 
-    fn identifier(&self) -> String {
+    fn uuid(&self) -> String {
         match self.get_header_value("X-Universally-Unique-Identifier") {
             Some(subject) => subject,
-            _ => panic!("Could not get uuid of this note {:#?}", self)
-        }
-    }
-
-    fn folder(&self) -> String {
-        match self.get_header_value("Folder") {
-            Some(folder) => folder,
-            _ => panic!("Could not get folder of this note {:#?}", self)
-        }
-    }
-
-    fn uid(&self) -> i64 {
-        match self.get_header_value("Uid") {
-            Some(uid) => uid.parse::<i64>().unwrap(),
-            _ => panic!("Could not get folder of this note {:#?}", self)
+            _ => panic!("Could not get uuid of this note {:?}", self.uuid())
         }
     }
 
@@ -71,21 +119,42 @@ impl HeaderParser for NoteHeader {
                    // .replace(|c: char| !c.is_ascii(), "");
                 regex.replace_all(&escaped_string, "").into_owned()
             },
-            _ =>  panic!("Could not get Subject of this note {:?}", self)
+            _ =>  panic!("Could not get Subject of this note {:?}", self.uuid())
         }
     }
 
     fn message_id(&self) -> String {
         match self.get_header_value("Message-Id") {
             Some(subject) => subject,
-            _ =>  panic!("Could not get Message-Id of this note {:?}", self)
+            _ =>  panic!("Could not get Message-Id of this note {:?}", self.uuid())
+        }
+    }
+
+    fn date(&self) -> String {
+        match self.get_header_value("Date") {
+            Some(date) => date,
+            _ => panic!("Could not get date of Note {:?}", self.uuid())
         }
     }
 
     fn mime_version(&self) -> String {
         match self.get_header_value("Mime-Version") {
             Some(subject) => subject,
-            _ =>  panic!("Could not get Mime-Version of this note {:?}", self)
+            _ =>  panic!("Could not get Mime-Version of this note {:?}", self.uuid())
+        }
+    }
+
+    fn folder(&self) -> String {
+        match self.get_header_value("Folder") {
+            Some(folder) => folder,
+            _ => panic!("Could not get folder of this note {:?}", self.uuid())
+        }
+    }
+
+    fn imap_uid(&self) -> i64 {
+        match self.get_header_value("Uid") {
+            Some(uid) => uid.parse::<i64>().unwrap(),
+            _ => panic!("Could not get folder of this note {:#?}", self.uuid())
         }
     }
 }
@@ -93,13 +162,13 @@ impl HeaderParser for NoteHeader {
 pub trait HeaderParser {
     fn get_header_value(&self, search_string: &str) -> Option<String>;
     fn subject(&self) -> String;
-    fn identifier(&self) -> String;
+    fn uuid(&self) -> String;
     fn subject_escaped(&self) -> String;
     fn message_id(&self) -> String;
     fn date(&self) -> String;
     fn mime_version(&self) -> String;
     fn folder(&self) -> String;
-    fn uid(&self) -> i64;
+    fn imap_uid(&self) -> i64;
 }
 
 pub trait NoteTrait {
@@ -149,4 +218,18 @@ impl std::hash::Hash for NotesMetadata {
         self.uuid.hash(state);
     }
 }
+impl std::cmp::PartialEq for RemoteNoteMetaData  {
+    fn eq(&self, other: &Self) -> bool {
+        self.headers.uuid() == other.headers.uuid()
+    }
 
+    fn ne(&self, other: &Self) -> bool {
+        self.headers.uuid() != other.headers.uuid()
+    }
+}
+
+impl std::hash::Hash for RemoteNoteMetaData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.headers.uuid().hash(state);
+    }
+}

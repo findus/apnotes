@@ -1,5 +1,5 @@
 
-use note::{NoteHeader, HeaderParser};
+use note::{NoteHeaders, HeaderParser};
 use ::{util, profile};
 
 
@@ -38,7 +38,7 @@ pub struct NotesMetadata {
 }
 
 impl NotesMetadata {
-    pub fn new(header: &NoteHeader, subfolder: String) -> Self {
+    pub fn new(header: &NoteHeaders, subfolder: String) -> Self {
         NotesMetadata {
             old_remote_id: None,
             subfolder,
@@ -46,7 +46,7 @@ impl NotesMetadata {
             locally_edited: false,
             new: false,
             date: header.date(),
-            uuid: header.identifier(),
+            uuid: header.uuid(),
             mime_version: header.mime_version(),
         }
     }
