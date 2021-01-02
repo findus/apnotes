@@ -52,11 +52,13 @@ pub enum UpdateAction {
 fn get_deleted_note_actions(remote_note_headers: GroupedRemoteNoteHeaders,
                             local_notes: HashSet<LocalNote>) -> Vec<UpdateAction>
 {
-    local_notes
+    let local_flagged_notes: Vec<UpdateAction> = local_notes
         .iter()
         .filter(|local_note| local_note.0.locally_deleted)
         .map(|deleted_local_note| UpdateAction::DeleteRemote(deleted_local_note.uuid()))
-        .collect()
+        .collect();
+    info!("Found {} Notes that are going to be deleted remotely", &local_flagged_notes.len());
+    local_flagged_notes
 }
 
 fn get_sync_actions(remote_note_headers: HashSet<HashSet<NoteHeaders>>, local_notes: HashSet<LocalNote>) {
