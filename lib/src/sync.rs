@@ -10,6 +10,7 @@ use note::{NoteHeaders, HeaderParser, LocalNote, NoteTrait, RemoteNoteHeaderColl
 use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
+use model::{Body, NotesMetadata};
 
 
 #[derive(PartialEq, Clone)]
@@ -49,8 +50,8 @@ pub enum UpdateAction {
     DoNothing
 }
 
-fn get_deleted_note_actions(remote_note_headers: GroupedRemoteNoteHeaders,
-                            local_notes: HashSet<LocalNote>) -> Vec<UpdateAction>
+fn get_deleted_note_actions(remote_note_headers: &GroupedRemoteNoteHeaders,
+                            local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction>
 {
     let local_flagged_notes: Vec<UpdateAction> = local_notes
         .iter()
@@ -61,10 +62,11 @@ fn get_deleted_note_actions(remote_note_headers: GroupedRemoteNoteHeaders,
     local_flagged_notes
 }
 
-fn get_sync_actions(remote_note_headers: HashSet<HashSet<NoteHeaders>>, local_notes: HashSet<LocalNote>) {
+fn get_sync_actions(remote_note_headers: GroupedRemoteNoteHeaders, local_notes: HashSet<LocalNote>) {
 
-    //info!("Found {} Super-Notes", grouped.len());
-
+    info!("Found {} local Notes", local_notes.len());
+    info!("Found {} remote notes", remote_note_headers.len());
+    let delete_actions = get_deleted_note_actions(&remote_note_headers, &local_notes);
 
      /*
     for noteheader in grouped_not_headers.drain() != None {
@@ -125,7 +127,12 @@ pub fn collect_mergeable_notes(header_metadata: RemoteNoteHeaderCollection) -> G
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
 }
 
-
+#[cfg(test)]
+#[ctor::ctor]
+fn init() {
+    dotenv::dotenv().ok();
+    simple_logger::init_with_level(Level::Debug).unwrap();
+}
 
 /// Tests if metadata with multiple bodies is getting properly grouped
 #[test]
@@ -178,16 +185,23 @@ fn test_mergable_notes_grouping() {
 
 }
 
-#[cfg(test)]
-#[ctor::ctor]
-fn init() {
-    dotenv::dotenv().ok();
-    simple_logger::init_with_level(Level::Debug).unwrap();
-}
-
 #[test]
-fn test() {
-    sync();
+fn test_delete_actions() {
+    let local_notes = (NotesMetadata {
+        old_remote_id: None,
+        subfolder: "kill".to_string(),
+        locally_deleted: true,
+        locally_edited: false,
+        new: false,
+        date: "".to_string(),
+        uuid: "first".to_string(),
+        mime_version: "".to_string()
+    }, vec![Body {
+        message_id: "test".to_string(),
+        text: None,
+        uid: Some(1),
+        metadata_uuid: "first".to_string()
+    }]);
 }
 
 /*pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
