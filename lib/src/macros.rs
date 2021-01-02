@@ -12,7 +12,10 @@ macro_rules! note {
                 mutable_body.metadata_uuid = uuid.clone();
                 temp_set.push(mutable_body);
             )*
-            ($metadata,temp_set)
+            LocalNote {
+                metadata: $metadata,
+                body: temp_set
+            }
         }
     };
 }

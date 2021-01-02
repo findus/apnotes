@@ -11,6 +11,7 @@ use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
 use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
+use sync::UpdateAction::AddLocally;
 
 #[derive(PartialEq, Clone)]
 /// Defines the Action that has to be done to the
@@ -58,11 +59,24 @@ fn get_deleted_note_actions(remote_note_headers: Option<&GroupedRemoteNoteHeader
 {
     let local_flagged_notes: Vec<UpdateAction> = local_notes
         .iter()
-        .filter(|local_note| local_note.0.locally_deleted)
+        .filter(|local_note| local_note.metadata.locally_deleted)
         .map(|deleted_local_note| UpdateAction::DeleteRemote(deleted_local_note.uuid()))
         .collect();
     info!("Found {} Notes that are going to be deleted remotely", &local_flagged_notes.len());
     local_flagged_notes
+}
+
+fn get_added_note_actions(remote_note_headers: &GroupedRemoteNoteHeaders,
+                          local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction> {
+
+    let remote_uuids: HashSet<String> =
+        remote_note_headers.iter().map(|item| item.uuid()).collect();
+    let local_uuids: HashSet<String> =
+        local_notes.iter().map(|item| item.uuid()).collect();
+
+    local_uuids.difference(&remote_uuids)
+        .map(|uuid| AddLocally(uuid.clone()))
+        .collect()
 }
 
 fn get_sync_actions(remote_note_headers: GroupedRemoteNoteHeaders, local_notes: HashSet<LocalNote>) {
@@ -190,6 +204,39 @@ fn test_mergable_notes_grouping() {
 /// Should find one item that should be deleted
 #[test]
 fn test_delete_actions() {
+
+    let note_to_be_deleted =
+        NotesMetadataBuilder::new()
+            .is_flagged_for_deletion(true)
+            .build();
+
+    let noteset = set![
+        note![
+            note_to_be_deleted.clone(),
+            BodyMetadataBuilder::new().build()
+        ],
+        note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+        ]
+    ];
+    let delete_actions = get_deleted_note_actions(None, &noteset);
+
+    assert_eq!(delete_actions.len(),1);
+
+    match delete_actions.first().unwrap() {
+        UpdateAction::DeleteRemote(uuid) => {
+            assert_eq!(uuid, &note_to_be_deleted.uuid)
+        }
+        _ => {
+            panic!("Wrong Action provided")
+        }
+    }
+
+}
+
+#[test]
+fn test_add_actions() {
 
     let note_to_be_deleted =
         NotesMetadataBuilder::new().is_flagged_for_deletion(true).build();

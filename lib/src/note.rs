@@ -2,16 +2,15 @@ extern crate mailparse;
 extern crate html2runes;
 extern crate log;
 
-
-
 use std::hash::Hasher;
-
-
-
 use model::{NotesMetadata, Body};
 use std::collections::HashSet;
 
-pub type LocalNote = (NotesMetadata, Vec<Body>);
+#[derive(Eq)]
+pub struct LocalNote {
+    pub(crate) metadata: NotesMetadata,
+    pub(crate) body: Vec<Body>,
+}
 
 impl NoteTrait for LocalNote {
     fn metadata(&self) -> NotesMetadata {
@@ -27,7 +26,7 @@ impl NoteTrait for LocalNote {
     }
 
     fn uuid(&self) -> String {
-        self.0.uuid()
+        self.metadata.uuid()
     }
 }
 
@@ -248,5 +247,21 @@ impl std::cmp::PartialEq for RemoteNoteMetaData  {
 impl std::hash::Hash for RemoteNoteMetaData {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.headers.uuid().hash(state);
+    }
+}
+
+impl std::cmp::PartialEq for LocalNote  {
+    fn eq(&self, other: &Self) -> bool {
+        self.metadata.uuid == other.metadata.uuid
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.metadata.uuid != other.metadata.uuid
+    }
+}
+
+impl std::hash::Hash for LocalNote {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.metadata.uuid.hash(state);
     }
 }

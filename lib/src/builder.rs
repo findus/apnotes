@@ -1,5 +1,6 @@
 use model::{Body, NotesMetadata};
 use util::generate_uuid;
+use note::RemoteNoteMetaData;
 
 pub struct NoteTupleBuilder {
     metadata: NotesMetadata,
@@ -103,5 +104,13 @@ impl NotesMetadataBuilder {
 
     pub fn build(self) -> NotesMetadata {
         self.notesMetadata
+    }
+    
+    pub fn build_as_remote_data(self) -> RemoteNoteMetaData {
+        RemoteNoteMetaData {
+            headers: vec![],
+            folder: "".to_string(),
+            uid: 0
+        }
     }
 }
