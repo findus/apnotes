@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use profile;
 use uuid::Uuid;
 use chrono::{Utc};
-use note::NoteHeaders;
+use note::{NoteHeaders, HeaderParser};
 
 pub fn get_hash_path(path: &Path) -> PathBuf {
     let folder = path.parent().unwrap().to_string_lossy().into_owned();
@@ -35,9 +35,10 @@ pub struct HeaderBuilder {
 }
 
 impl HeaderBuilder {
+
     pub fn new() -> HeaderBuilder {
-        let profile = self::profile::load_profile();
         let mut headers: Vec<(String,String)> = vec![];
+        let profile = self::profile::load_profile();
         headers.push(("X-Uniform-Type-Identifier".to_string(), "com.apple.mail-note".to_string()));
         headers.push(("Content-Type".to_string(), "text/html; charset=utf-8".to_string()));
         headers.push(("Content-Transfer-Encoding".to_string(), "quoted-printable".to_string()));
@@ -45,8 +46,6 @@ impl HeaderBuilder {
         let date = Utc::now().to_rfc2822();
         headers.push(("Date".to_string(), date.clone()));
         headers.push(("X-Mail-Created-Date".to_string(), date.clone()));
-        headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
-        headers.push(("Message-Id".to_string(), format!("<{}@{}", generate_uuid(), profile.domain())));
         headers.push(("From".to_string(), profile.email));
 
         HeaderBuilder {
@@ -54,12 +53,33 @@ impl HeaderBuilder {
         }
     }
 
+    pub fn with_message_id(mut self, message_id: String) -> Self {
+        let profile = self::profile::load_profile();
+        self.headers.push(("Message-Id".to_string(), format!("<{}@{}", message_id, profile.domain())));
+        self
+    }
+
+    pub fn with_uuid(mut self, uuid: String) -> Self {
+        self.headers.push(("X-Universally-Unique-Identifier".to_string(), uuid));
+        self
+    }
+
     pub fn with_subject(mut self, subject: String) -> Self {
         self.headers.push(("Subject".to_string(), subject));
         self
     }
 
-    pub fn build(self) -> NoteHeaders {
+    pub fn build(mut self) -> NoteHeaders {
+        let profile = self::profile::load_profile();
+
+        if None == self.headers.get_header_value("X-Universally-Unique-Identifier") {
+            self.headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
+        }
+
+        if None == self.headers.get_header_value("Message-Id") {
+            self.headers.push(("Message-Id".to_string(), format!("<{}@{}", generate_uuid(), profile.domain())));
+        }
+
         self.headers
     }
 }

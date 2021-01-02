@@ -74,7 +74,7 @@ fn get_added_note_actions(remote_note_headers: &GroupedRemoteNoteHeaders,
     let local_uuids: HashSet<String> =
         local_notes.iter().map(|item| item.uuid()).collect();
 
-    local_uuids.difference(&remote_uuids)
+    remote_uuids.difference(&local_uuids)
         .map(|uuid| AddLocally(uuid.clone()))
         .collect()
 }
@@ -238,12 +238,19 @@ fn test_delete_actions() {
 #[test]
 fn test_add_actions() {
 
-    let note_to_be_deleted =
-        NotesMetadataBuilder::new().is_flagged_for_deletion(true).build();
+    let note_to_be_added =
+        NotesMetadataBuilder::new().build();
 
-    let noteset = set![
+    let notes_to_be_added = set![
         note![
-            note_to_be_deleted.clone(),
+            note_to_be_added.clone(),
+            BodyMetadataBuilder::new().build()
+        ]
+    ];
+
+    let local_notes = set![
+        note![
+            NotesMetadataBuilder::new().build(),
             BodyMetadataBuilder::new().build()
         ],
         note![
@@ -251,13 +258,18 @@ fn test_add_actions() {
             BodyMetadataBuilder::new().build()
         ]
     ];
-    let delete_actions = get_deleted_note_actions(None, &noteset);
 
-    assert_eq!(delete_actions.len(),1);
+    let remote_data: GroupedRemoteNoteHeaders = notes_to_be_added.iter().map(|entry| {
+        RemoteNoteMetaData::new(entry)
+    }).collect();
 
-    match delete_actions.first().unwrap() {
-        UpdateAction::DeleteRemote(uuid) => {
-            assert_eq!(uuid, &note_to_be_deleted.uuid)
+    let added_actions = get_added_note_actions(&remote_data, &local_notes);
+
+    assert_eq!(added_actions.len(),1);
+
+    match added_actions.first().unwrap() {
+        UpdateAction::AddLocally(uuid) => {
+            assert_eq!(uuid, &note_to_be_added.uuid)
         }
         _ => {
             panic!("Wrong Action provided")

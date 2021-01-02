@@ -25,7 +25,7 @@ impl BodyMetadataBuilder {
             body: Body {
                 message_id: generate_uuid(),
                 text: None,
-                uid: None,
+                uid: Some(-1),
                 metadata_uuid: "".to_string()
             }
         }

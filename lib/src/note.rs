@@ -5,8 +5,9 @@ extern crate log;
 use std::hash::Hasher;
 use model::{NotesMetadata, Body};
 use std::collections::HashSet;
+use util::HeaderBuilder;
 
-#[derive(Eq)]
+#[derive(Eq,Clone)]
 pub struct LocalNote {
     pub(crate) metadata: NotesMetadata,
     pub(crate) body: Vec<Body>,
@@ -78,6 +79,25 @@ pub struct RemoteNoteMetaData {
     pub(crate) headers: NoteHeaders,
     pub(crate) folder: String,
     pub(crate) uid: i64
+}
+
+impl RemoteNoteMetaData {
+    pub fn new(localNote: &LocalNote) -> Vec<RemoteNoteMetaData> {
+        localNote.body.iter().map(|body| {
+            let headers = HeaderBuilder::new()
+                .with_subject(body.subject())
+                .with_uuid(localNote.metadata.uuid.clone())
+                .with_message_id(body.message_id.clone())
+                .build();
+
+            RemoteNoteMetaData {
+                headers,
+                folder: localNote.metadata.subfolder.clone(),
+                uid: body.uid.unwrap()
+            }
+        }).collect()
+
+    }
 }
 
 impl HeaderParser for NoteHeaders {
