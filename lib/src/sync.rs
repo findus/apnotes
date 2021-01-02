@@ -186,24 +186,32 @@ fn test_mergable_notes_grouping() {
 /// Should find one item that should be deleted
 #[test]
 fn test_delete_actions() {
-    let metadata = NotesMetadataBuilder::new()
-        .is_flagged_for_deletion(true)
-        .build();
 
-    let entry1 = BodyMetadataBuilder::new()
-        .with_message_id("k")
-        .with_metadata_uuid(&metadata.uuid)
-        .build();
+    let note_to_be_deleted =
+        NotesMetadataBuilder::new().is_flagged_for_deletion(true).build();
 
     let noteset = set![
-        note![metadata, entry1],
+        note![
+            note_to_be_deleted.clone(),
+            BodyMetadataBuilder::new().build()
+        ],
         note![
             NotesMetadataBuilder::new().build(),
             BodyMetadataBuilder::new().build()
         ]
     ];
     let delete_actions = get_deleted_note_actions(None, &noteset);
+
     assert_eq!(delete_actions.len(),1);
+
+    match delete_actions.first().unwrap() {
+        UpdateAction::DeleteRemote(uuid) => {
+            assert_eq!(uuid, &note_to_be_deleted.uuid)
+        }
+        _ => {
+            panic!("Wrong Action provided")
+        }
+    }
 
 }
 
