@@ -13,13 +13,11 @@ use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
-use model::{NotesMetadata, Body};
+use model::{NotesMetadata};
 use note::{RemoteNoteHeaderCollection, RemoteNoteMetaData};
 use ::{apple_imap};
 use profile;
 use imap::error::Error;
-use std::collections::HashSet;
-use note::NoteHeaders;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<NotesMetadata>;

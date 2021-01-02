@@ -148,7 +148,7 @@ fn test_mergable_notes_grouping() {
         uid: 3
     };
 
-    let collected: GroupedRemoteNoteHeaders =
+    let mut collected: GroupedRemoteNoteHeaders =
         collect_mergeable_notes(vec![
 
             metadata_1.clone(),
@@ -158,15 +158,21 @@ fn test_mergable_notes_grouping() {
 
     //Should be 2, because 2 metadata object should be grouped
     assert_eq!(collected.len(),2);
+    let mut collected_list: Vec<Vec<RemoteNoteMetaData>> = vec![];
+    for item in collected.drain() {
+        collected_list.push(item)
+    }
+    let sorted_list: Vec<Vec<RemoteNoteMetaData>> =
+        collected_list.into_iter().sorted_by_key(|entry| entry.len()).collect();
 
-    /*let first = &collected.get(&metadata_1).unwrap();
+    let first = &sorted_list.first().unwrap();
     assert_eq!(first.len(),1);
-    assert_eq!(first.first().unwrap().uuid(), metadata_3.uuid());*/
+    assert_eq!(first.first().unwrap().headers.uuid(), metadata_3.headers.uuid());
 
-   /* let second = &collected[1];
+    let second = &sorted_list[1];
     assert_eq!(second.len(),2);
-    assert_eq!(second.first().unwrap().uuid(), metadata_1.uuid());
-    assert_eq!(second[1].uuid(), metadata_1.uuid());*/
+    assert_eq!(second.first().unwrap().headers.uuid(), metadata_1.headers.uuid());
+    assert_eq!(second[1].headers.uuid(), metadata_1.headers.uuid());
 
 }
 
