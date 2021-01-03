@@ -1,4 +1,4 @@
-use note::{NoteHeaders, HeaderParser, NoteTrait, LocalNote};
+use note::{NoteHeaders, HeaderParser, IdentifyableNote, LocalNote};
 use ::{util, profile};
 use schema::metadata;
 use schema::body;

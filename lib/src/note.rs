@@ -7,23 +7,16 @@ use model::{NotesMetadata, Body};
 use std::collections::HashSet;
 use util::HeaderBuilder;
 
-#[derive(Eq,Clone)]
+#[derive(Eq,Clone,Debug)]
 pub struct LocalNote {
     pub(crate) metadata: NotesMetadata,
     pub(crate) body: Vec<Body>,
 }
 
-impl NoteTrait for LocalNote {
-    fn metadata(&self) -> NotesMetadata {
-        unimplemented!()
-    }
+impl IdentifyableNote for LocalNote {
 
     fn folder(&self) -> String {
-        unimplemented!()
-    }
-
-    fn body(&self) -> String {
-        unimplemented!()
+        self.metadata.folder()
     }
 
     fn uuid(&self) -> String {
@@ -31,19 +24,14 @@ impl NoteTrait for LocalNote {
     }
 }
 
+/// A collection of remote note metadata that share the
+/// same uuid
 pub type RemoteNoteHeaderCollection = Vec<RemoteNoteMetaData>;
 
-impl NoteTrait for RemoteNoteHeaderCollection {
-    fn metadata(&self) -> NotesMetadata {
-        unimplemented!()
-    }
+impl IdentifyableNote for RemoteNoteHeaderCollection {
 
     fn folder(&self) -> String {
-        unimplemented!()
-    }
-
-    fn body(&self) -> String {
-        unimplemented!()
+        self.iter().last().expect("At least one Element must be present").headers.folder()
     }
 
     fn uuid(&self) -> String {
@@ -54,17 +42,12 @@ impl NoteTrait for RemoteNoteHeaderCollection {
 /// The note headers fetched from the server, grouped by uuid
 pub type GroupedRemoteNoteHeaders = HashSet<RemoteNoteHeaderCollection>;
 
-impl NoteTrait for GroupedRemoteNoteHeaders {
-    fn metadata(&self) -> NotesMetadata {
-        unimplemented!()
-    }
+
+
+impl IdentifyableNote for GroupedRemoteNoteHeaders {
 
     fn folder(&self) -> String {
-        unimplemented!()
-    }
-
-    fn body(&self) -> String {
-        unimplemented!()
+        self.iter().map(|note| note.folder()).last().unwrap()
     }
 
     fn uuid(&self) -> String {
@@ -190,35 +173,33 @@ pub trait HeaderParser {
     fn imap_uid(&self) -> i64;
 }
 
-pub trait NoteTrait {
-    fn metadata(&self) -> NotesMetadata;
+pub trait IdentifyableNote {
     fn folder(&self) -> String;
-    fn body(&self) -> String;
     fn uuid(&self) -> String;
 }
 
-impl NoteTrait for NotesMetadata {
-    fn metadata(&self) -> NotesMetadata { self.clone() }
+impl IdentifyableNote for NotesMetadata {
 
     fn folder(&self) -> String { self.subfolder.clone() }
-
-    fn body(&self) -> String {
-        /*assert_eq!(self.needs_merge(), false);
-        self.notes.first()
-            .expect(&format!("No note found for {}", self.uuid.clone()))
-            .body
-            .clone()*/
-        unimplemented!()
-    }
 
     fn uuid(&self) -> String {
         self.uuid.clone()
     }
 }
 
-impl std::hash::Hash for Box<dyn NoteTrait> {
+impl std::hash::Hash for Box<dyn IdentifyableNote> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.uuid().hash(state)
+    }
+}
+
+impl std::cmp::PartialEq for Box<dyn IdentifyableNote>  {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid() == other.uuid()
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.uuid() != other.uuid()
     }
 }
 
@@ -283,5 +264,23 @@ impl std::cmp::PartialEq for LocalNote  {
 impl std::hash::Hash for LocalNote {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.metadata.uuid.hash(state);
+    }
+}
+
+impl std::cmp::Eq for Box<&IdentifyableNote> {}
+
+impl std::cmp::PartialEq for Box<&IdentifyableNote>  {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid() == other.uuid()
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.uuid() != other.uuid()
+    }
+}
+
+impl std::hash::Hash for Box<&IdentifyableNote> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.uuid().hash(state);
     }
 }

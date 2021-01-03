@@ -6,21 +6,27 @@ extern crate itertools;
 extern crate ctor;
 
 use self::itertools::Itertools;
-use note::{NoteHeaders, HeaderParser, LocalNote, NoteTrait, RemoteNoteHeaderCollection, RemoteNoteMetaData};
+use note::{NoteHeaders, HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData};
 use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
 use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
 use sync::UpdateAction::AddLocally;
+use std::collections::hash_map::RandomState;
+use diesel::result::Error;
+use self::itertools::__std_iter::FromIterator;
 
-#[derive(PartialEq, Clone)]
 /// Defines the Action that has to be done to the
 /// message with the corresponding uuid
+#[derive(Debug)]
 pub enum UpdateAction {
     /// Deletes the note on the imap server
     /// Apply to all notes that:
     ///     have their "locally_deleted" Flag set to true inside the db
-    DeleteRemote(String),
+    ///
+    ///     First Argument: Subfolder
+    ///     Second Argument: imap-uid
+    DeleteRemote(String,i64),
     /// Apply to all notes that
     ///     are not getting transmitted anymore and dont have the
     ///     "new" flag inside the db
@@ -46,13 +52,16 @@ pub enum UpdateAction {
     /// Apply to all notes that:
     ///
     ///     their uuid is not present locally
-    AddLocally(String),
+    ///     first arg: folder
+    ///     second arg: imap-uid
+    AddLocally(String,Vec<i64>),
     DoNothing
 }
 
 /// Iterates through all provided local notes and checks if the deletion flag got set
 /// If this is the case a DeleteRemote Actions gets returned for this note
 ///
+/// If the local note has multiple non-merged bodies the deletion gets skipped
 /// TODO: What to do if local note is flagged for deletion but got updated remotely
 fn get_deleted_note_actions(remote_note_headers: Option<&GroupedRemoteNoteHeaders>,
                             local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction>
@@ -60,7 +69,18 @@ fn get_deleted_note_actions(remote_note_headers: Option<&GroupedRemoteNoteHeader
     let local_flagged_notes: Vec<UpdateAction> = local_notes
         .iter()
         .filter(|local_note| local_note.metadata.locally_deleted)
-        .map(|deleted_local_note| UpdateAction::DeleteRemote(deleted_local_note.uuid()))
+        .map(|deleted_local_note| {
+            if deleted_local_note.body.len() > 1 {
+                warn!("Note with uuid {} is not merged, skipping", deleted_local_note.metadata.uuid);
+                UpdateAction::DoNothing
+            } else {
+                let note_body = deleted_local_note.body.first().unwrap();
+                UpdateAction::DeleteRemote(
+                    deleted_local_note.metadata.subfolder.clone(),
+                    note_body.uid.unwrap(),
+                )
+            }
+        })
         .collect();
     info!("Found {} Notes that are going to be deleted remotely", &local_flagged_notes.len());
     local_flagged_notes
@@ -71,11 +91,19 @@ fn get_added_note_actions(remote_note_headers: &GroupedRemoteNoteHeaders,
 
     let remote_uuids: HashSet<String> =
         remote_note_headers.iter().map(|item| item.uuid()).collect();
+
     let local_uuids: HashSet<String> =
         local_notes.iter().map(|item| item.uuid()).collect();
 
-    remote_uuids.difference(&local_uuids)
-        .map(|uuid| AddLocally(uuid.clone()))
+    let uuids: Vec<&String> = remote_uuids.difference(&local_uuids).collect();
+
+    remote_note_headers
+        .iter()
+        .filter(|remote_header_collection|
+            uuids.contains(&&remote_header_collection.uuid()))
+        .map(|new_note|
+                 UpdateAction::AddLocally(new_note.uuid(), new_note.iter().map(|body| body.uid).collect() )
+        )
         .collect()
 }
 
@@ -133,8 +161,37 @@ pub fn sync() {
     let db_connection = ::db::establish_connection();
     let headers = ::apple_imap::fetch_headers(&mut imap_session);
     let grouped_not_headers = collect_mergeable_notes(headers);
-    //let local_notes = ::db::
-    //let actions = get_sync_actions(grouped_not_headers,)
+    match ::db::fetch_all_notes(&db_connection) {
+        Ok(fetches) => {
+            let actions =
+                get_sync_actions(grouped_not_headers,fetches);
+            println!("A: {}", actions.len());
+            for a in actions {
+                println!("{:?}", a);
+            }
+        }
+        Err(e) => {
+            panic!("mist {}",e);
+        }
+    }
+    //let actions =
+}
+
+pub fn process_actions(actions: Vec<UpdateAction>) {
+    for action in actions {
+        match action {
+            UpdateAction::DeleteRemote(folder, uid) => {}
+            UpdateAction::DeleteLocally(_) => {}
+            UpdateAction::UpdateRemotely(_) => {}
+            UpdateAction::UpdateLocally(_) => {}
+            UpdateAction::Merge(_) => {}
+            UpdateAction::AddRemotely(_) => {}
+            AddLocally(folder, uid) => {
+              //  ::apple_imap::fetch_note_content()
+            }
+            UpdateAction::DoNothing => {}
+        }
+    }
 }
 
 ///Groups headers that have the same uuid
@@ -156,6 +213,11 @@ pub fn collect_mergeable_notes(header_metadata: RemoteNoteHeaderCollection) -> G
 fn init() {
     dotenv::dotenv().ok();
     simple_logger::init_with_level(Level::Debug).unwrap();
+}
+
+#[test]
+pub fn sync_test() {
+    sync();
 }
 
 /// Tests if metadata with multiple bodies is getting properly grouped
@@ -232,7 +294,7 @@ fn test_delete_actions() {
     assert_eq!(delete_actions.len(),1);
 
     match delete_actions.first().unwrap() {
-        UpdateAction::DeleteRemote(uuid) => {
+        UpdateAction::DeleteRemote(uuid, ..) => {
             assert_eq!(uuid, &note_to_be_deleted.uuid)
         }
         _ => {
@@ -242,16 +304,19 @@ fn test_delete_actions() {
 
 }
 
+/// Basic add test, there is one new note with a single body on remote side
 #[test]
 fn test_add_actions() {
 
     let note_to_be_added =
         NotesMetadataBuilder::new().build();
 
+    let remote_only_body= BodyMetadataBuilder::new().build();
+
     let notes_to_be_added = set![
         note![
             note_to_be_added.clone(),
-            BodyMetadataBuilder::new().build()
+            remote_only_body.clone()
         ]
     ];
 
@@ -275,46 +340,95 @@ fn test_add_actions() {
     assert_eq!(added_actions.len(),1);
 
     match added_actions.first().unwrap() {
-        UpdateAction::AddLocally(uuid) => {
-            assert_eq!(uuid, &note_to_be_added.uuid)
+        UpdateAction::AddLocally(uuid, uid) => {
+            assert_eq!(uuid, &note_to_be_added.uuid);
+            assert_eq!(uid.first().unwrap(), &remote_only_body.uid.unwrap());
         }
         _ => {
             panic!("Wrong Action provided")
         }
     }
+}
 
+/// This add test has a remote note with 2 bodies
+#[test]
+fn test_add_actions_mergeable_note() {
+    let first_note = NotesMetadataBuilder::new().build();
+    let first_body = BodyMetadataBuilder::new().build();
+    let second_body = BodyMetadataBuilder::new().build();
+
+    let notes_to_be_added = set![
+        note![
+            first_note.clone(),
+            first_body.clone(),
+            second_body.clone()
+        ]
+    ];
+
+    let local_notes = set![
+        note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+        ],
+        note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+        ]
+    ];
+
+    let remote_data: GroupedRemoteNoteHeaders = notes_to_be_added.iter().map(|entry| {
+        RemoteNoteMetaData::new(entry)
+    }).collect();
+
+    let added_actions = get_added_note_actions(&remote_data, &local_notes);
+
+    assert_eq!(added_actions.len(), 1);
+
+    match added_actions.first().unwrap() {
+        UpdateAction::AddLocally(uuid, uid) => {
+            assert_eq!(uuid, &first_note.uuid);
+            assert_eq!(uid.len(), 2);
+            assert_eq!(&uid[0], &second_body.uid.unwrap());
+            assert_eq!(&uid[1], &first_body.uid.unwrap());
+        }
+        _ => {
+            panic!("Wrong Action provided")
+        }
+    }
 }
 
 
-/*pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
-    let metadata = fetch_headers(session);
-    let remote_metadata = metadata.iter().collect();
 
-    let local_messages = get_local_messages();
 
-    let local_metadata = local_messages
-        .iter()
-        .map(|note| &note.metadata)
-        .collect();
+    /*pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {
+        let metadata = fetch_headers(session);
+        let remote_metadata = metadata.iter().collect();
 
-    let mut add_delete_actions = get_added_deleted_notes(local_metadata, remote_metadata);
-    info!("Need top add or delete {} Notes", &add_delete_actions.len());
-    //TODO check if present remote notes were explicitely deleted locally
+        let local_messages = get_local_messages();
 
-    let update_actions = get_update_actions(&metadata);
-    info!("Need top update {} Notes", &update_actions.len());
-    let mut d: Vec<(UpdateAction, &NotesMetadata)> = update_actions.iter().map(|(a,b)| (a.clone(),b)).collect();
+        let local_metadata = local_messages
+            .iter()
+            .map(|note| &note.metadata)
+            .collect();
 
-    d.append(&mut add_delete_actions);
-    let action_results = execute_actions(&d, session);
-    action_results.iter().for_each(|result| {
-        match result {
-            Ok(file) => debug!("Sucessfully transferred {}", file),
-            Err(error) => warn!("Issue while transferring file: {}", error)
-        }
-    })
+        let mut add_delete_actions = get_added_deleted_notes(local_metadata, remote_metadata);
+        info!("Need top add or delete {} Notes", &add_delete_actions.len());
+        //TODO check if present remote notes were explicitely deleted locally
 
-}*/
+        let update_actions = get_update_actions(&metadata);
+        info!("Need top update {} Notes", &update_actions.len());
+        let mut d: Vec<(UpdateAction, &NotesMetadata)> = update_actions.iter().map(|(a,b)| (a.clone(),b)).collect();
+
+        d.append(&mut add_delete_actions);
+        let action_results = execute_actions(&d, session);
+        action_results.iter().for_each(|result| {
+            match result {
+                Ok(file) => debug!("Sucessfully transferred {}", file),
+                Err(error) => warn!("Issue while transferring file: {}", error)
+            }
+        })
+
+    }*/
 
 /*fn get_update_actions(remote_notes: &Vec<NotesMetadata>) -> Vec<(UpdateAction, NotesMetadata)> {
     //TODO analyze what happens if title changes remotely, implement logic for local title change

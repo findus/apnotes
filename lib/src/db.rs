@@ -16,7 +16,7 @@ use schema::metadata::dsl::metadata;
 use self::log::*;
 use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
-use note::{LocalNote, NoteTrait};
+use note::{LocalNote, IdentifyableNote};
 use builder::*;
 
 pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
