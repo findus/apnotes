@@ -20,6 +20,8 @@ use native_tls::TlsStream;
 use std::net::TcpStream;
 use diesel::SqliteConnection;
 use model::{NotesMetadata, Body};
+use error::UpdateError::SyncError;
+use error::UpdateError;
 
 /// Defines the Action that has to be done to the
 /// message with the corresponding uuid
@@ -188,50 +190,79 @@ pub fn sync(imap_session: &mut Session<TlsStream<TcpStream>>, db_connection: &Sq
 pub fn process_actions<'a>(
     imap_connection: &mut Session<TlsStream<TcpStream>>,
     db_connection: &SqliteConnection,
-    actions: &Vec<UpdateAction<'a>>) {
-    for action in actions {
+    actions: &Vec<UpdateAction<'a>>) -> Vec<Result<String,UpdateError>> {
+    actions
+        .iter()
+        .map(|action|{
         match action {
-            UpdateAction::DeleteRemote(folder, uid) => {}
-            UpdateAction::DeleteLocally(_) => {}
-            UpdateAction::UpdateRemotely(_) => {}
-            UpdateAction::UpdateLocally(_) => {}
-            UpdateAction::Merge(_) => {}
-            UpdateAction::AddRemotely(_) => {}
-            AddLocally(noteheaders) => {
-
-                let bodies: Vec<Body> = noteheaders.into_iter().map(|single_remote_note| {
-                    (
-                        single_remote_note,
-                        ::apple_imap::fetch_note_content(imap_connection,
-                                                         &single_remote_note.folder,
-                                                         single_remote_note.uid)
-                    )
-                }).map(|(remote_metadata,result)| {
-                    if result.is_err() {
-                        //TODO return err
-                        None
-                    } else {
-                        Some(Body {
-                            message_id: remote_metadata.headers.message_id(),
-                            text: Some(result.unwrap()),
-                            uid: Some(remote_metadata.uid),
-                            metadata_uuid: remote_metadata.headers.uuid()
-                        })
-                    }
-                }).filter_map(|body_optional| body_optional)
-                    .collect();
-
-                let note = LocalNote {
-                    metadata: NotesMetadata::from_remote_metadata(noteheaders.first().unwrap()),
-                    body: bodies
-                };
-
-                ::db::insert_into_db(db_connection, &note);
-
+            UpdateAction::DeleteRemote(folder, uid) => {
+                unimplemented!();
             }
-            UpdateAction::DoNothing => {}
+            UpdateAction::DeleteLocally(_) => {
+                unimplemented!();
+            }
+            UpdateAction::UpdateRemotely(_) => {
+                unimplemented!();
+            }
+            UpdateAction::UpdateLocally(_) => {
+                unimplemented!();
+            }
+            UpdateAction::Merge(_) => {
+                unimplemented!();
+            }
+            UpdateAction::AddRemotely(_) => {
+                unimplemented!();
+            }
+            AddLocally(noteheaders) => {
+                match localnote_from_remote_header(imap_connection, noteheaders) {
+                    Ok(note) => {
+                        ::db::insert_into_db(db_connection, &note)
+                            .and_then(|_| Ok(note.metadata.uuid))
+                            .map_err(|e| UpdateError::IoError(e.to_string()))
+                    }
+                    Err(e) => { Err(e) }
+                }
+            }
+            UpdateAction::DoNothing => {
+                unimplemented!();
+            }
         }
+    }).collect()
+}
+
+fn localnote_from_remote_header(imap_connection: &mut Session<TlsStream<TcpStream>>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError> {
+    let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
+        (
+            single_remote_note,
+            ::apple_imap::fetch_note_content(imap_connection,
+                                             &single_remote_note.folder,
+                                             single_remote_note.uid)
+        )
+    }).map(|(remote_metadata, result)| {
+        match result {
+            Ok(body) => {
+                Some(Body {
+                    message_id: remote_metadata.headers.message_id(),
+                    text: Some(body),
+                    uid: Some(remote_metadata.uid),
+                    metadata_uuid: remote_metadata.headers.uuid()
+                })
+            }
+            Err(e) => {
+                warn!("Could not receive message body: {}",e);
+                None
+            }
+        }
+    }).collect();
+
+    if bodies.iter().filter(|entry| entry.is_none()).collect::<Vec<_>>().len() > 0 {
+        return Err(SyncError(format!("{}: child note was nil", noteheaders.uuid())));
     }
+
+    Ok(LocalNote {
+        metadata: NotesMetadata::from_remote_metadata(noteheaders.first().unwrap()),
+        body: bodies.into_iter().map(|b|b.unwrap()).collect()
+    })
 }
 
 ///Groups headers that have the same uuid
