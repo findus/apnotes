@@ -229,6 +229,66 @@ pub fn fetch_all_test() {
 }
 
 #[test]
+fn update_single_note() {
+    use util::HeaderBuilder;
+    let con = establish_connection();
+    delete_everything(&con).expect("Should delete the db");
+
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(),
+                                                            "test".to_string()
+    );
+
+    let body = Body::new(Some(0), m_data.uuid.clone());
+
+    let note = note!(
+        m_data,
+        body
+    );
+
+    let note_2 = note!(
+        NotesMetadataBuilder::new().with_uuid("meem".to_string()).build(),
+        BodyMetadataBuilder::new().with_text("old text").build()
+    );
+
+    let note_3 = note!(
+        NotesMetadataBuilder::new().with_uuid("meem".to_string()).build(),
+        BodyMetadataBuilder::new().with_text("new text").build()
+    );
+
+    insert_into_db(&con, &note).expect("Should insert note into the db");
+    insert_into_db(&con, &note_2).expect("Should insert note into the db");
+
+    let item_count = fetch_all_notes(&con)
+        .expect("Fetch should be successful")
+        .len();
+
+    assert_eq!(item_count,2);
+
+    update(&con,&note_3);
+
+    let item_count = fetch_all_notes(&con)
+        .expect("Fetch should be successful")
+        .len();
+
+    assert_eq!(item_count,2);
+
+    match fetch_single_note(&con, note_3.uuid().clone()) {
+        Ok(Some((fetched_note, mut bodies))) => {
+            assert_eq!(note_3.metadata,fetched_note);
+            assert_eq!(bodies.len(),1);
+
+            let first_note = bodies.pop().unwrap();
+            assert_eq!(&first_note,note_3.body.first().unwrap());
+            assert_eq!(&first_note.text.expect("text"),"new text");
+
+        },
+        Ok(None) => panic!("No note found"),
+        Err(e) => panic!("Fetch DB Call failed {}", e.to_string())
+    }
+}
+
+/// The correct note should remain in side the db
+#[test]
 fn delete_single_note() {
     use util::HeaderBuilder;
     let con = establish_connection();
