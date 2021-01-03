@@ -13,6 +13,15 @@ pub struct LocalNote {
     pub(crate) body: Vec<Body>,
 }
 
+pub type NoteHeaders = Vec<(String,String)>;
+
+#[derive(Clone,Eq,Debug)]
+pub struct RemoteNoteMetaData {
+    pub(crate) headers: NoteHeaders,
+    pub(crate) folder: String,
+    pub(crate) uid: i64
+}
+
 impl IdentifyableNote for LocalNote {
 
     fn folder(&self) -> String {
@@ -51,15 +60,6 @@ impl IdentifyableNote for GroupedRemoteNoteHeaders {
     fn uuid(&self) -> String {
         self.iter().map(|note| note.uuid()).last().unwrap()
     }
-}
-
-pub type NoteHeaders = Vec<(String,String)>;
-
-#[derive(Clone,Eq,Debug)]
-pub struct RemoteNoteMetaData {
-    pub(crate) headers: NoteHeaders,
-    pub(crate) folder: String,
-    pub(crate) uid: i64
 }
 
 impl RemoteNoteMetaData {

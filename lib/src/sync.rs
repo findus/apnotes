@@ -112,13 +112,17 @@ fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         .collect()
 }
 
-fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders, local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
+fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
+                        local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
 
     info!("Found {} local Notes", local_notes.len());
     info!("Found {} remote notes", remote_note_headers.len());
     let mut concated_actions = vec![];
-    let mut delete_actions = get_deleted_note_actions(Some(&remote_note_headers), &local_notes);
-    let mut add_actions = get_added_note_actions(&remote_note_headers, &local_notes);
+
+    let mut delete_actions =
+        get_deleted_note_actions(Some(&remote_note_headers), &local_notes);
+    let mut add_actions =
+        get_added_note_actions(&remote_note_headers, &local_notes);
 
     concated_actions.append(&mut delete_actions);
     concated_actions.append(&mut add_actions);
@@ -214,8 +218,7 @@ pub fn process_actions<'a>(
                             metadata_uuid: remote_metadata.headers.uuid()
                         })
                     }
-                }).filter(|body_optional| body_optional.is_some())
-                    .map(|body_not_so_optional_anymore| body_not_so_optional_anymore.unwrap())
+                }).filter_map(|body_optional| body_optional)
                     .collect();
 
                 let note = LocalNote {
