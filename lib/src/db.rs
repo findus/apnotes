@@ -157,6 +157,29 @@ pub fn establish_connection() -> SqliteConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
+/// Checks if all transactions are getting reverted if one fails
+#[test]
+pub fn nested_transaction() {
+    let note = note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().with_message_id("1").build(),
+            BodyMetadataBuilder::new().with_message_id("1").build(),
+            BodyMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+    ];
+
+    let con = establish_connection();
+    delete_everything(&con);
+
+    insert_into_db(&con, &note);
+
+    let a = fetch_all_notes(&con).unwrap();
+    assert_eq!(a.len(),0);
+}
+
 
 /// Checks if all notes are getting fetched properly
 #[test]
