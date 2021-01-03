@@ -42,8 +42,6 @@ impl IdentifyableNote for RemoteNoteHeaderCollection {
 /// The note headers fetched from the server, grouped by uuid
 pub type GroupedRemoteNoteHeaders = HashSet<RemoteNoteHeaderCollection>;
 
-
-
 impl IdentifyableNote for GroupedRemoteNoteHeaders {
 
     fn folder(&self) -> String {
@@ -57,7 +55,7 @@ impl IdentifyableNote for GroupedRemoteNoteHeaders {
 
 pub type NoteHeaders = Vec<(String,String)>;
 
-#[derive(Clone,Eq)]
+#[derive(Clone,Eq,Debug)]
 pub struct RemoteNoteMetaData {
     pub(crate) headers: NoteHeaders,
     pub(crate) folder: String,

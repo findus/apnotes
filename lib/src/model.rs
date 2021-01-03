@@ -1,4 +1,4 @@
-use note::{NoteHeaders, HeaderParser, IdentifyableNote, LocalNote};
+use note::{NoteHeaders, HeaderParser, IdentifyableNote, LocalNote, RemoteNoteMetaData};
 use ::{util, profile};
 use schema::metadata;
 use schema::body;
@@ -45,6 +45,19 @@ impl NotesMetadata {
             date: header.date(),
             uuid: header.uuid(),
             mime_version: header.mime_version(),
+        }
+    }
+
+    pub fn from_remote_metadata(remote_metadata: &RemoteNoteMetaData) -> Self {
+        NotesMetadata {
+            old_remote_id: None,
+            subfolder: remote_metadata.folder.clone(),
+            locally_deleted: false,
+            locally_edited: false,
+            new: false,
+            date: remote_metadata.headers.date(),
+            uuid: remote_metadata.headers.uuid(),
+            mime_version: remote_metadata.headers.mime_version()
         }
     }
 }

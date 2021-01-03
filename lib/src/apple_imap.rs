@@ -45,7 +45,7 @@ pub fn login() -> Session<TlsStream<TcpStream>> {
     return imap_session.unwrap();
 }
 
-pub fn fetch_note_content(session: &mut Session<TlsStream<TcpStream>>, subfolder: String, uid: i64) -> Option<String> {
+pub fn fetch_note_content(session: &mut Session<TlsStream<TcpStream>>, subfolder: &str, uid: i64) -> Result<String,Error> {
 
     if let Some(result) = session.select(&subfolder).err() {
         warn!("Could not select folder {} [{}]", &subfolder, result)
@@ -56,11 +56,11 @@ pub fn fetch_note_content(session: &mut Session<TlsStream<TcpStream>>, subfolder
         Ok(message) => {
             debug!("Message Loading for message with UID {} successful", uid);
             let first_message = message.first().expect("Expected message");
-            get_body(first_message)
+            Ok(get_body(first_message).expect("Expected note body, found none"))
         },
         Err(error) => {
             warn!("Could not load notes from {}! {}", &subfolder, error);
-            None
+            Err(error)
         }
     }
 }

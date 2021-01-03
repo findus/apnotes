@@ -15,11 +15,16 @@ use sync::UpdateAction::AddLocally;
 use std::collections::hash_map::RandomState;
 use diesel::result::Error;
 use self::itertools::__std_iter::FromIterator;
+use imap::Session;
+use native_tls::TlsStream;
+use std::net::TcpStream;
+use diesel::SqliteConnection;
+use model::{NotesMetadata, Body};
 
 /// Defines the Action that has to be done to the
 /// message with the corresponding uuid
 #[derive(Debug)]
-pub enum UpdateAction {
+pub enum UpdateAction<'a> {
     /// Deletes the note on the imap server
     /// Apply to all notes that:
     ///     have their "locally_deleted" Flag set to true inside the db
@@ -54,7 +59,7 @@ pub enum UpdateAction {
     ///     their uuid is not present locally
     ///     first arg: folder
     ///     second arg: imap-uid
-    AddLocally(String,Vec<i64>),
+    AddLocally(&'a RemoteNoteHeaderCollection),
     DoNothing
 }
 
@@ -63,8 +68,8 @@ pub enum UpdateAction {
 ///
 /// If the local note has multiple non-merged bodies the deletion gets skipped
 /// TODO: What to do if local note is flagged for deletion but got updated remotely
-fn get_deleted_note_actions(remote_note_headers: Option<&GroupedRemoteNoteHeaders>,
-                            local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction>
+fn get_deleted_note_actions<'a>(remote_note_headers: Option<&GroupedRemoteNoteHeaders>,
+                            local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>>
 {
     let local_flagged_notes: Vec<UpdateAction> = local_notes
         .iter()
@@ -86,8 +91,8 @@ fn get_deleted_note_actions(remote_note_headers: Option<&GroupedRemoteNoteHeader
     local_flagged_notes
 }
 
-fn get_added_note_actions(remote_note_headers: &GroupedRemoteNoteHeaders,
-                          local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction> {
+fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
+                          local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
 
     let remote_uuids: HashSet<String> =
         remote_note_headers.iter().map(|item| item.uuid()).collect();
@@ -102,12 +107,12 @@ fn get_added_note_actions(remote_note_headers: &GroupedRemoteNoteHeaders,
         .filter(|remote_header_collection|
             uuids.contains(&&remote_header_collection.uuid()))
         .map(|new_note|
-                 UpdateAction::AddLocally(new_note.uuid(), new_note.iter().map(|body| body.uid).collect() )
+                 UpdateAction::AddLocally(new_note )
         )
         .collect()
 }
 
-fn get_sync_actions(remote_note_headers: GroupedRemoteNoteHeaders, local_notes: HashSet<LocalNote>) -> Vec<UpdateAction> {
+fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders, local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
 
     info!("Found {} local Notes", local_notes.len());
     info!("Found {} remote notes", remote_note_headers.len());
@@ -156,16 +161,15 @@ fn get_sync_actions(remote_note_headers: GroupedRemoteNoteHeaders, local_notes: 
     });*/
 }
 
-pub fn sync() {
-    let mut imap_session = ::apple_imap::login();
-    let db_connection = ::db::establish_connection();
-    let headers = ::apple_imap::fetch_headers(&mut imap_session);
+pub fn sync(imap_session: &mut Session<TlsStream<TcpStream>>, db_connection: &SqliteConnection) {
+    let headers = ::apple_imap::fetch_headers(imap_session);
     let grouped_not_headers = collect_mergeable_notes(headers);
     match ::db::fetch_all_notes(&db_connection) {
         Ok(fetches) => {
             let actions =
-                get_sync_actions(grouped_not_headers,fetches);
-            println!("A: {}", actions.len());
+                get_sync_actions(&grouped_not_headers,&fetches);
+                process_actions(imap_session,db_connection, &actions);
+            println!("A: {}", &actions.len());
             for a in actions {
                 println!("{:?}", a);
             }
@@ -177,7 +181,10 @@ pub fn sync() {
     //let actions =
 }
 
-pub fn process_actions(actions: Vec<UpdateAction>) {
+pub fn process_actions<'a>(
+    imap_connection: &mut Session<TlsStream<TcpStream>>,
+    db_connection: &SqliteConnection,
+    actions: &Vec<UpdateAction<'a>>) {
     for action in actions {
         match action {
             UpdateAction::DeleteRemote(folder, uid) => {}
@@ -186,8 +193,38 @@ pub fn process_actions(actions: Vec<UpdateAction>) {
             UpdateAction::UpdateLocally(_) => {}
             UpdateAction::Merge(_) => {}
             UpdateAction::AddRemotely(_) => {}
-            AddLocally(folder, uid) => {
-              //  ::apple_imap::fetch_note_content()
+            AddLocally(noteheaders) => {
+
+                let bodies: Vec<Body> = noteheaders.into_iter().map(|single_remote_note| {
+                    (
+                        single_remote_note,
+                        ::apple_imap::fetch_note_content(imap_connection,
+                                                         &single_remote_note.folder,
+                                                         single_remote_note.uid)
+                    )
+                }).map(|(remote_metadata,result)| {
+                    if result.is_err() {
+                        //TODO return err
+                        None
+                    } else {
+                        Some(Body {
+                            message_id: remote_metadata.headers.message_id(),
+                            text: Some(result.unwrap()),
+                            uid: Some(remote_metadata.uid),
+                            metadata_uuid: remote_metadata.headers.uuid()
+                        })
+                    }
+                }).filter(|body_optional| body_optional.is_some())
+                    .map(|body_not_so_optional_anymore| body_not_so_optional_anymore.unwrap())
+                    .collect();
+
+                let note = LocalNote {
+                    metadata: NotesMetadata::from_remote_metadata(noteheaders.first().unwrap()),
+                    body: bodies
+                };
+
+                ::db::insert_into_db(db_connection, &note);
+
             }
             UpdateAction::DoNothing => {}
         }
@@ -217,7 +254,12 @@ fn init() {
 
 #[test]
 pub fn sync_test() {
-    sync();
+
+    let mut imap_session = ::apple_imap::login();
+    let db_connection = ::db::establish_connection();
+
+   // ::db::delete_everything(&db_connection);
+    sync(&mut imap_session, &db_connection);
 }
 
 /// Tests if metadata with multiple bodies is getting properly grouped
@@ -340,9 +382,9 @@ fn test_add_actions() {
     assert_eq!(added_actions.len(),1);
 
     match added_actions.first().unwrap() {
-        UpdateAction::AddLocally(uuid, uid) => {
-            assert_eq!(uuid, &note_to_be_added.uuid);
-            assert_eq!(uid.first().unwrap(), &remote_only_body.uid.unwrap());
+        UpdateAction::AddLocally(header) => {
+            assert_eq!(&header.first().unwrap().headers.uuid(), &note_to_be_added.uuid);
+            assert_eq!(&header.first().unwrap().uid, &remote_only_body.uid.unwrap());
         }
         _ => {
             panic!("Wrong Action provided")
@@ -385,11 +427,12 @@ fn test_add_actions_mergeable_note() {
     assert_eq!(added_actions.len(), 1);
 
     match added_actions.first().unwrap() {
-        UpdateAction::AddLocally(uuid, uid) => {
-            assert_eq!(uuid, &first_note.uuid);
-            assert_eq!(uid.len(), 2);
-            assert_eq!(&uid[0], &second_body.uid.unwrap());
-            assert_eq!(&uid[1], &first_body.uid.unwrap());
+        UpdateAction::AddLocally(header) => {
+            assert_eq!(&header.uuid(), &first_note.uuid);
+            assert_eq!(header.len(), 2_usize);
+            //TODO fix
+            /*assert_eq!(&uid[0], &second_body.uid.unwrap());
+            assert_eq!(&uid[1], &first_body.uid.unwrap());*/
         }
         _ => {
             panic!("Wrong Action provided")
