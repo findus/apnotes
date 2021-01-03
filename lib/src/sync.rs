@@ -33,7 +33,7 @@ pub enum UpdateAction<'a> {
     ///
     ///     First Argument: Subfolder
     ///     Second Argument: imap-uid
-    DeleteRemote(String,i64),
+    DeleteRemote(&'a LocalNote),
     /// Apply to all notes that
     ///     are not getting transmitted anymore and dont have the
     ///     "new" flag inside the db
@@ -83,8 +83,7 @@ fn get_deleted_note_actions<'a>(remote_note_headers: Option<&GroupedRemoteNoteHe
             } else {
                 let note_body = deleted_local_note.body.first().unwrap();
                 UpdateAction::DeleteRemote(
-                    deleted_local_note.metadata.subfolder.clone(),
-                    note_body.uid.unwrap(),
+                    deleted_local_note
                 )
             }
         })
@@ -195,7 +194,7 @@ pub fn process_actions<'a>(
         .iter()
         .map(|action|{
         match action {
-            UpdateAction::DeleteRemote(folder, uid) => {
+            UpdateAction::DeleteRemote(note) => {
                 unimplemented!();
             }
             UpdateAction::DeleteLocally(_) => {
@@ -370,8 +369,8 @@ fn test_delete_actions() {
     assert_eq!(delete_actions.len(),1);
 
     match delete_actions.first().unwrap() {
-        UpdateAction::DeleteRemote(uuid, ..) => {
-            assert_eq!(uuid, &note_to_be_deleted.uuid)
+        UpdateAction::DeleteRemote(localnote) => {
+            assert_eq!(localnote.metadata.uuid(), note_to_be_deleted.uuid)
         }
         _ => {
             panic!("Wrong Action provided")
