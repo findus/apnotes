@@ -17,7 +17,7 @@ use self::log::*;
 use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
 use note::{LocalNote, IdentifyableNote};
-use builder::*;
+use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
 
 pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {
@@ -228,7 +228,58 @@ pub fn fetch_all_test() {
 
 }
 
+#[test]
+fn delete_single_note() {
+    use util::HeaderBuilder;
+    let con = establish_connection();
+    delete_everything(&con).expect("Should delete the db");
 
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(),
+                                                            "test".to_string()
+    );
+
+    let body = Body::new(Some(0), m_data.uuid.clone());
+
+    let note = note!(
+        m_data,
+        body
+    );
+
+    let note_2 = note!(
+        NotesMetadataBuilder::new().build(),
+        BodyMetadataBuilder::new().build()
+    );
+
+    insert_into_db(&con, &note).expect("Should insert note into the db");
+    insert_into_db(&con, &note_2).expect("Should insert note into the db");
+
+    let item_count = fetch_all_notes(&con)
+        .expect("Fetch should be successful")
+        .len();
+
+    assert_eq!(item_count,2);
+
+    delete(&con, &note_2);
+
+    let item_count = fetch_all_notes(&con)
+        .expect("Fetch should be successful")
+        .len();
+
+    assert_eq!(item_count,1);
+
+    match fetch_single_note(&con, note.uuid().clone()) {
+        Ok(Some((fetched_note, mut bodies))) => {
+            assert_eq!(note.metadata,fetched_note);
+            assert_eq!(bodies.len(),1);
+
+            let first_note = bodies.pop().unwrap();
+            assert_eq!(&first_note,note.body.first().unwrap());
+
+        },
+        Ok(None) => panic!("No note found"),
+        Err(e) => panic!("Fetch DB Call failed {}", e.to_string())
+    }
+}
 
 /// Should insert a single metadata object with a body
 ///
