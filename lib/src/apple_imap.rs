@@ -13,11 +13,12 @@ use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
-use model::{NotesMetadata};
-use note::{RemoteNoteHeaderCollection, RemoteNoteMetaData};
+use model::{NotesMetadata, Body};
+use note::{RemoteNoteHeaderCollection, RemoteNoteMetaData, LocalNote, IdentifyableNote};
 use ::{apple_imap};
-use profile;
+use ::{profile, converter};
 use imap::error::Error;
+use std::collections::HashSet;
 
 pub trait MailFetcher {
     fn fetch_mails() -> Vec<NotesMetadata>;
@@ -290,14 +291,35 @@ pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String
     return result;
 }
 
-/**
-pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<u32, Error> {
+/// Deletes all notes remotely that have the uuid provided by local_note, expect
+/// the note with uid_to_keep
+pub fn delete_old_mergeable_notes(session: &mut Session<TlsStream<TcpStream>>,
+                                  local_note: &LocalNote,
+                                  uid_to_keep: u32) -> Result<(),Error>
+{
+    session.
+        select(&local_note.metadata.folder())
+        .and_then(|_| session.uid_search(
+            format!("X-Universally-Unique-Identifier {}", local_note.body[0].message_id)))
+        .and_then(|uids| {
+            let uids: Vec<String> = uids.into_iter()
+                .filter(|uid| uid != &uid_to_keep )
+                .map(|x| (x.to_string())).collect();
+            for uid in uids {
+                info!("Will delete remote note with uid: {}", uid);
+                flag_as_deleted(session, uid)?;
+            }
+            delete_flagged(session)?;
+            Ok(())
+        })
+}
+
+/// Updates a local message, either if it got updated or if it is a new localnote
+/// This App should only support "merged" notes, notes that only have one body.
+///
+/// If the passed localnote has >1 bodies it will reject it.
+pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, localnote: &LocalNote) -> Result<u32, Error> {
     //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
-    let uid = if metadata.uid.is_some() {
-        format!("{}", metadata.uid.unwrap())
-    } else {
-        format!("new")
-    };
 
   /*  let headers = metadata.header.iter().map( |(k,v)| {
         //TODO make sure that updated message has new message-id
@@ -306,42 +328,40 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &No
         .collect::<Vec<String>>()
         .join("\n");*/
 
-    let _content = converter::convert_to_html(&metadata);
+    // Updated message must be merged
+    let _content = converter::convert_to_html(&localnote.body.first().unwrap());
 
     //let message = format!("{}\n\n{}",headers, content);
     let message = "".clone();
 
     session
-        //Write new message into the mailbox
-        .append(&metadata.subfolder, message.as_bytes())
-        //Select the appropriate mailbox, in which the updated message was saved
-        .and_then(|_| session.select(&metadata.subfolder))
+        // Write new message into the mailbox
+        .append(&localnote.metadata.subfolder, message.as_bytes())
+        // Select the appropriate mailbox, in which the updated message was saved
+        .and_then(|_| session.select(&localnote.metadata.subfolder))
         // Set the old (overridden) message to "deleted", so that it can be expunged
-        .and_then(|_| {
-            if metadata.new {
-                Ok(())
-            } else {
-                session.uid_store(&uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string()).map(|_| ())
-            }
-        })
-        //Expunge them
-        .and_then(|_| {
-            if metadata.new {
-                Ok(())
-            } else {
-                session.uid_expunge(&uid).map(|_| ())
-            }
-        })
-        //Search for the new message, to get the new UID of the updated message
-        .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", metadata.message_id)))
-        //Get the first UID
+        .and_then(|_| flag_as_deleted(session, localnote.body.first().unwrap().uid.unwrap().to_string()))
+        // Expunge them //TODO might need check if note is new, skip if note is new
+        .and_then(|_| delete_flagged(session))
+        // Search for the new message, to get the new UID of the updated message
+        .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", localnote.body[0].message_id)))
+        // Get the first UID
         .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
-        //Save the new UID to the metadata file, also set seen flag so that mail clients dont get notified on updated message
-        .and_then(|new_uid| {
-            session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid)
-        })
+        // Save the new UID to the metadata file, also set seen flag so that mail clients dont get notified on updated message
+        .and_then(|new_uid| session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid))
+        // Delete dangling remote non merged notes
+        .and_then(|new_uid| delete_old_mergeable_notes(session, &localnote, new_uid).map(|_| new_uid))
 }
-**/
+
+fn delete_flagged(session: &mut Session<TlsStream<TcpStream>>) -> imap::error::Result<Vec<u32>> {
+        session.expunge()
+}
+
+fn flag_as_deleted(session: &mut Session<TlsStream<TcpStream>>, uid: String) -> imap::error::Result<()> {
+    // If note was new everything is ready
+    session.uid_store(uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string())?;
+    Ok(())
+}
 
 
 pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) -> Result<(),Error> {

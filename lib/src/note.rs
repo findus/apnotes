@@ -22,6 +22,12 @@ pub struct RemoteNoteMetaData {
     pub(crate) uid: i64
 }
 
+impl LocalNote {
+    fn needs_merge(&self) -> bool {
+        self.body.len() > 1
+    }
+}
+
 impl IdentifyableNote for LocalNote {
 
     fn folder(&self) -> String {
@@ -179,7 +185,6 @@ pub trait IdentifyableNote {
 impl IdentifyableNote for NotesMetadata {
 
     fn folder(&self) -> String { self.subfolder.clone() }
-
     fn uuid(&self) -> String {
         self.uuid.clone()
     }

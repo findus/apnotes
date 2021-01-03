@@ -22,6 +22,11 @@ use diesel::SqliteConnection;
 use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
+use error;
+
+pub enum UpdateResult {
+    Success()
+}
 
 /// Defines the Action that has to be done to the
 /// message with the corresponding uuid
@@ -55,7 +60,7 @@ pub enum UpdateAction<'a> {
     /// Apply to all notes that:
     ///     have new flag set to true
     ///     their uuid is not present remotely
-    AddRemotely(String),
+    AddRemotely(&'a LocalNote),
     /// Apply to all notes that:
     ///
     ///     their uuid is not present locally
@@ -189,7 +194,7 @@ pub fn sync(imap_session: &mut Session<TlsStream<TcpStream>>, db_connection: &Sq
 pub fn process_actions<'a>(
     imap_connection: &mut Session<TlsStream<TcpStream>>,
     db_connection: &SqliteConnection,
-    actions: &Vec<UpdateAction<'a>>) -> Vec<Result<String,UpdateError>> {
+    actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(),UpdateError>> {
     actions
         .iter()
         .map(|action|{
@@ -209,8 +214,39 @@ pub fn process_actions<'a>(
             UpdateAction::Merge(_) => {
                 unimplemented!();
             }
-            UpdateAction::AddRemotely(_) => {
-                unimplemented!();
+            UpdateAction::AddRemotely(localnote) => {
+                info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
+                let metadata = &localnote.metadata;
+                ::apple_imap::create_mailbox(imap_connection, metadata)
+                    .map_err(|e| SyncError(e.to_string()))
+                    .and_then(|_
+                    | imap_connection.select(&metadata.subfolder)
+                        .map_err(|e| SyncError(e.to_string())))
+                    .and_then(|_| update_remotely(localnote, imap_connection))
+                    .and_then(|uid| {
+                        let body = localnote.body.first().unwrap();
+                        let note = note!(
+                            NotesMetadata {
+                                old_remote_id: localnote.metadata.old_remote_id.clone(),
+                                subfolder: localnote.metadata.subfolder.clone(),
+                                locally_deleted: localnote.metadata.locally_deleted,
+                                locally_edited: localnote.metadata.locally_edited,
+                                new: localnote.metadata.new.clone(),
+                                date: localnote.metadata.date.clone(),
+                                uuid:localnote.metadata.uuid.clone(),
+                                mime_version: localnote.metadata.mime_version.clone()
+                            },
+                            Body {
+                                message_id: body.message_id.clone(),
+                                text: body.text.clone(),
+                                uid: Some(uid as i64),
+                                metadata_uuid: body.metadata_uuid.clone()
+                            }
+                        );
+                        ::db::update(db_connection, &note)
+                            .map_err(|e| UpdateError::SyncError(e.to_string()))
+                    })
+
             }
             AddLocally(noteheaders) => {
                 match localnote_from_remote_header(imap_connection, noteheaders) {
@@ -220,7 +256,8 @@ pub fn process_actions<'a>(
                             .map_err(|e| UpdateError::IoError(e.to_string()))
                     }
                     Err(e) => { Err(e) }
-                }
+                };
+                Ok(())
             }
             UpdateAction::DoNothing => {
                 unimplemented!();
@@ -556,35 +593,9 @@ fn test_add_actions_mergeable_note() {
     }).collect::<Vec<(UpdateAction, NotesMetadata)>>()
 }*/
 
-/*fn update_remotely(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
-    match apple_imap::update_message(session, metadata) {
-        Ok(new_uid) => {
-            let new_metadata = NotesMetadata {
-                old_remote_id: None,
-                subfolder: metadata.subfolder.clone(),
-                locally_deleted: metadata.locally_deleted,
-                uid: Some(new_uid as i64),
-                new: false,
-                date: metadata.date.clone(),
-                uuid: metadata.uuid.clone(),
-                message_id: metadata.message_id.clone(),
-                mime_version: metadata.mime_version.clone(),
-                subject: metadata.subject.clone()
-            };
-
-            io::save_metadata_to_file(&new_metadata)
-                .map_err(|e| std::io::Error::from(e))
-                .and_then(|_| io::move_note(&new_metadata, &metadata.subject_with_identifier()))
-                .and_then(|_| io::delete_metadata_file(&metadata))
-                .map(|_| metadata.subject_escaped())
-                .map_err(|e| SyncError(e.to_string()))
-        },
-        Err(e) => {
-            error!("Error while updating note {} {}", metadata.subject.clone(), e.to_string());
-            Err(SyncError(e.to_string()))
-        }
-    }
-}*/
+fn update_remotely(local_note: &LocalNote, session: &mut Session<TlsStream<TcpStream>>) -> Result<u32, error::UpdateError> {
+    ::apple_imap::update_message(session, local_note).map_err(|e| UpdateError::SyncError(e.to_string()))
+}
 
 /*fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();

@@ -61,6 +61,31 @@ pub fn update_merged_note(connection: &SqliteConnection, body: &Body) -> Result<
     })
 }
 
+pub fn delete(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(), Error> {
+    connection.transaction::<_, Error, _>(|| {
+
+        diesel::delete(schema::metadata::dsl::metadata)
+            .filter(schema::metadata::dsl::uuid.eq(&local_note.metadata.uuid))
+            .execute(connection)?;
+
+        diesel::delete(schema::body::dsl::body)
+            .filter(schema::body::dsl::metadata_uuid.eq(&local_note.metadata.uuid))
+            .execute(connection)?;
+
+        Ok(())
+    })
+}
+
+pub fn update(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(), Error> {
+    connection.transaction::<_, Error, _>(|| {
+
+        delete(connection, local_note);
+        insert_into_db(connection, local_note);
+
+        Ok(())
+    })
+}
+
 /// Inserts the provided post into the sqlite db
 pub fn insert_into_db(connection: &SqliteConnection, note: &LocalNote) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {
@@ -202,6 +227,8 @@ pub fn fetch_all_test() {
 
 
 }
+
+
 
 /// Should insert a single metadata object with a body
 ///
