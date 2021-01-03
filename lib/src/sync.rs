@@ -323,6 +323,11 @@ fn init() {
 }
 
 #[test]
+pub fn add_locally_not_merged() {
+
+}
+
+#[test]
 pub fn sync_test() {
 
     let mut imap_session = ::apple_imap::login();
@@ -408,6 +413,37 @@ fn test_delete_actions() {
     match delete_actions.first().unwrap() {
         UpdateAction::DeleteRemote(localnote) => {
             assert_eq!(localnote.metadata.uuid(), note_to_be_deleted.uuid)
+        }
+        _ => {
+            panic!("Wrong Action provided")
+        }
+    }
+
+}
+
+/// Should find zero items because item is flagged but unmerged
+#[test]
+fn test_delete_unmerged_actions() {
+
+    let note_to_be_deleted =
+        NotesMetadataBuilder::new()
+            .is_flagged_for_deletion(true)
+            .build();
+
+    let noteset = set![
+        note![
+            note_to_be_deleted.clone(),
+            BodyMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+        ]
+    ];
+    let delete_actions = get_deleted_note_actions(None, &noteset);
+
+    assert_eq!(delete_actions.len(),1);
+
+    match delete_actions.first().unwrap() {
+        UpdateAction::DoNothing => {
+            println!("Success")
         }
         _ => {
             panic!("Wrong Action provided")
