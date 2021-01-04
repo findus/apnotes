@@ -22,7 +22,7 @@ pub fn edit(localnote: &LocalNote, new: bool) -> Result<ExitStatus, NoteError> {
         .expect("Expected at least 1 note body");
 
     #[cfg(target_family = "unix")]
-        let open_with = "nvim".to_owned();
+        let open_with = "xdg-open".to_owned();
         let file_path = format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped());
     #[cfg(target_family = "windows")]
         let open_with = (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned();
