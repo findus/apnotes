@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use profile;
+
 use uuid::Uuid;
-use chrono::{Utc};
-use note::{NoteHeaders, HeaderParser};
+
+
 
 pub fn get_hash_path(path: &Path) -> PathBuf {
     let folder = path.parent().unwrap().to_string_lossy().into_owned();

@@ -1,4 +1,4 @@
-use note::{NoteHeaders, HeaderParser, IdentifyableNote, LocalNote, RemoteNoteMetaData};
+use note::{NoteHeaders, HeaderParser, IdentifyableNote, RemoteNoteMetaData, LocalNote};
 use ::{util, profile};
 use schema::metadata;
 use schema::body;

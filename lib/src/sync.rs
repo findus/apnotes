@@ -6,15 +6,15 @@ extern crate itertools;
 extern crate ctor;
 
 use self::itertools::Itertools;
-use note::{NoteHeaders, HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData};
+use note::{HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData};
 use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
-use builder::{NotesMetadataBuilder, BodyMetadataBuilder, HeaderBuilder};
+
 use sync::UpdateAction::AddLocally;
-use std::collections::hash_map::RandomState;
-use diesel::result::Error;
-use self::itertools::__std_iter::FromIterator;
+
+
+
 use imap::Session;
 use native_tls::TlsStream;
 use std::net::TcpStream;
@@ -75,7 +75,7 @@ pub enum UpdateAction<'a> {
 ///
 /// If the local note has multiple non-merged bodies the deletion gets skipped
 /// TODO: What to do if local note is flagged for deletion but got updated remotely
-fn get_deleted_note_actions<'a>(remote_note_headers: Option<&GroupedRemoteNoteHeaders>,
+fn get_deleted_note_actions<'a>(_remote_note_headers: Option<&GroupedRemoteNoteHeaders>,
                             local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>>
 {
     let local_flagged_notes: Vec<UpdateAction> = local_notes
@@ -86,7 +86,7 @@ fn get_deleted_note_actions<'a>(remote_note_headers: Option<&GroupedRemoteNoteHe
                 warn!("Note with uuid {} is not merged, skipping", deleted_local_note.metadata.uuid);
                 UpdateAction::DoNothing
             } else {
-                let note_body = deleted_local_note.body.first().unwrap();
+                let _note_body = deleted_local_note.body.first().unwrap();
                 UpdateAction::DeleteRemote(
                     deleted_local_note
                 )
@@ -199,7 +199,7 @@ pub fn process_actions<'a>(
         .iter()
         .map(|action|{
         match action {
-            UpdateAction::DeleteRemote(note) => {
+            UpdateAction::DeleteRemote(_note) => {
                 unimplemented!();
             }
             UpdateAction::DeleteLocally(_) => {
@@ -315,88 +315,94 @@ pub fn collect_mergeable_notes(header_metadata: RemoteNoteHeaderCollection) -> G
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
 }
 
-#[cfg(test)]
-#[ctor::ctor]
-fn init() {
-    dotenv::dotenv().ok();
-    simple_logger::init_with_level(Level::Debug).unwrap();
-}
+mod sync_tests {
+    use super::*;
+    use note::{GroupedRemoteNoteHeaders, RemoteNoteMetaData};
+    use builder::{BodyMetadataBuilder, NotesMetadataBuilder};
 
-#[test]
-pub fn add_locally_not_merged() {
 
-}
-
-#[test]
-pub fn sync_test() {
-
-    let mut imap_session = ::apple_imap::login();
-    let db_connection = ::db::establish_connection();
-
-   // ::db::delete_everything(&db_connection);
-    sync(&mut imap_session, &db_connection);
-}
-
-/// Tests if metadata with multiple bodies is getting properly grouped
-#[test]
-fn test_mergable_notes_grouping() {
-    use builder::HeaderBuilder;
-
-    let metadata_1 = RemoteNoteMetaData {
-        headers:  HeaderBuilder::new().with_subject("Note").build(),
-        folder: "test".to_string(),
-        uid: 1
-    };
-
-    let metadata_2 = RemoteNoteMetaData {
-        headers:  metadata_1.headers.clone(),
-        folder: "test".to_string(),
-        uid: 2
-    };
-
-    let metadata_3 = RemoteNoteMetaData {
-        headers:  HeaderBuilder::new().with_subject("Another Note").build(),
-        folder: "test".to_string(),
-        uid: 3
-    };
-
-    let mut collected: GroupedRemoteNoteHeaders =
-        collect_mergeable_notes(vec![
-            metadata_1.clone(),
-            metadata_3.clone(),
-            metadata_2.clone()]
-        );
-
-    //Should be 2, because 2 metadata object should be grouped
-    assert_eq!(collected.len(),2);
-    let mut collected_list: Vec<Vec<RemoteNoteMetaData>> = vec![];
-    for item in collected.drain() {
-        collected_list.push(item)
+    #[cfg(test)]
+    #[ctor::ctor]
+    fn init() {
+        dotenv::dotenv().ok();
+        simple_logger::init_with_level(Level::Debug).unwrap();
     }
-    let sorted_list: Vec<Vec<RemoteNoteMetaData>> =
-        collected_list.into_iter().sorted_by_key(|entry| entry.len()).collect();
 
-    let first = &sorted_list.first().unwrap();
-    assert_eq!(first.len(),1);
-    assert_eq!(first.first().unwrap().headers.uuid(), metadata_3.headers.uuid());
+    #[test]
+    pub fn add_locally_not_merged() {
 
-    let second = &sorted_list[1];
-    assert_eq!(second.len(),2);
-    assert_eq!(second.first().unwrap().headers.uuid(), metadata_1.headers.uuid());
-    assert_eq!(second[1].headers.uuid(), metadata_1.headers.uuid());
+    }
 
-}
+    #[test]
+    pub fn sync_test() {
 
-/// Should find one item that should be deleted
-#[test]
-fn test_delete_actions() {
+        let mut imap_session = ::apple_imap::login();
+        let db_connection = ::db::establish_connection();
 
-    let note_to_be_deleted =
-        NotesMetadataBuilder::new()
-            .is_flagged_for_deletion(true)
-            .build();
+        // ::db::delete_everything(&db_connection);
+        sync(&mut imap_session, &db_connection);
+    }
 
-    let noteset = set![
+    /// Tests if metadata with multiple bodies is getting properly grouped
+    #[test]
+    fn test_mergable_notes_grouping() {
+        use builder::HeaderBuilder;
+
+        let metadata_1 = RemoteNoteMetaData {
+            headers:  HeaderBuilder::new().with_subject("Note").build(),
+            folder: "test".to_string(),
+            uid: 1
+        };
+
+        let metadata_2 = RemoteNoteMetaData {
+            headers:  metadata_1.headers.clone(),
+            folder: "test".to_string(),
+            uid: 2
+        };
+
+        let metadata_3 = RemoteNoteMetaData {
+            headers:  HeaderBuilder::new().with_subject("Another Note").build(),
+            folder: "test".to_string(),
+            uid: 3
+        };
+
+        let mut collected: GroupedRemoteNoteHeaders =
+            collect_mergeable_notes(vec![
+                metadata_1.clone(),
+                metadata_3.clone(),
+                metadata_2.clone()]
+            );
+
+        //Should be 2, because 2 metadata object should be grouped
+        assert_eq!(collected.len(),2);
+        let mut collected_list: Vec<Vec<RemoteNoteMetaData>> = vec![];
+        for item in collected.drain() {
+            collected_list.push(item)
+        }
+        let sorted_list: Vec<Vec<RemoteNoteMetaData>> =
+            collected_list.into_iter().sorted_by_key(|entry| entry.len()).collect();
+
+        let first = &sorted_list.first().unwrap();
+        assert_eq!(first.len(),1);
+        assert_eq!(first.first().unwrap().headers.uuid(), metadata_3.headers.uuid());
+
+        let second = &sorted_list[1];
+        assert_eq!(second.len(),2);
+        assert_eq!(second.first().unwrap().headers.uuid(), metadata_1.headers.uuid());
+        assert_eq!(second[1].headers.uuid(), metadata_1.headers.uuid());
+
+    }
+
+    /// Should find one item that should be deleted
+    #[test]
+    fn test_delete_actions() {
+
+        let note_to_be_deleted =
+            NotesMetadataBuilder::new()
+                .is_flagged_for_deletion(true)
+                .build();
+
+        let noteset = set![
         note![
             note_to_be_deleted.clone(),
             BodyMetadataBuilder::new().build()
@@ -406,69 +412,69 @@ fn test_delete_actions() {
             BodyMetadataBuilder::new().build()
         ]
     ];
-    let delete_actions = get_deleted_note_actions(None, &noteset);
+        let delete_actions = get_deleted_note_actions(None, &noteset);
 
-    assert_eq!(delete_actions.len(),1);
+        assert_eq!(delete_actions.len(),1);
 
-    match delete_actions.first().unwrap() {
-        UpdateAction::DeleteRemote(localnote) => {
-            assert_eq!(localnote.metadata.uuid(), note_to_be_deleted.uuid)
+        match delete_actions.first().unwrap() {
+            UpdateAction::DeleteRemote(localnote) => {
+                assert_eq!(localnote.metadata.uuid(), note_to_be_deleted.uuid)
+            }
+            _ => {
+                panic!("Wrong Action provided")
+            }
         }
-        _ => {
-            panic!("Wrong Action provided")
-        }
+
     }
 
-}
+    /// Should find zero items because item is flagged but unmerged
+    #[test]
+    fn test_delete_unmerged_actions() {
 
-/// Should find zero items because item is flagged but unmerged
-#[test]
-fn test_delete_unmerged_actions() {
+        let note_to_be_deleted =
+            NotesMetadataBuilder::new()
+                .is_flagged_for_deletion(true)
+                .build();
 
-    let note_to_be_deleted =
-        NotesMetadataBuilder::new()
-            .is_flagged_for_deletion(true)
-            .build();
-
-    let noteset = set![
+        let noteset = set![
         note![
             note_to_be_deleted.clone(),
             BodyMetadataBuilder::new().build(),
             BodyMetadataBuilder::new().build()
         ]
     ];
-    let delete_actions = get_deleted_note_actions(None, &noteset);
+        let delete_actions = get_deleted_note_actions(None, &noteset);
 
-    assert_eq!(delete_actions.len(),1);
+        assert_eq!(delete_actions.len(),1);
 
-    match delete_actions.first().unwrap() {
-        UpdateAction::DoNothing => {
-            println!("Success")
+        match delete_actions.first().unwrap() {
+            UpdateAction::DoNothing => {
+                println!("Success")
+            }
+            _ => {
+                panic!("Wrong Action provided")
+            }
         }
-        _ => {
-            panic!("Wrong Action provided")
-        }
+
     }
 
-}
+    /// Basic add test, there is one new note with a single body on remote side
+    #[test]
+    fn test_add_actions() {
 
-/// Basic add test, there is one new note with a single body on remote side
-#[test]
-fn test_add_actions() {
+        let note_to_be_added =
+            NotesMetadataBuilder::new().build();
 
-    let note_to_be_added =
-        NotesMetadataBuilder::new().build();
+        let remote_only_body= BodyMetadataBuilder::new().build();
 
-    let remote_only_body= BodyMetadataBuilder::new().build();
-
-    let notes_to_be_added = set![
+        let notes_to_be_added = set![
         note![
             note_to_be_added.clone(),
             remote_only_body.clone()
         ]
     ];
 
-    let local_notes = set![
+        let local_notes = set![
         note![
             NotesMetadataBuilder::new().build(),
             BodyMetadataBuilder::new().build()
@@ -479,33 +485,33 @@ fn test_add_actions() {
         ]
     ];
 
-    let remote_data: GroupedRemoteNoteHeaders = notes_to_be_added.iter().map(|entry| {
-        RemoteNoteMetaData::new(entry)
-    }).collect();
+        let remote_data: GroupedRemoteNoteHeaders = notes_to_be_added.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
 
-    let added_actions = get_added_note_actions(&remote_data, &local_notes);
+        let added_actions = get_added_note_actions(&remote_data, &local_notes);
 
-    assert_eq!(added_actions.len(),1);
+        assert_eq!(added_actions.len(),1);
 
-    match added_actions.first().unwrap() {
-        UpdateAction::AddLocally(header) => {
-            assert_eq!(&header.first().unwrap().headers.uuid(), &note_to_be_added.uuid);
-            assert_eq!(&header.first().unwrap().uid, &remote_only_body.uid.unwrap());
-        }
-        _ => {
-            panic!("Wrong Action provided")
+        match added_actions.first().unwrap() {
+            UpdateAction::AddLocally(header) => {
+                assert_eq!(&header.first().unwrap().headers.uuid(), &note_to_be_added.uuid);
+                assert_eq!(&header.first().unwrap().uid, &remote_only_body.uid.unwrap());
+            }
+            _ => {
+                panic!("Wrong Action provided")
+            }
         }
     }
-}
 
-/// This add test has a remote note with 2 bodies
-#[test]
-fn test_add_actions_mergeable_note() {
-    let first_note = NotesMetadataBuilder::new().build();
-    let first_body = BodyMetadataBuilder::new().build();
-    let second_body = BodyMetadataBuilder::new().build();
+    /// This add test has a remote note with 2 bodies
+    #[test]
+    fn test_add_actions_mergeable_note() {
+        let first_note = NotesMetadataBuilder::new().build();
+        let first_body = BodyMetadataBuilder::new().build();
+        let second_body = BodyMetadataBuilder::new().build();
 
-    let notes_to_be_added = set![
+        let notes_to_be_added = set![
         note![
             first_note.clone(),
             first_body.clone(),
@@ -513,7 +519,7 @@ fn test_add_actions_mergeable_note() {
         ]
     ];
 
-    let local_notes = set![
+        let local_notes = set![
         note![
             NotesMetadataBuilder::new().build(),
             BodyMetadataBuilder::new().build()
@@ -524,29 +530,30 @@ fn test_add_actions_mergeable_note() {
         ]
     ];
 
-    let remote_data: GroupedRemoteNoteHeaders = notes_to_be_added.iter().map(|entry| {
-        RemoteNoteMetaData::new(entry)
-    }).collect();
+        let remote_data: GroupedRemoteNoteHeaders = notes_to_be_added.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
 
-    let added_actions = get_added_note_actions(&remote_data, &local_notes);
+        let added_actions = get_added_note_actions(&remote_data, &local_notes);
 
-    assert_eq!(added_actions.len(), 1);
+        assert_eq!(added_actions.len(), 1);
 
-    match added_actions.first().unwrap() {
-        UpdateAction::AddLocally(header) => {
-            assert_eq!(&header.uuid(), &first_note.uuid);
-            assert_eq!(header.len(), 2_usize);
-            //TODO fix
-            /*assert_eq!(&uid[0], &second_body.uid.unwrap());
-            assert_eq!(&uid[1], &first_body.uid.unwrap());*/
-        }
-        _ => {
-            panic!("Wrong Action provided")
+        match added_actions.first().unwrap() {
+            UpdateAction::AddLocally(header) => {
+                assert_eq!(&header.uuid(), &first_note.uuid);
+                assert_eq!(header.len(), 2_usize);
+                //TODO fix
+                /*assert_eq!(&uid[0], &second_body.uid.unwrap());
+                assert_eq!(&uid[1], &first_body.uid.unwrap());*/
+            }
+            _ => {
+                panic!("Wrong Action provided")
+            }
         }
     }
+
+
 }
-
-
 
 
     /*pub fn sync(session: &mut Session<TlsStream<TcpStream>>) {

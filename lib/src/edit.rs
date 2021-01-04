@@ -6,14 +6,14 @@ extern crate uuid;
 use note::LocalNote;
 use error::NoteError;
 use error::NoteError::{EditError, ContentNotChanged};
-use std::time;
+
 use self::log::*;
-use std::io::{Write, BufReader};
-use self::subprocess::ExitStatus;
-use std::fs::File;
+use std::io::{Write};
+
+
 use ::model::Body;
-use std::path::Path;
-use builder::{BodyMetadataBuilder, NotesMetadataBuilder};
+
+use builder::{BodyMetadataBuilder};
 use self::regex::*;
 
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
@@ -74,23 +74,30 @@ fn replace_uuid(string: &str) -> String {
     uuid_regex.replace(string, dd.as_str()).to_string()
 }
 
-#[test]
-fn should_generate_new_uuid() {
-    let old_uuid = "Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@test.mail>";
-    assert_ne!(old_uuid.to_string(), replace_uuid(old_uuid));
-}
+mod edit_tests {
+    use error::NoteError;
+    use edit::{edit_note, replace_uuid};
+    use builder::*;
+    use note::LocalNote;
 
-/// A note should not be able to be edited if it is not merged
-#[test]
-fn edit_note_merge() {
-    let note = note!(
+    #[test]
+    fn should_generate_new_uuid() {
+        let old_uuid = "Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@test.mail>";
+        assert_ne!(old_uuid.to_string(), replace_uuid(old_uuid));
+    }
+
+    /// A note should not be able to be edited if it is not merged
+    #[test]
+    fn edit_note_merge() {
+        let note = note!(
         NotesMetadataBuilder::new().build(),
         BodyMetadataBuilder::new().build(),
         BodyMetadataBuilder::new().build()
     );
 
-    match edit_note(&note, false) {
-        Err(e) => { assert_eq!(e, NoteError::NeedsMerge) }
-        Ok(_) => panic!("Should be error")
+        match edit_note(&note, false) {
+            Err(e) => { assert_eq!(e, NoteError::NeedsMerge) }
+            Ok(_) => panic!("Should be error")
+        }
     }
 }
