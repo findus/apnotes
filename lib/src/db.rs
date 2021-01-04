@@ -189,6 +189,29 @@ pub fn establish_connection() -> SqliteConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
+#[test]
+pub fn note_by_subject() {
+    let note = note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build()
+    ];
+
+    let con = establish_connection();
+    delete_everything(&con);
+    insert_into_db(&con, &note);
+
+    match fetch_single_note_with_name(&con,"meem") {
+        Ok(Some(note)) => {
+            assert_eq!(note.body.len(),1);
+            assert_eq!(
+            note.body.first().expect("expected note body").text,
+            Some("meem\nTestTestTest".to_string())
+            )
+        }
+        _ => { panic!("Failed") }
+    }
+}
+
 /// Checks if all transactions are getting reverted if one fails
 #[test]
 pub fn nested_transaction() {
