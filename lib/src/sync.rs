@@ -10,7 +10,7 @@ use note::{NoteHeaders, HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHea
 use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
-use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
+use builder::{NotesMetadataBuilder, BodyMetadataBuilder, HeaderBuilder};
 use sync::UpdateAction::AddLocally;
 use std::collections::hash_map::RandomState;
 use diesel::result::Error;
@@ -340,7 +340,7 @@ pub fn sync_test() {
 /// Tests if metadata with multiple bodies is getting properly grouped
 #[test]
 fn test_mergable_notes_grouping() {
-    use util::HeaderBuilder;
+    use builder::HeaderBuilder;
 
     let metadata_1 = RemoteNoteMetaData {
         headers:  HeaderBuilder::new().with_subject("Note").build(),

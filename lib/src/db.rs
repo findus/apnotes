@@ -253,7 +253,7 @@ pub fn fetch_all_test() {
 
 #[test]
 fn update_single_note() {
-    use util::HeaderBuilder;
+    use builder::HeaderBuilder;
     let con = establish_connection();
     delete_everything(&con).expect("Should delete the db");
 
@@ -313,11 +313,10 @@ fn update_single_note() {
 /// The correct note should remain in side the db
 #[test]
 fn delete_single_note() {
-    use util::HeaderBuilder;
     let con = establish_connection();
     delete_everything(&con).expect("Should delete the db");
 
-    let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(),
+    let m_data: ::model::NotesMetadata = NotesMetadata::new(&::builder::HeaderBuilder::new().build(),
                                                             "test".to_string()
     );
 
@@ -370,7 +369,7 @@ fn delete_single_note() {
 /// saved.
 #[test]
 fn insert_single_note() {
-    use util::HeaderBuilder;
+    use builder::HeaderBuilder;
     let con = establish_connection();
     delete_everything(&con).expect("Should delete the db");
     let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
@@ -401,7 +400,7 @@ fn insert_single_note() {
 /// uuid
 #[test]
 fn no_duplicate_entries() {
-    use util::HeaderBuilder;
+    use builder::HeaderBuilder;
     //Setup
     dotenv::dotenv().ok();
     let con = establish_connection();
@@ -424,7 +423,7 @@ fn no_duplicate_entries() {
 /// Appends an additional note to a super-note and checks if both are there
 #[test]
 fn append_additional_note() {
-    use util::HeaderBuilder;
+    use builder::HeaderBuilder;
 
     dotenv::dotenv().ok();
     let con = establish_connection();
@@ -462,7 +461,7 @@ fn append_additional_note() {
 /// This test adds 2 bodies to a note and replaces it with a "merged" one
 /// the old bodies should be gone now and a new single one should be present
 fn replace_with_merged_body() {
-    use util::HeaderBuilder;
+    use builder::HeaderBuilder;
 
 
     //Setup

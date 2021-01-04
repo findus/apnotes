@@ -5,7 +5,7 @@ extern crate log;
 use std::hash::Hasher;
 use model::{NotesMetadata, Body};
 use std::collections::HashSet;
-use util::HeaderBuilder;
+use builder::HeaderBuilder;
 
 #[derive(Eq,Clone,Debug)]
 pub struct LocalNote {
