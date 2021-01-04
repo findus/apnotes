@@ -36,11 +36,12 @@ fn main() {
         .author("Philipp Hentschel")
         .about("Interface for interacting with Apple Notes on Linux")
         .subcommand(App::new("edit")
+            //TODO handling of duplicate note names
             .about("Edits an existing note")
-            .arg(Arg::with_name("path")
+            .arg(Arg::with_name("name")
                 .required(true)
                 .takes_value(true)
-                .help("Path to note that should be edited")
+                .help("Name of the note that you want to edit")
             )
         )
         .subcommand(App::new("sync")
@@ -76,7 +77,7 @@ fn main() {
 }
 
 /*fn edit_notes(sub_matches: &ArgMatches) {
-    let folder = sub_matches.value_of("path").unwrap().to_string();
+    let folder = sub_matches.value_of("name").unwrap().to_string();
 
     let metadata_file_path =
         apple_notes_rs_lib::util::get_hash_path(Path::new(&folder));
