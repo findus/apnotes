@@ -1,22 +1,39 @@
 extern crate clap;
 extern crate apple_notes_rs_lib;
 extern crate log;
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 
-use clap::{Arg, App};
+use clap::{Arg, App, ArgMatches, AppSettings};
 use log::Level;
+use apple_notes_rs_lib::error::{UpdateError, NoteError};
+use apple_notes_rs_lib::create_new_note;
+use apple_notes_rs_lib::edit::edit;
+use self::apple_notes_rs_lib::db::*;
+use self::diesel_migrations::*;
+
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
 //use apple_notes_rs_lib::error::UpdateError;
 //use apple_notes_rs_lib::edit::edit;
 //use apple_notes_rs_lib::model::NotesMetadata;
 
+embed_migrations!("../lib/migrations/");
+
 fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();
 
+    let connection = establish_connection();
+
+    // This will run the necessary migrations.
+    embedded_migrations::run(&connection);
+
     let app = App::new("NotesManager")
+        .setting(AppSettings::ArgRequiredElseHelp)
         .version("0.1")
-        .author("Findus")
-        .about("Interface for Apple Notes on Linux")
+        .author("Philipp Hentschel")
+        .about("Interface for interacting with Apple Notes on Linux")
         .subcommand(App::new("edit")
             .about("Edits an existing note")
             .arg(Arg::with_name("path")
@@ -49,7 +66,7 @@ fn main() {
         );
 
     let _res = match app.get_matches().subcommand() {
-       // ("new",  Some(sub_matches)) => new(sub_matches),
+        ("new",  Some(sub_matches)) => new(sub_matches),
         ("sync", Some(_sub_matches)) => sync_notes(),
       //  ("edit", Some(sub_matches)) => edit_notes(sub_matches),
         (_, _) => unreachable!(),
@@ -77,10 +94,9 @@ fn sync_notes() {
     //sync(&mut session);
 }
 
-/*fn new(sub_matches: &ArgMatches) {
+fn new(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("folder").unwrap().to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
     create_new_note(subject,folder)
-        .map_err(|e| UpdateError::IoError(e.to_string()))
         .and_then(|metadata| edit(&metadata, true)).unwrap();
-}*/
+}

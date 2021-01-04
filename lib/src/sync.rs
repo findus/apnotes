@@ -343,7 +343,7 @@ fn test_mergable_notes_grouping() {
     use util::HeaderBuilder;
 
     let metadata_1 = RemoteNoteMetaData {
-        headers:  HeaderBuilder::new().with_subject("Note".to_string()).build(),
+        headers:  HeaderBuilder::new().with_subject("Note").build(),
         folder: "test".to_string(),
         uid: 1
     };
@@ -355,7 +355,7 @@ fn test_mergable_notes_grouping() {
     };
 
     let metadata_3 = RemoteNoteMetaData {
-        headers:  HeaderBuilder::new().with_subject("Another Note".to_string()).build(),
+        headers:  HeaderBuilder::new().with_subject("Another Note").build(),
         folder: "test".to_string(),
         uid: 3
     };

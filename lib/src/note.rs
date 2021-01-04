@@ -23,7 +23,7 @@ pub struct RemoteNoteMetaData {
 }
 
 impl LocalNote {
-    fn needs_merge(&self) -> bool {
+    pub(crate) fn needs_merge(&self) -> bool {
         self.body.len() > 1
     }
 }
@@ -72,7 +72,7 @@ impl RemoteNoteMetaData {
     pub fn new(localNote: &LocalNote) -> Vec<RemoteNoteMetaData> {
         localNote.body.iter().map(|body| {
             let headers = HeaderBuilder::new()
-                .with_subject(body.subject())
+                .with_subject(&body.subject())
                 .with_uuid(localNote.metadata.uuid.clone())
                 .with_message_id(body.message_id.clone())
                 .build();

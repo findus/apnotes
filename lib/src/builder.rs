@@ -51,7 +51,7 @@ impl BodyMetadataBuilder {
         self
     }
 
-    pub fn build(mut self) -> Body {
+    pub fn build(self) -> Body {
         self.body
     }
 }

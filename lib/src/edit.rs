@@ -3,48 +3,41 @@ extern crate regex;
 extern crate log;
 extern crate uuid;
 
+use note::LocalNote;
+use error::NoteError;
+use error::NoteError::EditError;
+use std::time;
+use self::log::*;
+use std::io::Write;
+use self::subprocess::ExitStatus;
+
+pub fn edit(localnote: &LocalNote, new: bool) -> Result<ExitStatus, NoteError> {
 
 
+    if localnote.needs_merge() {
+        return Err(NoteError::NeedsMerge);
+    }
 
-
-
-
-
-
-
-
-
-
-
-/*pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
-    let path = util::get_notes_file_path_from_metadata(metadata);
-    let path = path.to_string_lossy().into_owned();
-    info!("Opening File for editing: {}", path);
+    let note = localnote.body.first()
+        .expect("Expected at least 1 note body");
 
     #[cfg(target_family = "unix")]
-        let open_with = "xdg-open".to_owned();
+        let open_with = "nvim".to_owned();
+        let file_path = format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped());
     #[cfg(target_family = "windows")]
         let open_with = (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned();
 
-    subprocess::Exec::cmd(open_with).arg(&path)
+    info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
+
+    let mut file = std::fs::File::create(&file_path).expect("Could not create file");
+    file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes());
+
+    subprocess::Exec::cmd(open_with).arg(file_path)
         .join()
         .map_err(|e| EditError(e.to_string()))
-        .and_then(|_| std::fs::metadata(&path).map_err(|e| EditError(e.to_string())))
-        .and_then(|metadata| {
-            let change_duration =
-                time::SystemTime::now()
-                    .duration_since(metadata.modified()
-                        .expect("No System time found"))
-                    .unwrap();
-
-            if change_duration.as_secs() > 10 {
-                Err(EditError("File not changed".to_string()))
-            } else {
-                Ok(())
-            }
-        })
-        .and_then(|_| self::update(&path, new))
 }
+
+/*
 
 fn update(file: &str, new: bool) -> Result<String, UpdateError> {
     info!("Update Message_Id for {}", &file);
@@ -116,6 +109,8 @@ fn update(file: &str, new: bool) -> Result<String, UpdateError> {
     }
 
 }
+
+
 
 fn replace_uuid(string: &str) -> String {
     let uuid_regex = Regex::new(r"(.*<)\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b(.*)").unwrap();

@@ -13,6 +13,8 @@ extern crate dotenv;
 extern crate alloc;
 extern crate mailparse;
 
+use note::LocalNote;
+
 #[macro_use]
 pub mod macros;
 pub mod apple_imap;
@@ -41,29 +43,18 @@ pub mod builder;
     //save_all_notes_to_file(&notes);
 }*/
 
-/*pub fn create_new_note(with_subject: String, folder: String) -> Result<NotesMetadata> {
-    let _headers = util::generate_mail_headers(with_subject);
+pub fn create_new_note(with_subject: String, folder: String) -> Result<LocalNote,::error::NoteError> {
+    let _headers = util::generate_mail_headers(&with_subject);
 
     let profile = self::profile::load_profile();
 
-    let note = NotesMetadata {
-        old_remote_id: None,
-        subfolder: format!("Notes.{}",folder),
-        locally_deleted: false,
-        new: true,
-        date: Default::default(),
-        uuid: "".to_string(),
-        mime_version: "".to_string(),
-    };
+    let note = note!(
+        builder::NotesMetadataBuilder::new().with_folder(folder).is_new(true).build(),
+        builder::BodyMetadataBuilder::new().with_text(&with_subject).build()
+    );
 
-    let body = Body {
-        message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
-        text: "".to_string(),
-        uid: None,
-        metadata_uuid: note.uuid.clone()
-    };
-
-    //TODO error handling
-    let connection = io::establish_connection();
-    io::insert_into_db(&connection, &note)
-}*/
+    let connection = db::establish_connection();
+    db::insert_into_db(&connection,&note)
+        .and_then(|_| Ok(note))
+        .map_err(|e| ::error::NoteError::InsertionError(e.to_string()))
+}

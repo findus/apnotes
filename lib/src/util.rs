@@ -64,8 +64,8 @@ impl HeaderBuilder {
         self
     }
 
-    pub fn with_subject(mut self, subject: String) -> Self {
-        self.headers.push(("Subject".to_string(), subject));
+    pub fn with_subject(mut self, subject: &str) -> Self {
+        self.headers.push(("Subject".to_string(), subject.to_string()));
         self
     }
 
@@ -84,6 +84,6 @@ impl HeaderBuilder {
     }
 }
 
-pub fn generate_mail_headers(subject: String) -> Vec<(String,String)> {
+pub fn generate_mail_headers(subject: &str) -> Vec<(String,String)> {
     HeaderBuilder::new().with_subject(subject).build()
 }

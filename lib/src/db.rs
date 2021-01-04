@@ -78,7 +78,7 @@ pub fn delete(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(
 
 pub fn update(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(), Error> {
     connection.transaction::<_, Error, _>(|| {
-
+        //TODO replace with upsert with diesel 2.0
         delete(connection, local_note);
         insert_into_db(connection, local_note);
 
@@ -122,7 +122,7 @@ pub fn fetch_all_notes(connection: &SqliteConnection) -> Result<HashSet<LocalNot
     Ok(d)
 }
 
-pub fn fetch_single_note(connection: &SqliteConnection, id: String) -> Result<Option<(NotesMetadata, Vec<Body>)>, Error> {
+pub fn fetch_single_note(connection: &SqliteConnection, id: &str) -> Result<Option<(NotesMetadata, Vec<Body>)>, Error> {
 
     let mut notes: Vec<NotesMetadata> = metadata
         .filter(schema::metadata::dsl::uuid.eq(&id))
@@ -151,7 +151,7 @@ pub fn fetch_single_note(connection: &SqliteConnection, id: String) -> Result<Op
 pub fn establish_connection() -> SqliteConnection {
 
     let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+        .unwrap_or("test".to_string());
 
     SqliteConnection::establish(&database_url)
         .expect(&format!("Error connecting to {}", database_url))
@@ -295,7 +295,7 @@ fn update_single_note() {
 
     assert_eq!(item_count,2);
 
-    match fetch_single_note(&con, note_3.uuid().clone()) {
+    match fetch_single_note(&con, &note_3.uuid().clone()) {
         Ok(Some((fetched_note, mut bodies))) => {
             assert_eq!(note_3.metadata,fetched_note);
             assert_eq!(bodies.len(),1);
@@ -350,7 +350,7 @@ fn delete_single_note() {
 
     assert_eq!(item_count,1);
 
-    match fetch_single_note(&con, note.uuid().clone()) {
+    match fetch_single_note(&con, &note.uuid().clone()) {
         Ok(Some((fetched_note, mut bodies))) => {
             assert_eq!(note.metadata,fetched_note);
             assert_eq!(bodies.len(),1);
@@ -383,7 +383,7 @@ fn insert_single_note() {
 
     insert_into_db(&con, &note).expect("Should insert note into the db");
 
-    match fetch_single_note(&con, note.uuid().clone()) {
+    match fetch_single_note(&con, &note.uuid().clone()) {
         Ok(Some((fetched_note, mut bodies))) => {
             assert_eq!(note.metadata,fetched_note);
             assert_eq!(bodies.len(),1);
@@ -440,7 +440,7 @@ fn append_additional_note() {
 
     match insert_into_db(&con,&note)
         .and_then(|_| append_note(&con, &additional_body))
-        .and_then(|_| fetch_single_note(&con, note.metadata.uuid.clone())) {
+        .and_then(|_| fetch_single_note(&con, &note.metadata.uuid.clone())) {
         Ok(Some((fetched_note, mut bodies))) => {
             assert_eq!(fetched_note,note.metadata);
             assert_eq!(bodies.len(),2);
@@ -480,7 +480,7 @@ fn replace_with_merged_body() {
 
     match insert_into_db(&con,&note)
         .and_then(|_| append_note(&con, &additional_body))
-        .and_then(|_| fetch_single_note(&con, note.metadata.uuid.clone())) {
+        .and_then(|_| fetch_single_note(&con, &note.metadata.uuid.clone())) {
         Ok(Some((fetched_note, mut bodies))) => {
             assert_eq!(fetched_note, note.metadata);
             assert_eq!(bodies.len(), 2);
@@ -500,7 +500,7 @@ fn replace_with_merged_body() {
 
     let merged_body = Body::new(None, note.metadata.uuid.clone());
     match update_merged_note(&con,&merged_body).
-        and_then(|_| fetch_single_note(&con, note.metadata.uuid.clone())) {
+        and_then(|_| fetch_single_note(&con, &note.metadata.uuid.clone())) {
         Ok(Some((fetched_note, mut bodies))) => {
             assert_eq!(note.metadata,fetched_note);
             assert_eq!(bodies.len(),1_usize);

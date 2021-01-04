@@ -18,12 +18,13 @@ use gtk::prelude::*;
 use gio::prelude::*;
 #[cfg(target_family = "unix")]
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
+use apple_notes_rs_lib::apple_imap::{login, list_note_folders};
 
 
 #[cfg(target_family = "unix")]
 fn main() {
 
-    let application = Application::new(
+    /*let application = Application::new(
         Some("de.f1ndus.imap-notes"),
         Default::default(),
     ).expect("failed to initialize GTK application");
@@ -93,5 +94,5 @@ fn main() {
 
 
 
-    application.run(&[]);
+    application.run(&[]);*/
 }
