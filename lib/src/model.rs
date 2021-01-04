@@ -1,7 +1,8 @@
-use note::{NoteHeaders, HeaderParser, IdentifyableNote, RemoteNoteMetaData, LocalNote};
+use note::{NoteHeaders, HeaderParser, RemoteNoteMetaData};
 use ::{util, profile};
 use schema::metadata;
 use schema::body;
+use note::LocalNote;
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
 #[table_name="metadata"]

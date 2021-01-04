@@ -4,15 +4,6 @@ use note::{RemoteNoteMetaData, NoteHeaders, HeaderParser};
 use chrono::Utc;
 use profile;
 
-pub struct NoteTupleBuilder {
-    metadata: NotesMetadata,
-    body: Body
-}
-
-impl NoteTupleBuilder {
-
-}
-
 pub struct BodyMetadataBuilder {
     body: Body
 }
@@ -61,7 +52,7 @@ impl BodyMetadataBuilder {
 }
 
 pub struct NotesMetadataBuilder {
-    notesMetadata: NotesMetadata
+    notes_metadata: NotesMetadata
 }
 
 /// Builder for Metadata Objects, mostly for
@@ -73,7 +64,7 @@ impl NotesMetadataBuilder {
     pub fn new() -> NotesMetadataBuilder {
         let date = Utc::now().to_rfc2822();
         NotesMetadataBuilder {
-            notesMetadata:  NotesMetadata {
+            notes_metadata:  NotesMetadata {
                 old_remote_id: None,
                 subfolder: "".to_string(),
                 locally_deleted: false,
@@ -88,27 +79,27 @@ impl NotesMetadataBuilder {
     }
 
     pub fn with_uuid(mut self, uuid: String) -> Self {
-        self.notesMetadata.uuid = uuid;
+        self.notes_metadata.uuid = uuid;
         self
     }
 
     pub fn is_new(mut self, new: bool) -> Self {
-        self.notesMetadata.new = new;
+        self.notes_metadata.new = new;
         self
     }
 
     pub fn is_flagged_for_deletion(mut self, del: bool) -> Self {
-        self.notesMetadata.locally_deleted = del;
+        self.notes_metadata.locally_deleted = del;
         self
     }
 
     pub fn with_folder(mut self, folder: String) -> Self {
-        self.notesMetadata.subfolder = folder;
+        self.notes_metadata.subfolder = folder;
         self
     }
 
     pub fn build(self) -> NotesMetadata {
-        self.notesMetadata
+        self.notes_metadata
     }
     
     pub fn build_as_remote_data(self) -> RemoteNoteMetaData {

@@ -1,5 +1,5 @@
 //Make sure to mod this as first item in lib.rs
-use note::LocalNote;
+
 
 /// Small macro that sets the metadata_uuid foreign key
 /// for all provided bodies

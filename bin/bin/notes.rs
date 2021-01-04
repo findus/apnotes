@@ -7,12 +7,11 @@ extern crate diesel_migrations;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 use log::Level;
-use apple_notes_rs_lib::error::{UpdateError, NoteError};
+use apple_notes_rs_lib::error::{NoteError};
 use apple_notes_rs_lib::create_new_note;
 use apple_notes_rs_lib::edit::edit_note;
 use self::diesel_migrations::*;
 use apple_notes_rs_lib::db::establish_connection;
-use apple_notes_rs_lib::note::LocalNote;
 
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
@@ -28,7 +27,7 @@ fn main() {
     let connection = establish_connection();
 
     // This will run the necessary migrations.
-    embedded_migrations::run(&connection);
+    embedded_migrations::run(&connection).unwrap();
 
     let app = App::new("NotesManager")
         .setting(AppSettings::ArgRequiredElseHelp)

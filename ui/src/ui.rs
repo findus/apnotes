@@ -3,7 +3,7 @@
 fn main() {
 
 }
-extern crate apple_notes_rs_lib;
+/*extern crate apple_notes_rs_lib;
 #[cfg(target_family = "unix")]
 extern crate gtk;
 #[cfg(target_family = "unix")]
@@ -18,7 +18,7 @@ use gtk::prelude::*;
 use gio::prelude::*;
 #[cfg(target_family = "unix")]
 use gtk::{Application, ApplicationWindow, Button, ListBoxBuilder, LabelBuilder};
-use apple_notes_rs_lib::apple_imap::{login, list_note_folders};
+use apple_notes_rs_lib::apple_imap::{login, list_note_folders};*/
 
 
 #[cfg(target_family = "unix")]

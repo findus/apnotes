@@ -69,17 +69,17 @@ impl IdentifyableNote for GroupedRemoteNoteHeaders {
 }
 
 impl RemoteNoteMetaData {
-    pub fn new(localNote: &LocalNote) -> Vec<RemoteNoteMetaData> {
-        localNote.body.iter().map(|body| {
+    pub fn new(local_note: &LocalNote) -> Vec<RemoteNoteMetaData> {
+        local_note.body.iter().map(|body| {
             let headers = HeaderBuilder::new()
                 .with_subject(&body.subject())
-                .with_uuid(localNote.metadata.uuid.clone())
+                .with_uuid(local_note.metadata.uuid.clone())
                 .with_message_id(body.message_id.clone())
                 .build();
 
             RemoteNoteMetaData {
                 headers,
-                folder: localNote.metadata.subfolder.clone(),
+                folder: local_note.metadata.subfolder.clone(),
                 uid: body.uid.unwrap()
             }
         }).collect()

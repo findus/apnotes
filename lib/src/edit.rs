@@ -35,7 +35,8 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
 
     let mut file = std::fs::File::create(&file_path).expect("Could not create file");
-    file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes());
+    file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
+        .expect("Could not write to file");
 
     subprocess::Exec::cmd(open_with).arg(&file_path)
         .join()

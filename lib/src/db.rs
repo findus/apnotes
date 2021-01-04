@@ -17,7 +17,7 @@ use schema::body::dsl::body;
 use self::log::*;
 use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
-use note::{LocalNote, IdentifyableNote};
+use note::{LocalNote};
 
 
 pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
@@ -80,8 +80,8 @@ pub fn delete(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(
 pub fn update(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(), Error> {
     connection.transaction::<_, Error, _>(|| {
         //TODO replace with upsert with diesel 2.0
-        delete(connection, local_note);
-        insert_into_db(connection, local_note);
+        delete(connection, local_note)?;
+        insert_into_db(connection, local_note)?;
 
         Ok(())
     })
@@ -206,8 +206,8 @@ mod db_tests {
     ];
 
         let con = establish_connection();
-        delete_everything(&con);
-        insert_into_db(&con, &note);
+        delete_everything(&con).unwrap();
+        insert_into_db(&con, &note).unwrap();
 
         match fetch_single_note_with_name(&con,"meem") {
             Ok(Some(note)) => {
@@ -236,9 +236,9 @@ mod db_tests {
     ];
 
         let con = establish_connection();
-        delete_everything(&con);
+        delete_everything(&con).unwrap();
 
-        insert_into_db(&con, &note);
+        assert_eq!(insert_into_db(&con, &note).is_err(), true);
 
         let a = fetch_all_notes(&con).unwrap();
         assert_eq!(a.len(),0);
@@ -351,7 +351,7 @@ mod db_tests {
 
         assert_eq!(item_count,2);
 
-        update(&con,&note_3);
+        update(&con,&note_3).unwrap();
 
         let item_count = fetch_all_notes(&con)
             .expect("Fetch should be successful")
@@ -405,7 +405,7 @@ mod db_tests {
 
         assert_eq!(item_count,2);
 
-        delete(&con, &note_2);
+        delete(&con, &note_2).unwrap();
 
         let item_count = fetch_all_notes(&con)
             .expect("Fetch should be successful")
