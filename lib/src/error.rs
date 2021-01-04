@@ -6,7 +6,7 @@ pub enum UpdateError {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum NoteError {
     InsertionError(String),
     EditError(String),

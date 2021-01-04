@@ -13,7 +13,7 @@ use self::subprocess::ExitStatus;
 use std::fs::File;
 use ::model::Body;
 use std::path::Path;
-use builder::BodyMetadataBuilder;
+use builder::{BodyMetadataBuilder, NotesMetadataBuilder};
 use self::regex::*;
 
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
@@ -78,4 +78,19 @@ fn replace_uuid(string: &str) -> String {
 fn should_generate_new_uuid() {
     let old_uuid = "Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@test.mail>";
     assert_ne!(old_uuid.to_string(), replace_uuid(old_uuid));
+}
+
+/// A note should not be able to be edited if it is not merged
+#[test]
+fn edit_note_merge() {
+    let note = note!(
+        NotesMetadataBuilder::new().build(),
+        BodyMetadataBuilder::new().build(),
+        BodyMetadataBuilder::new().build()
+    );
+
+    match edit_note(&note, false) {
+        Err(e) => { assert_eq!(e, NoteError::NeedsMerge) }
+        Ok(_) => panic!("Should be error")
+    }
 }
