@@ -23,9 +23,10 @@ pub struct BodyMetadataBuilder {
 /// generated
 impl BodyMetadataBuilder {
     pub fn new() -> BodyMetadataBuilder {
+        let profile = self::profile::load_profile();
         BodyMetadataBuilder {
             body: Body {
-                message_id: generate_uuid(),
+                message_id: format!("<{}@{}", generate_uuid(), profile.domain()),
                 text: None,
                 uid: Some(-1),
                 metadata_uuid: "".to_string()
@@ -39,7 +40,8 @@ impl BodyMetadataBuilder {
     }
 
     pub fn with_metadata_uuid(mut self, uuid: &str) -> Self {
-        self.body.metadata_uuid = uuid.to_string();
+        let profile = self::profile::load_profile();
+        self.body.metadata_uuid =  format!("<{}@{}", uuid.to_string(), profile.domain());
         self
     }
 
