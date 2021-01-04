@@ -46,8 +46,6 @@ pub mod builder;
 pub fn create_new_note(with_subject: String, folder: String) -> Result<LocalNote,::error::NoteError> {
     let _headers = util::generate_mail_headers(&with_subject);
 
-    let profile = self::profile::load_profile();
-
     let note = note!(
         builder::NotesMetadataBuilder::new().with_folder(folder).is_new(true).build(),
         builder::BodyMetadataBuilder::new().with_text(&with_subject).build()

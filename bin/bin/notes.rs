@@ -9,9 +9,10 @@ use clap::{Arg, App, ArgMatches, AppSettings};
 use log::Level;
 use apple_notes_rs_lib::error::{UpdateError, NoteError};
 use apple_notes_rs_lib::create_new_note;
-use apple_notes_rs_lib::edit::edit;
-use self::apple_notes_rs_lib::db::*;
+use apple_notes_rs_lib::edit::edit_note;
 use self::diesel_migrations::*;
+use apple_notes_rs_lib::db::establish_connection;
+use apple_notes_rs_lib::note::LocalNote;
 
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
@@ -97,6 +98,16 @@ fn sync_notes() {
 fn new(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("folder").unwrap().to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
-    create_new_note(subject,folder)
-        .and_then(|metadata| edit(&metadata, true)).unwrap();
+    match create_new_note(subject,folder)
+        .and_then(|metadata| edit_note(&metadata, true)) {
+        Err(NoteError::ContentNotChanged) => {
+            println!("Content unchanged wont flag note for update")
+        },
+        Err(e) => {
+            println!("{}",format!("An error occured: {}",e));
+        },
+        _ => {
+            println!("Note saved and ready for syncing");
+        }
+    };
 }
