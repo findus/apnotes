@@ -315,6 +315,7 @@ pub fn collect_mergeable_notes(header_metadata: RemoteNoteHeaderCollection) -> G
     data_grouped.into_iter().sorted_by_key(|entry| entry.len()).collect()
 }
 
+#[cfg(test)]
 mod sync_tests {
     use super::*;
     use note::{GroupedRemoteNoteHeaders, RemoteNoteMetaData};

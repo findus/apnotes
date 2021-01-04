@@ -34,6 +34,7 @@ macro_rules! set {
     };
 }
 
+#[cfg(test)]
 mod macro_test {
     use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
     use note::LocalNote;

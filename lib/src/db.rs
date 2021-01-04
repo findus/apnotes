@@ -189,6 +189,7 @@ pub fn establish_connection() -> SqliteConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
+#[cfg(test)]
 mod db_tests {
     use db::{fetch_single_note, update_merged_note, append_note, insert_into_db, delete_everything, establish_connection, fetch_all_notes, fetch_single_note_with_name};
     use model::NotesMetadata;

@@ -74,6 +74,7 @@ fn replace_uuid(string: &str) -> String {
     uuid_regex.replace(string, dd.as_str()).to_string()
 }
 
+#[cfg(test)]
 mod edit_tests {
     use error::NoteError;
     use edit::{edit_note, replace_uuid};
