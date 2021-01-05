@@ -23,6 +23,7 @@ use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
 use error;
+use apple_imap::{MailService, ImapSession};
 
 pub enum UpdateResult {
     Success()
@@ -181,8 +182,9 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
     });*/
 }
 
-pub fn sync(imap_session: &mut Session<TlsStream<TcpStream>>, db_connection: &SqliteConnection) {
-    let headers = ::apple_imap::fetch_headers(imap_session);
+pub fn sync<T,S>(imap_session: &mut MailService<T, S>, db_connection: &SqliteConnection) where S: ImapSession<T>
+{
+    let headers = imap_session.fetch_headers();
     let grouped_not_headers = collect_mergeable_notes(headers);
     match ::db::fetch_all_notes(&db_connection) {
         Ok(fetches) => {
@@ -205,10 +207,12 @@ pub fn sync(imap_session: &mut Session<TlsStream<TcpStream>>, db_connection: &Sq
     //let actions =
 }
 
-pub fn process_actions<'a>(
-    imap_connection: &mut Session<TlsStream<TcpStream>>,
+pub fn process_actions<'a,T,S>(
+    imap_connection: &mut MailService<T, S>,
     db_connection: &SqliteConnection,
-    actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(),UpdateError>> {
+    actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(),UpdateError>>
+where S: ImapSession<T>
+{
     actions
         .iter()
         .map(|action|{
@@ -231,12 +235,14 @@ pub fn process_actions<'a>(
             UpdateAction::AddRemotely(localnote) => {
                 info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
                 let metadata = &localnote.metadata;
-                ::apple_imap::create_mailbox(imap_connection, metadata)
+                imap_connection.create_mailbox(metadata)
                     .map_err(|e| SyncError(e.to_string()))
                     .and_then(|_
                     | imap_connection.select(&metadata.subfolder)
                         .map_err(|e| SyncError(e.to_string())))
-                    .and_then(|_| update_remotely(localnote, imap_connection))
+                    .and_then(|_| imap_connection.update_message(localnote)
+                        .map_err(|e| UpdateError::SyncError(e.to_string()))
+                    )
                     .and_then(|uid| {
                         let body = localnote.body.first().unwrap();
                         let note = note!(
@@ -280,13 +286,16 @@ pub fn process_actions<'a>(
     }).collect()
 }
 
-fn localnote_from_remote_header(imap_connection: &mut Session<TlsStream<TcpStream>>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError> {
+fn localnote_from_remote_header<T,S>(imap_connection: &mut MailService<T, S>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
+where S: ImapSession<T>
+{
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
         (
             single_remote_note,
-            ::apple_imap::fetch_note_content(imap_connection,
-                                             &single_remote_note.folder,
-                                             single_remote_note.uid)
+            imap_connection.fetch_note_content(
+                &single_remote_note.folder,
+                single_remote_note.uid
+            )
         )
     }).map(|(remote_metadata, result)| {
         match result {
@@ -350,12 +359,11 @@ mod sync_tests {
 
     #[test]
     pub fn sync_test() {
-
-        let mut imap_session = ::apple_imap::login();
+        let mut imap_service = ::apple_imap::MailServiceImpl::new_with_login();
         let db_connection = ::db::establish_connection();
 
         // ::db::delete_everything(&db_connection);
-        sync(&mut imap_session, &db_connection);
+        sync(&mut imap_service, &db_connection);
     }
 
     /// Tests if metadata with multiple bodies is getting properly grouped
@@ -650,10 +658,6 @@ mod sync_tests {
         }
     }).collect::<Vec<(UpdateAction, NotesMetadata)>>()
 }*/
-
-fn update_remotely(local_note: &LocalNote, session: &mut Session<TlsStream<TcpStream>>) -> Result<u32, error::UpdateError> {
-    ::apple_imap::update_message(session, local_note).map_err(|e| UpdateError::SyncError(e.to_string()))
-}
 
 /*fn update_locally(metadata: &NotesMetadata, session: &mut Session<TlsStream<TcpStream>>) -> Result<String, UpdateError> {
     let note = apple_imap::fetch_single_note(session,metadata).unwrap();
