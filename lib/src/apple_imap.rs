@@ -21,6 +21,10 @@ use ::{profile, converter};
 use imap::error::Error;
 use converter::convert_to_html;
 use imap::types::Mailbox;
+#[cfg(test)]
+extern crate mockall;
+#[cfg(test)]
+use mockall::{automock, mock, predicate::*};
 
 pub trait ImapSession<S> {
 
@@ -57,7 +61,8 @@ impl ImapSession<Session<TlsStream<TcpStream>>> for TlsImapSession {
 
 }
 
-pub trait MailService<T,S: ImapSession<T>> {
+#[cfg_attr(test, automock)]
+pub trait MailService<T: 'static ,S: 'static + ImapSession<T>> {
     fn fetch_mails(&self) -> Vec<LocalNote>;
     fn fetch_headers(&mut self) -> Vec<RemoteNoteMetaData>;
     fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error>;

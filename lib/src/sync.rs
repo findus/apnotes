@@ -184,7 +184,7 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
 }
 
 pub fn sync<T,S,C>(imap_session: &mut MailService<T, S>, db_connection: &DatabaseService<C>)
-    where S: ImapSession<T>, C: 'static + DBConnector
+    where S: 'static + ImapSession<T>, C: 'static + DBConnector, T: 'static
 {
     let headers = imap_session.fetch_headers();
     let grouped_not_headers = collect_mergeable_notes(headers);
@@ -213,7 +213,7 @@ pub fn process_actions<'a,T,S,C>(
     imap_connection: &mut MailService<T, S>,
     db_connection: &DatabaseService<C>,
     actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(),UpdateError>>
-where S: ImapSession<T>, C: 'static + DBConnector
+where S: 'static + ImapSession<T>, C: 'static + DBConnector, T: 'static
 {
     actions
         .iter()
@@ -289,7 +289,7 @@ where S: ImapSession<T>, C: 'static + DBConnector
 }
 
 fn localnote_from_remote_header<T,S>(imap_connection: &mut MailService<T, S>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
-where S: ImapSession<T>
+where S: 'static + ImapSession<T>, T: 'static
 {
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
         (

@@ -96,9 +96,11 @@ impl Body {
     }
 
     pub fn subject(&self) -> String {
-        let x = self.text.as_ref().unwrap();
+        let str = "".to_string();
+        let x = self.text.as_ref().unwrap_or(&str);
         let mut lines = x.lines();
-        lines.next().unwrap().to_string()
+        let first_line = lines.next();
+        first_line.unwrap_or("").to_string()
     }
 
     pub fn subject_with_identifier(&self) -> String {
