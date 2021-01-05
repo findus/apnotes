@@ -319,20 +319,20 @@ pub fn delete_old_mergeable_notes(session: &mut Session<TlsStream<TcpStream>>,
 ///
 /// If the passed localnote has >1 bodies it will reject it.
 pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, localnote: &LocalNote) -> Result<u32, Error> {
-    //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
 
-  /*  let headers = metadata.header.iter().map( |(k,v)| {
-        //TODO make sure that updated message has new message-id
+    //Todo check >1
+
+    let headers = localnote.to_header_vector().iter().map( |(k,v)| {
         format!("{}: {}",k,v)
     })
         .collect::<Vec<String>>()
-        .join("\n");*/
+        .join("\n");
 
     // Updated message must be merged
-    let _content = converter::convert_to_html(&localnote.body.first().unwrap());
+    //let _content = converter::convert_to_html(&localnote.body.first().unwrap());
 
-    //let message = format!("{}\n\n{}",headers, content);
-    let message = "".clone();
+    let body = localnote.body.first().unwrap().text.as_ref().unwrap().to_string();
+    let message = format!("{}\n\n{}",headers, body);
 
     session
         // Write new message into the mailbox

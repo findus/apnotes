@@ -5,7 +5,8 @@ extern crate log;
 use std::hash::Hasher;
 use model::{NotesMetadata, Body};
 use std::collections::HashSet;
-use builder::HeaderBuilder;
+use builder::{HeaderBuilder, NotesMetadataBuilder};
+use profile;
 
 #[derive(Eq,Clone,Debug)]
 pub struct LocalNote {
@@ -25,6 +26,21 @@ pub struct RemoteNoteMetaData {
 impl LocalNote {
     pub(crate) fn needs_merge(&self) -> bool {
         self.body.len() > 1
+    }
+    pub fn to_header_vector(&self) -> NoteHeaders {
+        let mut headers: Vec<(String,String)> = vec![];
+        let profile = profile::load_profile();
+        headers.push(("X-Uniform-Type-Identifier".to_string(), "com.apple.mail-note".to_string()));
+        headers.push(("Content-Type".to_string(), "text/html; charset=utf-8".to_string()));
+        headers.push(("Content-Transfer-Encoding".to_string(), "quoted-printable".to_string()));
+        headers.push(("Mime-Version".to_string(), "1.0 (Mac OS X Notes 4.6 \\(879.10\\))".to_string()));
+        headers.push(("Date".to_string(), self.metadata.date.clone()));
+        headers.push(("X-Mail-Created-Date".to_string(), self.metadata.date.clone()));
+        headers.push(("From".to_string(), profile.email)); //todo implement in noteheader
+        headers.push(("Message-Id".to_string(), self.body.first().unwrap().message_id.clone()));
+        headers.push(("X-Universally-Unique-Identifier".to_string(), self.metadata.uuid.clone()));
+        headers.push(("Subject".to_string(), self.body.first().unwrap().subject().clone()));
+        headers
     }
 }
 

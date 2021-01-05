@@ -3,6 +3,7 @@ use ::{util, profile};
 use schema::metadata;
 use schema::body;
 use note::LocalNote;
+use std::str::Lines;
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
 #[table_name="metadata"]
@@ -95,8 +96,9 @@ impl Body {
     }
 
     pub fn subject(&self) -> String {
-        //return self.text.split("\\n").into_iter().map(|e| e.into_string()).collect::<Vec<String>>().first().unwrap().clone()
-        return "todo".to_string()
+        let x = self.text.as_ref().unwrap();
+        let mut lines = x.lines();
+        lines.next().unwrap().to_string()
     }
 
     pub fn subject_with_identifier(&self) -> String {
