@@ -244,6 +244,18 @@ mod db_tests {
     use builder::*;
     use ::model::Body;
     use super::*;
+    use mockall::predicate::*;
+
+    #[test]
+    pub fn mock_test() {
+        let mut d = MockDatabaseService::<SqliteDBConnection>::new();
+        d.expect_fetch_all_notes().returning(|| Err(diesel::result::Error::NotFound));
+
+        ::sync::sync(&mut ::apple_imap::MailServiceImpl::new_with_login(),
+                     &d
+        );
+
+    }
 
     #[test]
     pub fn note_by_subject() {
