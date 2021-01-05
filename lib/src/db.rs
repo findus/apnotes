@@ -2,6 +2,7 @@ extern crate log;
 
 /**
 Windows: Register sqlite dll with "lib /MACHINE:X64 /def:sqlite3.def /out:sqlite3.lib" on x64
+Set: SQLITE3_LIB_DIR
 **/
 
 use ::{schema};
@@ -19,6 +20,21 @@ use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
 use note::{LocalNote};
 
+pub trait DBConnector {
+
+}
+
+pub trait DBConnection<C: DBConnector> {
+    fn delete_everything() -> Result<(), Error>;
+    fn append_note(model: &::model::Body) -> Result<(), Error>;
+    fn update_merged_note(note_body: &Body) -> Result<(), Error>;
+    fn delete(local_note: &LocalNote) -> Result<(), Error>;
+    fn update(local_note: &LocalNote) -> Result<(), Error>;
+    fn insert_into_db(note: &LocalNote) -> Result<(), Error>;
+    fn fetch_all_notes() -> Result<HashSet<LocalNote>,Error>;
+    fn fetch_single_note_with_name(name: &str) -> Result<Option<LocalNote>, Error>;
+    fn fetch_single_note(connection: &SqliteConnection, id: &str) -> Result<Option<LocalNote>, Error>;
+}
 
 pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
     connection.transaction::<_,Error,_>(|| {

@@ -35,9 +35,6 @@ pub mod builder;
 
 
 //use io::save_all_notes_to_file;
-
-
-
 /*pub fn fetch_all() {
     let mut session = login();
     let notes = apple_imap::fetch_notes(&mut session);
