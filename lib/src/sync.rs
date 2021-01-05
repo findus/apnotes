@@ -118,6 +118,14 @@ fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         .collect()
 }
 
+fn get_add_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
+                                local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
+    local_notes.iter()
+        .filter(|note| note.metadata.new == true)
+        .map(|note| UpdateAction::AddRemotely(note))
+        .collect()
+}
+
 fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
                         local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
 
@@ -129,9 +137,11 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         get_deleted_note_actions(Some(&remote_note_headers), &local_notes);
     let mut add_actions =
         get_added_note_actions(&remote_note_headers, &local_notes);
+    let mut add_remotely_actions = get_add_remotely_actions(&remote_note_headers, &local_notes);
 
     concated_actions.append(&mut delete_actions);
     concated_actions.append(&mut add_actions);
+    concated_actions.append(&mut add_remotely_actions);
     concated_actions
 
      /*
@@ -178,10 +188,14 @@ pub fn sync(imap_session: &mut Session<TlsStream<TcpStream>>, db_connection: &Sq
         Ok(fetches) => {
             let actions =
                 get_sync_actions(&grouped_not_headers,&fetches);
-                process_actions(imap_session,db_connection, &actions);
+                let results = process_actions(imap_session,db_connection, &actions);
             println!("A: {}", &actions.len());
             for a in actions {
                 println!("{:?}", a);
+            }
+
+            for r in results {
+                println!("{:?}", r);
             }
         }
         Err(e) => {

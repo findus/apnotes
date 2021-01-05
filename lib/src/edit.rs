@@ -15,6 +15,8 @@ use ::model::Body;
 
 use builder::{BodyMetadataBuilder};
 use self::regex::*;
+use diesel::SqliteConnection;
+use converter::{convert_to_html, convert_to_html_str};
 
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
 
@@ -55,13 +57,14 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> R
         && local_note.metadata.new == false {
         return Err(ContentNotChanged);
     } else {
+        let mut new_metadata = local_note.metadata.clone();
+        new_metadata.new = false;
         Ok(
             note!(
-                  local_note.metadata.clone(),
-
+                  new_metadata,
                   BodyMetadataBuilder::new()
                   .with_message_id(&note.message_id)
-                  .with_text(&file_content)
+                  .with_text(&convert_to_html_str(&file_content))
                   .build()
             )
         )

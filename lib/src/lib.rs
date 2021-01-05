@@ -14,6 +14,7 @@ extern crate alloc;
 extern crate mailparse;
 
 use note::LocalNote;
+use diesel::SqliteConnection;
 
 #[macro_use]
 pub mod macros;
@@ -43,15 +44,14 @@ pub mod builder;
     //save_all_notes_to_file(&notes);
 }*/
 
-pub fn create_new_note(with_subject: String, folder: String) -> Result<LocalNote,::error::NoteError> {
+pub fn create_new_note(db_connection: &SqliteConnection, with_subject: String, folder: String) -> Result<LocalNote,::error::NoteError> {
 
     let note = note!(
         builder::NotesMetadataBuilder::new().with_folder(folder).is_new(true).build(),
         builder::BodyMetadataBuilder::new().with_text(&with_subject).build()
     );
 
-    let connection = db::establish_connection();
-    db::insert_into_db(&connection,&note)
+    db::insert_into_db(&db_connection,&note)
         .and_then(|_| Ok(note))
         .map_err(|e| ::error::NoteError::InsertionError(e.to_string()))
 }

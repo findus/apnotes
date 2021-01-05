@@ -19,7 +19,7 @@ use apple_notes_rs_lib::db::establish_connection;
 //use apple_notes_rs_lib::edit::edit;
 //use apple_notes_rs_lib::model::NotesMetadata;
 
-embed_migrations!("../lib/migrations/");
+embed_migrations!("../migrations/");
 
 fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();
@@ -98,8 +98,15 @@ fn sync_notes() {
 fn new(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("folder").unwrap().to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
-    match create_new_note(subject,folder)
-        .and_then(|metadata| edit_note(&metadata, true)) {
+    let db_connection = ::apple_notes_rs_lib::db::establish_connection();
+
+    match create_new_note(&db_connection,subject,folder)
+        .and_then(|metadata| edit_note(&metadata, true))
+        .and_then(|local_note| ::apple_notes_rs_lib::db::update(&db_connection, &local_note)
+            .map(|_| local_note)
+            .map_err(|e| NoteError::InsertionError(e.to_string()))
+        )
+    {
         Err(NoteError::ContentNotChanged) => {
             println!("Content unchanged wont flag note for update")
         },

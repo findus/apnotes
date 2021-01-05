@@ -13,3 +13,10 @@ pub fn convert_to_html(input: &Body) -> String {
     html::push_html(&mut html_output, parser);
     html_output
 }
+
+pub fn convert_to_html_str(input: &str) -> String {
+    let parser = Parser::new(input);
+    let mut html_output: String = String::new();
+    html::push_html(&mut html_output, parser);
+    html_output
+}
