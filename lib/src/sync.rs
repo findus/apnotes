@@ -183,16 +183,17 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
     });*/
 }
 
-pub fn sync<T,S,C>(imap_session: &mut MailService<T, S>, db_connection: &DatabaseService<C>)
-    where S: 'static + ImapSession<T>, C: 'static + DBConnector, T: 'static
+pub fn sync<T,C>(imap_session: &mut MailService<T>, db_connection: &DatabaseService<C>) -> Result<(), ::error::UpdateError>
+    where C: 'static + DBConnector, T: 'static
 {
-    let headers = imap_session.fetch_headers();
+    let headers = imap_session.fetch_headers().map_err(|e| SyncError(e.to_string()))?;
     let grouped_not_headers = collect_mergeable_notes(headers);
-    match db_connection.fetch_all_notes() {
+    match db_connection.fetch_all_notes().map_err(|e| SyncError(e.to_string())) {
         Ok(fetches) => {
             let actions =
                 get_sync_actions(&grouped_not_headers,&fetches);
                 let results = process_actions(imap_session,db_connection, &actions);
+
             println!("A: {}", &actions.len());
             for a in actions {
                 println!("{:?}", a);
@@ -201,6 +202,7 @@ pub fn sync<T,S,C>(imap_session: &mut MailService<T, S>, db_connection: &Databas
             for r in results {
                 println!("{:?}", r);
             }
+            Ok(())
         }
         Err(e) => {
             panic!("mist {}",e);
@@ -209,11 +211,11 @@ pub fn sync<T,S,C>(imap_session: &mut MailService<T, S>, db_connection: &Databas
     //let actions =
 }
 
-pub fn process_actions<'a,T,S,C>(
-    imap_connection: &mut MailService<T, S>,
+pub fn process_actions<'a,T,C>(
+    imap_connection: &mut MailService<T>,
     db_connection: &DatabaseService<C>,
     actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(),UpdateError>>
-where S: 'static + ImapSession<T>, C: 'static + DBConnector, T: 'static
+where C: 'static + DBConnector, T: 'static
 {
     actions
         .iter()
@@ -288,8 +290,8 @@ where S: 'static + ImapSession<T>, C: 'static + DBConnector, T: 'static
     }).collect()
 }
 
-fn localnote_from_remote_header<T,S>(imap_connection: &mut MailService<T, S>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
-where S: 'static + ImapSession<T>, T: 'static
+fn localnote_from_remote_header<T>(imap_connection: &mut MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
+where T: 'static
 {
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
         (

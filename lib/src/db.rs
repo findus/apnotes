@@ -245,15 +245,26 @@ mod db_tests {
     use ::model::Body;
     use super::*;
     use mockall::predicate::*;
+    use apple_imap::{ImapSession, TlsImapSession, MailServiceImpl, MailService};
+    use imap::Session;
+    use native_tls::TlsStream;
+    use std::net::TcpStream;
+    use error::UpdateError;
 
     #[test]
     pub fn mock_test() {
-        let mut d = MockDatabaseService::<SqliteDBConnection>::new();
-        d.expect_fetch_all_notes().returning(|| Err(diesel::result::Error::NotFound));
+        let mut mock_db_service = MockDatabaseService::<SqliteDBConnection>::new();
 
-        ::sync::sync(&mut ::apple_imap::MailServiceImpl::new_with_login(),
-                     &d
-        );
+        mock_db_service.expect_fetch_all_notes().returning(|| Err(diesel::result::Error::NotFound));
+
+        let mut mock_imap_service: ::apple_imap::MockMailService<Session<TlsStream<TcpStream>>> =
+            ::apple_imap::MockMailService::<_>::new();
+
+        mock_imap_service.expect_fetch_headers().returning(|| Err(imap::error::Error::Append) );
+
+
+        let err = ::sync::sync(&mut mock_imap_service, &mock_db_service).err();
+        assert_eq!(err,Some(::error::UpdateError::SyncError("oops".to_string())))
 
     }
 

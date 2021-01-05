@@ -62,9 +62,9 @@ impl ImapSession<Session<TlsStream<TcpStream>>> for TlsImapSession {
 }
 
 #[cfg_attr(test, automock)]
-pub trait MailService<T: 'static ,S: 'static + ImapSession<T>> {
+pub trait MailService<T: 'static> {
     fn fetch_mails(&self) -> Vec<LocalNote>;
-    fn fetch_headers(&mut self) -> Vec<RemoteNoteMetaData>;
+    fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection,Error>;
     fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error>;
     fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String, Error>;
     fn get_session(&self) -> T;
@@ -79,7 +79,9 @@ pub struct MailServiceImpl {
 impl MailServiceImpl {
     pub fn new_with_login() -> MailServiceImpl {
         MailServiceImpl {
-            session: TlsImapSession { session: TlsImapSession::login() }
+            session: TlsImapSession {
+                session: TlsImapSession::login()
+            }
         }
     }
 
@@ -108,14 +110,15 @@ impl MailServiceImpl {
     ///
     /// The generated dataset can be used to check for duplicated notes that needs
     /// to be mergedK
-    pub fn fetch_headers(&mut self) -> RemoteNoteHeaderCollection {
+    pub fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection,Error> {
         info!("Fetching Headers of Remote Notes...");
-        let folders = self.list_note_folders();
-        folders.iter().map(|folder_name| {
+        let folders = self.list_note_folders()?;
+        let headers = folders.iter().map(|folder_name| {
             self.fetch_headers_in_folder( folder_name.to_string())
         })
             .flatten()
-            .collect()
+            .collect();
+        Ok(headers)
     }
 
     pub fn create_folder(&mut self, mailbox: &str) {
@@ -178,17 +181,15 @@ impl MailServiceImpl {
         }
     }
 
-    pub fn list_note_folders(&mut self) -> Vec<String> {
+    pub fn list_note_folders(&mut self) -> Result<Vec<String>,imap::error::Error> {
         let folders_result = self.session.session.list(None, Some("Notes*"));
-        let result: Vec<String> = match folders_result {
+        match folders_result {
             Ok(result) => {
                 let names: Vec<String> = result.iter().map(|name| name.name().to_string()).collect();
-                names
+                Ok(names)
             }
-            _ => Vec::new()
-        };
-
-        return result;
+            Err(e) => Err(e)
+        }
     }
 
     /// Deletes all notes remotely that have the uuid provided by local_note, expect
@@ -228,7 +229,7 @@ impl MailServiceImpl {
 
 
 
-impl MailService<Session<TlsStream<TcpStream>>,TlsImapSession> for MailServiceImpl {
+impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
     fn fetch_mails(&self) -> Vec<LocalNote> {
         unimplemented!()
     }
@@ -238,14 +239,15 @@ impl MailService<Session<TlsStream<TcpStream>>,TlsImapSession> for MailServiceIm
     ///
     /// The generated dataset can be used to check for duplicated notes that needs
     /// to be merged
-    fn fetch_headers(&mut self) -> Vec<RemoteNoteMetaData> {
+    fn fetch_headers(&mut self) -> Result<Vec<RemoteNoteMetaData>,Error> {
         info!("Fetching Headers of Remote Notes...");
-        let folders = self.list_note_folders();
-        folders.iter().map(|folder_name| {
+        let folders = self.list_note_folders()?;
+        let header = folders.iter().map(|folder_name| {
             self.fetch_headers_in_folder(folder_name.to_string())
         })
             .flatten()
-            .collect()
+            .collect();
+        Ok(header)
     }
 
     fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error> {
