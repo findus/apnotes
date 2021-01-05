@@ -57,11 +57,9 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> R
         && local_note.metadata.new == false {
         return Err(ContentNotChanged);
     } else {
-        let mut new_metadata = local_note.metadata.clone();
-        new_metadata.new = false;
         Ok(
             note!(
-                  new_metadata,
+                  local_note.metadata.clone(),
                   BodyMetadataBuilder::new()
                   .with_message_id(&note.message_id)
                   .with_text(&convert_to_html_str(&file_content))
