@@ -12,6 +12,7 @@ use apple_notes_rs_lib::create_new_note;
 use apple_notes_rs_lib::edit::edit_note;
 use self::diesel_migrations::*;
 use apple_notes_rs_lib::db::establish_connection;
+use apple_notes_rs_lib::sync::sync;
 
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
@@ -91,8 +92,9 @@ fn main() {
 }*/
 
 fn sync_notes() {
-    //let mut session = apple_imap::login();
-    //sync(&mut session);
+    let mut imap_service = ::apple_notes_rs_lib::apple_imap::MailServiceImpl::new_with_login();
+    let db_connection= ::apple_notes_rs_lib::db::establish_connection();
+    sync(&mut imap_service, &db_connection);
 }
 
 fn new(sub_matches: &ArgMatches) {

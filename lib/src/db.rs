@@ -184,8 +184,8 @@ pub fn establish_connection() -> SqliteConnection {
     let database_url = env::var("DATABASE_URL")
         .unwrap_or("test".to_string());
 
-    println!("{}", env::current_dir().unwrap().to_string_lossy());
-    println!("{}", database_url);
+/*    println!("{}", env::current_dir().unwrap().to_string_lossy());
+    println!("{}", database_url);*/
 
     SqliteConnection::establish(&database_url)
         .expect(&format!("Error connecting to {}", database_url))

@@ -102,7 +102,7 @@ impl MailServiceImpl {
     /// the folder name.
     ///
     /// The generated dataset can be used to check for duplicated notes that needs
-    /// to be merged
+    /// to be mergedK
     pub fn fetch_headers(&mut self) -> RemoteNoteHeaderCollection {
         info!("Fetching Headers of Remote Notes...");
         let folders = self.list_note_folders();
