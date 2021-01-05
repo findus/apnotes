@@ -300,7 +300,7 @@ pub fn delete_old_mergeable_notes(session: &mut Session<TlsStream<TcpStream>>,
     session.
         select(&local_note.metadata.folder())
         .and_then(|_| session.uid_search(
-            format!("X-Universally-Unique-Identifier {}", local_note.body[0].message_id)))
+            format!("HEADER X-Universally-Unique-Identifier {}", local_note.body[0].message_id)))
         .and_then(|uids| {
             let uids: Vec<String> = uids.into_iter()
                 .filter(|uid| uid != &uid_to_keep )
@@ -340,7 +340,13 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, localnote: &L
         // Select the appropriate mailbox, in which the updated message was saved
         .and_then(|_| session.select(&localnote.metadata.subfolder))
         // Set the old (overridden) message to "deleted", so that it can be expunged
-        .and_then(|_| flag_as_deleted(session, localnote.body.first().unwrap().uid.unwrap().to_string()))
+        .and_then(|_| {
+            if localnote.metadata.new == false {
+                flag_as_deleted(session, localnote.body.first().unwrap().uid.unwrap().to_string())
+            } else {
+                Ok(())
+            }
+        })
         // Expunge them //TODO might need check if note is new, skip if note is new
         .and_then(|_| delete_flagged(session))
         // Search for the new message, to get the new UID of the updated message

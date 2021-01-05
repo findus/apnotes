@@ -245,7 +245,7 @@ pub fn process_actions<'a>(
                                 subfolder: localnote.metadata.subfolder.clone(),
                                 locally_deleted: localnote.metadata.locally_deleted,
                                 locally_edited: localnote.metadata.locally_edited,
-                                new: localnote.metadata.new.clone(),
+                                new: false,
                                 date: localnote.metadata.date.clone(),
                                 uuid:localnote.metadata.uuid.clone(),
                                 mime_version: localnote.metadata.mime_version.clone()
