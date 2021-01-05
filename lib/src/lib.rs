@@ -12,6 +12,8 @@ extern crate diesel;
 extern crate dotenv;
 extern crate alloc;
 extern crate mailparse;
+#[cfg(test)]
+extern crate mockall;
 
 use note::LocalNote;
 use diesel::SqliteConnection;
@@ -43,7 +45,7 @@ pub mod builder;
 }*/
 
 pub fn create_new_note<C>(db_connection: &DatabaseService<C>, with_subject: String, folder: String)
-    -> Result<LocalNote,::error::NoteError> where C: DBConnector
+    -> Result<LocalNote,::error::NoteError> where C: 'static + DBConnector
 {
 
     let note = note!(

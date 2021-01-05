@@ -20,12 +20,17 @@ use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
 use note::{LocalNote};
 use std::collections::hash_map::RandomState;
+#[cfg(test)]
+extern crate mockall;
+#[cfg(test)]
+use mockall::{automock, mock, predicate::*};
 
 pub trait DBConnector {
 
 }
 
-pub trait DatabaseService<C: DBConnector> {
+#[cfg_attr(test, automock)]
+pub trait DatabaseService<C: 'static + DBConnector> {
     fn delete_everything(&self) -> Result<(), Error>;
     fn append_note(&self, model: &::model::Body) -> Result<(), Error>;
     fn update_merged_note(&self, note_body: &Body) -> Result<(), Error>;
