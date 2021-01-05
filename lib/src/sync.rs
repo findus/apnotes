@@ -24,6 +24,7 @@ use error::UpdateError::SyncError;
 use error::UpdateError;
 use error;
 use apple_imap::{MailService, ImapSession};
+use db::{DBConnector, DatabaseService};
 
 pub enum UpdateResult {
     Success()
@@ -182,11 +183,12 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
     });*/
 }
 
-pub fn sync<T,S>(imap_session: &mut MailService<T, S>, db_connection: &SqliteConnection) where S: ImapSession<T>
+pub fn sync<T,S,C>(imap_session: &mut MailService<T, S>, db_connection: &DatabaseService<C>)
+    where S: ImapSession<T>, C: DBConnector
 {
     let headers = imap_session.fetch_headers();
     let grouped_not_headers = collect_mergeable_notes(headers);
-    match ::db::fetch_all_notes(&db_connection) {
+    match db_connection.fetch_all_notes() {
         Ok(fetches) => {
             let actions =
                 get_sync_actions(&grouped_not_headers,&fetches);
@@ -207,11 +209,11 @@ pub fn sync<T,S>(imap_session: &mut MailService<T, S>, db_connection: &SqliteCon
     //let actions =
 }
 
-pub fn process_actions<'a,T,S>(
+pub fn process_actions<'a,T,S,C>(
     imap_connection: &mut MailService<T, S>,
-    db_connection: &SqliteConnection,
+    db_connection: &DatabaseService<C>,
     actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(),UpdateError>>
-where S: ImapSession<T>
+where S: ImapSession<T>, C:DBConnector
 {
     actions
         .iter()
@@ -263,7 +265,7 @@ where S: ImapSession<T>
                                 metadata_uuid: body.metadata_uuid.clone()
                             }
                         );
-                        ::db::update(db_connection, &note)
+                        db_connection.update(&note)
                             .map_err(|e| UpdateError::SyncError(e.to_string()))
                     })
 
@@ -271,7 +273,7 @@ where S: ImapSession<T>
             AddLocally(noteheaders) => {
                 match localnote_from_remote_header(imap_connection, noteheaders) {
                     Ok(note) => {
-                        ::db::insert_into_db(db_connection, &note)
+                        db_connection.insert_into_db( &note)
                             .and_then(|_| Ok(note.metadata.uuid))
                             .map_err(|e| UpdateError::IoError(e.to_string()))
                     }
@@ -360,7 +362,7 @@ mod sync_tests {
     #[test]
     pub fn sync_test() {
         let mut imap_service = ::apple_imap::MailServiceImpl::new_with_login();
-        let db_connection = ::db::establish_connection();
+        let db_connection = ::db::SqliteDBConnection::new();
 
         // ::db::delete_everything(&db_connection);
         sync(&mut imap_service, &db_connection);

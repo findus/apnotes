@@ -11,8 +11,8 @@ use apple_notes_rs_lib::error::{NoteError};
 use apple_notes_rs_lib::create_new_note;
 use apple_notes_rs_lib::edit::edit_note;
 use self::diesel_migrations::*;
-use apple_notes_rs_lib::db::establish_connection;
 use apple_notes_rs_lib::sync::sync;
+use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
 
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
@@ -25,10 +25,10 @@ embed_migrations!("../migrations/");
 fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();
 
-    let connection = establish_connection();
+    let connection = SqliteDBConnection::new();
 
     // This will run the necessary migrations.
-    embedded_migrations::run(&connection).unwrap();
+    embedded_migrations::run(connection.connection()).unwrap();
 
     let app = App::new("NotesManager")
         .setting(AppSettings::ArgRequiredElseHelp)
@@ -93,18 +93,18 @@ fn main() {
 
 fn sync_notes() {
     let mut imap_service = ::apple_notes_rs_lib::apple_imap::MailServiceImpl::new_with_login();
-    let db_connection= ::apple_notes_rs_lib::db::establish_connection();
+    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     sync(&mut imap_service, &db_connection);
 }
 
 fn new(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("folder").unwrap().to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
-    let db_connection = ::apple_notes_rs_lib::db::establish_connection();
+    let db_connection = ::apple_notes_rs_lib::db::SqliteDBConnection::new();
 
     match create_new_note(&db_connection,subject,folder)
         .and_then(|metadata| edit_note(&metadata, true))
-        .and_then(|local_note| ::apple_notes_rs_lib::db::update(&db_connection, &local_note)
+        .and_then(|local_note| db_connection.update(&local_note)
             .map(|_| local_note)
             .map_err(|e| NoteError::InsertionError(e.to_string()))
         )

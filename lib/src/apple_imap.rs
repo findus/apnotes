@@ -21,7 +21,6 @@ use imap::error::Error;
 use converter::convert_to_html;
 use imap::types::Mailbox;
 
-
 pub trait ImapSession<S> {
 
 }

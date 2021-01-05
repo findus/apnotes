@@ -15,6 +15,7 @@ extern crate mailparse;
 
 use note::LocalNote;
 use diesel::SqliteConnection;
+use db::{DatabaseService, DBConnector};
 
 #[macro_use]
 pub mod macros;
@@ -41,14 +42,16 @@ pub mod builder;
     //save_all_notes_to_file(&notes);
 }*/
 
-pub fn create_new_note(db_connection: &SqliteConnection, with_subject: String, folder: String) -> Result<LocalNote,::error::NoteError> {
+pub fn create_new_note<C>(db_connection: &DatabaseService<C>, with_subject: String, folder: String)
+    -> Result<LocalNote,::error::NoteError> where C: DBConnector
+{
 
     let note = note!(
         builder::NotesMetadataBuilder::new().with_folder(folder).is_new(true).build(),
         builder::BodyMetadataBuilder::new().with_text(&with_subject).build()
     );
 
-    db::insert_into_db(&db_connection,&note)
+    db_connection.insert_into_db(&note)
         .and_then(|_| Ok(note))
         .map_err(|e| ::error::NoteError::InsertionError(e.to_string()))
 }

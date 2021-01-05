@@ -19,197 +19,221 @@ use self::log::*;
 use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
 use note::{LocalNote};
+use std::collections::hash_map::RandomState;
 
 pub trait DBConnector {
 
 }
 
-pub trait DBConnection<C: DBConnector> {
-    fn delete_everything() -> Result<(), Error>;
-    fn append_note(model: &::model::Body) -> Result<(), Error>;
-    fn update_merged_note(note_body: &Body) -> Result<(), Error>;
-    fn delete(local_note: &LocalNote) -> Result<(), Error>;
-    fn update(local_note: &LocalNote) -> Result<(), Error>;
-    fn insert_into_db(note: &LocalNote) -> Result<(), Error>;
-    fn fetch_all_notes() -> Result<HashSet<LocalNote>,Error>;
-    fn fetch_single_note_with_name(name: &str) -> Result<Option<LocalNote>, Error>;
-    fn fetch_single_note(connection: &SqliteConnection, id: &str) -> Result<Option<LocalNote>, Error>;
+pub trait DatabaseService<C: DBConnector> {
+    fn delete_everything(&self) -> Result<(), Error>;
+    fn append_note(&self, model: &::model::Body) -> Result<(), Error>;
+    fn update_merged_note(&self, note_body: &Body) -> Result<(), Error>;
+    fn delete(&self, local_note: &LocalNote) -> Result<(), Error>;
+    fn update(&self, local_note: &LocalNote) -> Result<(), Error>;
+    fn insert_into_db(&self,note: &LocalNote) -> Result<(), Error>;
+    fn fetch_all_notes(&self) -> Result<HashSet<LocalNote>,Error>;
+    fn fetch_single_note_with_name(&self, name: &str) -> Result<Option<LocalNote>, Error>;
+    fn fetch_single_note(&self, id: &str) -> Result<Option<LocalNote>, Error>;
 }
 
-pub fn delete_everything(connection: &SqliteConnection) -> Result<(), Error> {
-    connection.transaction::<_,Error,_>(|| {
-        diesel::delete(schema::metadata::dsl::metadata)
-            .execute(connection)?;
+pub struct SqLiteConnector {
 
-        diesel::delete(schema::body::dsl::body)
-            .execute(connection)?;
-
-        Ok(())
-    })
 }
 
-/// Appends a note to an already present note
-///
-/// Multiple notes only occur if you altered a note locally
-/// and server-side, or if 2 separate devices edited the
-/// same note, in that case 2 notes exists on the imap
-/// server.
-///
-/// If multiple notes exists tell user that a merge needs to happen
-///
-pub fn append_note(connection: &SqliteConnection, note_body: &::model::Body) -> Result<(), Error> {
-    connection.transaction::<_,Error,_>(|| {
-        diesel::insert_into(schema::body::table)
-            .values(note_body)
-            .execute(connection)?;
+impl SqLiteConnector {
+    fn connect() -> SqliteConnection {
+        let database_url = env::var("DATABASE_URL")
+            .unwrap_or("test".to_string());
 
-        Ok(())
-    })
+        /*    println!("{}", env::current_dir().unwrap().to_string_lossy());
+            println!("{}", database_url);*/
+
+        SqliteConnection::establish(&database_url)
+            .expect(&format!("Error connecting to {}", database_url))
+    }
 }
 
-/// In case of a successful merge this method replaces all unmerged notes with a single
-/// merged note
-pub fn update_merged_note(connection: &SqliteConnection, note_body: &Body) -> Result<(), Error> {
-    connection.transaction::<_,Error,_>(|| {
-        diesel::delete(schema::body::dsl::body.filter(metadata_uuid.eq(note_body.metadata_uuid.clone())))
-            .execute(connection)?;
-        append_note(connection,note_body)?;
-        Ok(())
-    })
+impl DBConnector for SqliteDBConnection {
+
 }
 
-pub fn delete(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(), Error> {
-    connection.transaction::<_, Error, _>(|| {
-
-        diesel::delete(schema::metadata::dsl::metadata)
-            .filter(schema::metadata::dsl::uuid.eq(&local_note.metadata.uuid))
-            .execute(connection)?;
-
-        diesel::delete(schema::body::dsl::body)
-            .filter(schema::body::dsl::metadata_uuid.eq(&local_note.metadata.uuid))
-            .execute(connection)?;
-
-        Ok(())
-    })
+pub struct SqliteDBConnection {
+    connection: ::diesel::sqlite::SqliteConnection
 }
 
-pub fn update(connection: &SqliteConnection, local_note: &LocalNote) -> Result<(), Error> {
-    connection.transaction::<_, Error, _>(|| {
-        //TODO replace with upsert with diesel 2.0
-        delete(connection, local_note)?;
-        insert_into_db(connection, local_note)?;
-        Ok(())
-    })
+impl SqliteDBConnection {
+    pub fn new() -> SqliteDBConnection {
+        SqliteDBConnection {
+            connection: SqLiteConnector::connect()
+        }
+    }
+
+    pub fn connection(&self) -> &::diesel::sqlite::SqliteConnection {
+        &self.connection
+    }
 }
 
-/// Inserts the provided post into the sqlite db
-pub fn insert_into_db(connection: &SqliteConnection, note: &LocalNote) -> Result<(), Error> {
-    connection.transaction::<_,Error,_>(|| {
-        diesel::insert_into(schema::metadata::table)
-            .values(&note.metadata)
-            .execute(connection)?;
 
-        for note_content in &note.body {
+impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
+    fn delete_everything(&self) -> Result<(), Error> {
+        self.connection.transaction::<_,Error,_>(|| {
+            diesel::delete(schema::metadata::dsl::metadata)
+                .execute(&self.connection)?;
+
+            diesel::delete(schema::body::dsl::body)
+                .execute(&self.connection)?;
+
+            Ok(())
+        })
+    }
+    /// Appends a note to an already present note
+    ///
+    /// Multiple notes only occur if you altered a note locally
+    /// and server-side, or if 2 separate devices edited the
+    /// same note, in that case 2 notes exists on the imap
+    /// server.
+    ///
+    /// If multiple notes exists tell user that a merge needs to happen
+    ///
+    fn append_note(&self, model: &Body) -> Result<(), Error> {
+        self.connection.transaction::<_,Error,_>(|| {
             diesel::insert_into(schema::body::table)
-                .values(note_content)
-                .execute(connection)?;
-        }
+                .values(model)
+                .execute(&self.connection)?;
 
-        Ok(())
-    })
-}
-
-pub fn fetch_all_notes(connection: &SqliteConnection) -> Result<HashSet<LocalNote>,Error> {
-    let notes: Vec<NotesMetadata> = metadata
-        .load::<NotesMetadata>(connection)?;
-
-    let note_bodies: Vec<Body> = ::model::Body::belonging_to(&notes)
-        .load::<Body>(connection)?;
-
-    let grouped = note_bodies.grouped_by(&notes);
-
-    let d = notes.into_iter().zip(grouped).map(|(m_data,bodies)| {
-        LocalNote {
-            metadata: m_data,
-            body: bodies
-        }
-    }).collect();
-
-    Ok(d)
-}
-
-/// Returns a note with a specific subject, if multiple notes have the same subject, the first
-/// found note gets returned
-pub fn fetch_single_note_with_name(connection: &SqliteConnection, name: &str) -> Result<Option<LocalNote>, Error> {
-
-    let note_bodies: Vec<Body> = body
-        .filter(schema::body::dsl::text.like(&format!("{}%",name)))
-        .limit(1)
-        .load::<Body>(connection)?;
-
-    if note_bodies.len() == 0 {
-        return Ok(None)
+            Ok(())
+        })
     }
 
-    let m_data: Vec<NotesMetadata> = metadata
-        .filter(schema::metadata::dsl::uuid.eq(&note_bodies.first().unwrap().metadata_uuid))
-        .limit(1)
-        .load::<NotesMetadata>(connection)?;
-
-    let first_metadata = m_data.first().expect("Expected at least one metadata object");
-
-    // Refetch note in case note has umerged notes with other subjects
-    let note = fetch_single_note(&connection, &first_metadata.uuid)?;
-
-    debug!("Fetched note with uuid {}", first_metadata.uuid);
-
-    Ok(note)
-}
-
-pub fn fetch_single_note(connection: &SqliteConnection, id: &str) -> Result<Option<LocalNote>, Error> {
-
-    let mut notes: Vec<NotesMetadata> = metadata
-        .filter(schema::metadata::dsl::uuid.eq(&id))
-        .load::<NotesMetadata>(connection)?;
-
-    assert!(notes.len() <= 1);
-
-    if notes.len() == 0 {
-        return Ok(None)
+    /// In case of a successful merge this method replaces all unmerged notes with a single
+/// merged note
+    fn update_merged_note(&self, note_body: &Body) -> Result<(), Error> {
+        self.connection.transaction::<_,Error,_>(|| {
+            diesel::delete(schema::body::dsl::body.filter(metadata_uuid.eq(note_body.metadata_uuid.clone())))
+                .execute(&self.connection)?;
+            self.append_note(note_body)?;
+            Ok(())
+        })
     }
 
-    let first_note = notes.remove(0);
+    fn delete(&self, local_note: &LocalNote) -> Result<(), Error> {
+        self.connection.transaction::<_, Error, _>(|| {
 
-    debug!("Fetched note with uuid {}", first_note.uuid.clone());
+            diesel::delete(schema::metadata::dsl::metadata)
+                .filter(schema::metadata::dsl::uuid.eq(&local_note.metadata.uuid))
+                .execute(&self.connection)?;
 
-    let note_body = ::model::Body::belonging_to(&first_note)
-        .load::<Body>(connection)?;
+            diesel::delete(schema::body::dsl::body)
+                .filter(schema::body::dsl::metadata_uuid.eq(&local_note.metadata.uuid))
+                .execute(&self.connection)?;
 
-    assert!(&note_body.len() >= &1_usize);
+            Ok(())
+        })
+    }
 
-    debug!("This note has {} subnotes ", note_body.len());
+    fn update(&self, local_note: &LocalNote) -> Result<(), Error> {
+        self.connection.transaction::<_, Error, _>(|| {
+            //TODO replace with upsert with diesel 2.0
+            self.delete( local_note)?;
+            self.insert_into_db(local_note)?;
+            Ok(())
+        })
+    }
+    /// Inserts the provided post into the sqlite db
+    fn insert_into_db(&self, note: &LocalNote) -> Result<(), Error> {
+        self.connection.transaction::<_,Error,_>(|| {
+            diesel::insert_into(schema::metadata::table)
+                .values(&note.metadata)
+                .execute(&self.connection)?;
 
-    Ok(Some(LocalNote {
-        metadata: first_note,
-        body: note_body
-    }))
-}
+            for note_content in &note.body {
+                diesel::insert_into(schema::body::table)
+                    .values(note_content)
+                    .execute(&self.connection)?;
+            }
 
-pub fn establish_connection() -> SqliteConnection {
+            Ok(())
+        })
+    }
 
-    let database_url = env::var("DATABASE_URL")
-        .unwrap_or("test".to_string());
+    fn fetch_all_notes(&self) -> Result<HashSet<LocalNote, RandomState>, Error> {
+        let notes: Vec<NotesMetadata> = metadata
+            .load::<NotesMetadata>(&self.connection)?;
 
-/*    println!("{}", env::current_dir().unwrap().to_string_lossy());
-    println!("{}", database_url);*/
+        let note_bodies: Vec<Body> = ::model::Body::belonging_to(&notes)
+            .load::<Body>(&self.connection)?;
 
-    SqliteConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
+        let grouped = note_bodies.grouped_by(&notes);
+
+        let d = notes.into_iter().zip(grouped).map(|(m_data,bodies)| {
+            LocalNote {
+                metadata: m_data,
+                body: bodies
+            }
+        }).collect();
+
+        Ok(d)
+    }
+
+    /// Returns a note with a specific subject, if multiple notes have the same subject, the first
+    /// found note gets returned
+    fn fetch_single_note_with_name(&self, name: &str) -> Result<Option<LocalNote>, Error> {
+        let note_bodies: Vec<Body> = body
+            .filter(schema::body::dsl::text.like(&format!("{}%",name)))
+            .limit(1)
+            .load::<Body>(&self.connection)?;
+
+        if note_bodies.len() == 0 {
+            return Ok(None)
+        }
+
+        let m_data: Vec<NotesMetadata> = metadata
+            .filter(schema::metadata::dsl::uuid.eq(&note_bodies.first().unwrap().metadata_uuid))
+            .limit(1)
+            .load::<NotesMetadata>(&self.connection)?;
+
+        let first_metadata = m_data.first().expect("Expected at least one metadata object");
+
+        // Refetch note in case note has umerged notes with other subjects
+        let note = self.fetch_single_note(&first_metadata.uuid)?;
+
+        debug!("Fetched note with uuid {}", first_metadata.uuid);
+
+        Ok(note)
+    }
+
+    fn fetch_single_note(&self, id: &str) -> Result<Option<LocalNote>, Error> {
+        let mut notes: Vec<NotesMetadata> = metadata
+            .filter(schema::metadata::dsl::uuid.eq(&id))
+            .load::<NotesMetadata>(&self.connection)?;
+
+        assert!(notes.len() <= 1);
+
+        if notes.len() == 0 {
+            return Ok(None)
+        }
+
+        let first_note = notes.remove(0);
+
+        debug!("Fetched note with uuid {}", first_note.uuid.clone());
+
+        let note_body = ::model::Body::belonging_to(&first_note)
+            .load::<Body>(&self.connection)?;
+
+        assert!(&note_body.len() >= &1_usize);
+
+        debug!("This note has {} subnotes ", note_body.len());
+
+        Ok(Some(LocalNote {
+            metadata: first_note,
+            body: note_body
+        }))
+    }
 }
 
 #[cfg(test)]
 mod db_tests {
-    use db::{fetch_single_note, update_merged_note, append_note, insert_into_db, delete_everything, establish_connection, fetch_all_notes, fetch_single_note_with_name};
     use model::NotesMetadata;
     use note::{LocalNote, IdentifyableNote};
     use builder::*;
@@ -223,11 +247,12 @@ mod db_tests {
             BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build()
     ];
 
-        let con = establish_connection();
-        delete_everything(&con).unwrap();
-        insert_into_db(&con, &note).unwrap();
+        let db_connection = ::db::SqliteDBConnection::new();
 
-        match fetch_single_note_with_name(&con,"meem") {
+        db_connection.delete_everything().unwrap();
+        db_connection.insert_into_db(&note).unwrap();
+
+        match db_connection.fetch_single_note_with_name("meem") {
             Ok(Some(note)) => {
                 assert_eq!(note.body.len(),1);
                 assert_eq!(
@@ -253,12 +278,12 @@ mod db_tests {
             BodyMetadataBuilder::new().build()
     ];
 
-        let con = establish_connection();
-        delete_everything(&con).unwrap();
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().unwrap();
 
-        assert_eq!(insert_into_db(&con, &note).is_err(), true);
+        assert_eq!(con.insert_into_db(&note).is_err(), true);
 
-        let a = fetch_all_notes(&con).unwrap();
+        let a = con.fetch_all_notes().unwrap();
         assert_eq!(a.len(),0);
     }
 
@@ -282,12 +307,12 @@ mod db_tests {
             body3
     ];
 
-        let con = establish_connection();
-        delete_everything(&con).expect("Should delete the db");
-        insert_into_db(&con, &note).expect("Should insert note into the db");
-        insert_into_db(&con, &note_with_2_bodies).expect("Should insert note into the db");
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete the db");
+        con.insert_into_db(&note).expect("Should insert note into the db");
+        con.insert_into_db(&note_with_2_bodies).expect("Should insert note into the db");
 
-        match fetch_all_notes(&con) {
+        match con.fetch_all_notes() {
             Ok(notes) => {
                 let body_in_first_note = note.body.first().unwrap();
 
@@ -336,8 +361,8 @@ mod db_tests {
     #[test]
     fn update_single_note() {
         use builder::HeaderBuilder;
-        let con = establish_connection();
-        delete_everything(&con).expect("Should delete the db");
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete the db");
 
         let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(),
                                                                 "test".to_string()
@@ -360,24 +385,24 @@ mod db_tests {
         BodyMetadataBuilder::new().with_text("new text").build()
     );
 
-        insert_into_db(&con, &note).expect("Should insert note into the db");
-        insert_into_db(&con, &note_2).expect("Should insert note into the db");
+        con.insert_into_db(&note).expect("Should insert note into the db");
+        con.insert_into_db(&note_2).expect("Should insert note into the db");
 
-        let item_count = fetch_all_notes(&con)
+        let item_count = con.fetch_all_notes()
             .expect("Fetch should be successful")
             .len();
 
         assert_eq!(item_count,2);
 
-        update(&con,&note_3).unwrap();
+        con.update(&note_3).unwrap();
 
-        let item_count = fetch_all_notes(&con)
+        let item_count = con.fetch_all_notes()
             .expect("Fetch should be successful")
             .len();
 
         assert_eq!(item_count,2);
 
-        match fetch_single_note(&con, &note_3.uuid().clone()) {
+        match con.fetch_single_note(&note_3.uuid().clone()) {
             Ok(Some(mut note2)) => {
                 assert_eq!(note_3.metadata,note2.metadata);
                 assert_eq!(note2.body.len(),1);
@@ -395,8 +420,8 @@ mod db_tests {
     /// The correct note should remain in side the db
     #[test]
     fn delete_single_note() {
-        let con = establish_connection();
-        delete_everything(&con).expect("Should delete the db");
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete the db");
 
         let m_data: ::model::NotesMetadata = NotesMetadata::new(&::builder::HeaderBuilder::new().build(),
                                                                 "test".to_string()
@@ -414,24 +439,24 @@ mod db_tests {
         BodyMetadataBuilder::new().build()
     );
 
-        insert_into_db(&con, &note).expect("Should insert note into the db");
-        insert_into_db(&con, &note_2).expect("Should insert note into the db");
+        con.insert_into_db(&note).expect("Should insert note into the db");
+        con.insert_into_db(&note_2).expect("Should insert note into the db");
 
-        let item_count = fetch_all_notes(&con)
+        let item_count = con.fetch_all_notes()
             .expect("Fetch should be successful")
             .len();
 
         assert_eq!(item_count,2);
 
-        delete(&con, &note_2).unwrap();
+        con.delete( &note_2).unwrap();
 
-        let item_count = fetch_all_notes(&con)
+        let item_count = con.fetch_all_notes()
             .expect("Fetch should be successful")
             .len();
 
         assert_eq!(item_count,1);
 
-        match fetch_single_note(&con, &note.uuid().clone()) {
+        match con.fetch_single_note(&note.uuid().clone()) {
             Ok(Some(mut note2)) => {
                 assert_eq!(note.metadata,note2.metadata);
                 assert_eq!(note2.body.len(),1);
@@ -452,8 +477,8 @@ mod db_tests {
     #[test]
     fn insert_single_note() {
         use builder::HeaderBuilder;
-        let con = establish_connection();
-        delete_everything(&con).expect("Should delete the db");
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete the db");
         let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
         let note_body = Body::new(Some(0), m_data.uuid.clone());
 
@@ -462,9 +487,9 @@ mod db_tests {
         note_body
     );
 
-        insert_into_db(&con, &note).expect("Should insert note into the db");
+        con.insert_into_db(&note).expect("Should insert note into the db");
 
-        match fetch_single_note(&con, &note.uuid().clone()) {
+        match con.fetch_single_note(&note.uuid().clone()) {
             Ok(Some(mut note2)) => {
                 assert_eq!(note2.metadata,note.metadata);
                 assert_eq!(note2.body.len(),1);
@@ -485,8 +510,8 @@ mod db_tests {
         use builder::HeaderBuilder;
         //Setup
         dotenv::dotenv().ok();
-        let con = establish_connection();
-        delete_everything(&con).expect("Should delete everything");
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete everything");
         let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
         let note_body = Body::new(Some(0), m_data.uuid.clone());
 
@@ -495,8 +520,8 @@ mod db_tests {
         note_body
     );
 
-        match insert_into_db(&con,&note)
-            .and_then(|_| insert_into_db(&con,&note)) {
+        match con.insert_into_db(&note)
+            .and_then(|_| con.insert_into_db(&note)) {
             Err(e) => assert_eq!(e.to_string(),"UNIQUE constraint failed: metadata.uuid") ,
             _ => panic!("This insert operation should panic"),
         };
@@ -508,8 +533,8 @@ mod db_tests {
         use builder::HeaderBuilder;
 
         dotenv::dotenv().ok();
-        let con = establish_connection();
-        delete_everything(&con).expect("Should delete everything");
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete everything");
         let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
         let note_body = Body::new(Some(0), m_data.uuid.clone());
         let additional_body = Body::new(Some(1), m_data.uuid.clone());
@@ -519,9 +544,9 @@ mod db_tests {
         note_body.clone()
     );
 
-        match insert_into_db(&con,&note)
-            .and_then(|_| append_note(&con, &additional_body))
-            .and_then(|_| fetch_single_note(&con, &note.metadata.uuid.clone())) {
+        match con.insert_into_db(&note)
+            .and_then(|_| con.append_note(&additional_body))
+            .and_then(|_| con.fetch_single_note(&note.metadata.uuid.clone())) {
             Ok(Some(mut note2)) => {
                 assert_eq!(note.metadata,note2.metadata);
                 assert_eq!(note2.body.len(),2);
@@ -545,11 +570,10 @@ mod db_tests {
     fn replace_with_merged_body() {
         use builder::HeaderBuilder;
 
-
         //Setup
         dotenv::dotenv().ok();
-        let con = establish_connection();
-        delete_everything(&con).expect("Should delete everything");
+        let con =  ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete everything");
         let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
         let note_body = Body::new(Some(0), m_data.uuid.clone());
         let additional_body = Body::new(Some(1), m_data.uuid.clone());
@@ -559,9 +583,9 @@ mod db_tests {
         note_body.clone()
     );
 
-        match insert_into_db(&con,&note)
-            .and_then(|_| append_note(&con, &additional_body))
-            .and_then(|_| fetch_single_note(&con, &note.metadata.uuid.clone())) {
+        match con.insert_into_db(&note)
+            .and_then(|_| con.append_note(&additional_body))
+            .and_then(|_| con.fetch_single_note(&note.metadata.uuid.clone())) {
             Ok(Some(mut note2)) => {
                 assert_eq!(note2.metadata, note.metadata);
                 assert_eq!(note2.body.len(), 2);
@@ -580,8 +604,8 @@ mod db_tests {
         //Actual test
 
         let merged_body = Body::new(None, note.metadata.uuid.clone());
-        match update_merged_note(&con,&merged_body).
-            and_then(|_| fetch_single_note(&con, &note.metadata.uuid.clone())) {
+        match con.update_merged_note(&merged_body).
+            and_then(|_| con.fetch_single_note(&note.metadata.uuid.clone())) {
             Ok(Some(mut note2)) => {
                 assert_eq!(note.metadata,note2.metadata);
                 assert_eq!(note2.body.len(),1_usize);
