@@ -18,6 +18,7 @@ use note::{RemoteNoteHeaderCollection, RemoteNoteMetaData, LocalNote, Identifyab
 use ::{apple_imap};
 use ::{profile, converter};
 use imap::error::Error;
+use converter::convert_to_html;
 
 
 pub trait MailFetcher {
@@ -331,8 +332,8 @@ pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, localnote: &L
     // Updated message must be merged
     //let _content = converter::convert_to_html(&localnote.body.first().unwrap());
 
-    let body = localnote.body.first().unwrap().text.as_ref().unwrap().to_string();
-    let message = format!("{}\n\n{}",headers, body);
+    let body = localnote.body.first().unwrap();
+    let message = format!("{}\n\n{}",headers, convert_to_html(body));
 
     session
         // Write new message into the mailbox
