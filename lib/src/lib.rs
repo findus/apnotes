@@ -14,6 +14,7 @@ extern crate alloc;
 extern crate mailparse;
 #[cfg(test)]
 extern crate mockall;
+extern crate colored;
 
 use note::LocalNote;
 use diesel::SqliteConnection;

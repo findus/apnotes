@@ -25,6 +25,7 @@ use error::UpdateError;
 use error;
 use apple_imap::{MailService, ImapSession};
 use db::{DBConnector, DatabaseService};
+use converter::convert2md;
 
 pub enum UpdateResult {
     Success()
@@ -306,7 +307,7 @@ where T: 'static
             Ok(body) => {
                 Some(Body {
                     message_id: remote_metadata.headers.message_id(),
-                    text: Some(body),
+                    text: Some(convert2md(&body)),
                     uid: Some(remote_metadata.uid),
                     metadata_uuid: remote_metadata.headers.uuid()
                 })

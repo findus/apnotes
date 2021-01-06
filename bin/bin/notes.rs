@@ -4,6 +4,8 @@ extern crate log;
 extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
+extern crate colored;
+extern crate itertools;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 use log::Level;
@@ -13,6 +15,8 @@ use apple_notes_rs_lib::edit::edit_note;
 use self::diesel_migrations::*;
 use apple_notes_rs_lib::sync::sync;
 use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
+use colored::Colorize;
+use itertools::*;
 
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
@@ -34,6 +38,9 @@ fn main() {
         .setting(AppSettings::ArgRequiredElseHelp)
         .version("0.1")
         .author("Philipp Hentschel")
+        .subcommand(App::new("list")
+            .about("Lists all available notes")
+        )
         .about("Interface for interacting with Apple Notes on Linux")
         .subcommand(App::new("edit")
             //TODO handling of duplicate note names
@@ -70,6 +77,7 @@ fn main() {
     let _res = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
         ("sync", Some(_sub_matches)) => sync_notes(),
+        ("list", Some(_sub_matches)) => list_notes(),
       //  ("edit", Some(sub_matches)) => edit_notes(sub_matches),
         (_, _) => unreachable!(),
     };
@@ -95,6 +103,39 @@ fn sync_notes() {
     let mut imap_service = ::apple_notes_rs_lib::apple_imap::MailServiceImpl::new_with_login();
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     sync(&mut imap_service, &db_connection);
+}
+
+fn list_notes() {
+    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
+    match db_connection.fetch_all_notes() {
+        Ok(notes) => {
+            let n_plus_1 =
+                notes.iter().sorted_by_key(|i| &i.metadata.subfolder).skip(1);
+
+            let n =
+                notes.iter().sorted_by_key(|i| &i.metadata.subfolder);
+
+            n_plus_1.enumerate().zip(n).for_each(|((idx, prev_note), this_note)| {
+                if prev_note.metadata.subfolder != this_note.metadata.subfolder || idx == 0 {
+                    println!("{}", prev_note.metadata.subfolder.white() );
+                }
+                if prev_note.body.len() > 1 {
+                    print!("     ");
+                    prev_note.body.iter().for_each(|body| {
+                        print!("{}", format!("[{}], ", body.subject()));
+                    });
+                    print!("{}","[Needs merge!]".red());
+                    println!();
+                } else {
+                    println!("     {}", prev_note.body.first().unwrap().subject());
+                }
+
+            });
+        },
+        Err(e) => {
+            println!("Something went wrong, check loggos")
+        }
+    };
 }
 
 fn new(sub_matches: &ArgMatches) {

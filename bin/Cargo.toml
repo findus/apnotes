@@ -8,12 +8,14 @@ autobins = false
 log = "0.4"
 clap = "2.33.1"
 simple_logger = "1.6.0"
+colored = "2"
 
 serde_json = "1.0.56"
 serde_derive = "1.0.114"
 serde = "1.0.114"
 diesel = { features = ["sqlite"], version =  "1.4.5"}
 diesel_migrations = "1.4.0"
+itertools = "0.10.0"
 
 apple_notes_rs_lib = { path = "../lib" }
 

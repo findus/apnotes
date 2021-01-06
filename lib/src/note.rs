@@ -10,8 +10,8 @@ use profile;
 
 #[derive(Eq,Clone,Debug)]
 pub struct LocalNote {
-    pub(crate) metadata: NotesMetadata,
-    pub(crate) body: Vec<Body>,
+    pub metadata: NotesMetadata,
+    pub body: Vec<Body>,
 }
 
 pub type NoteHeaders = Vec<(String,String)>;

@@ -24,6 +24,7 @@ use std::collections::hash_map::RandomState;
 extern crate mockall;
 #[cfg(test)]
 use mockall::{automock, mock, predicate::*};
+use schema::metadata::columns::subfolder;
 
 pub trait DBConnector {
 
@@ -164,6 +165,7 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
 
     fn fetch_all_notes(&self) -> Result<HashSet<LocalNote, RandomState>, Error> {
         let notes: Vec<NotesMetadata> = metadata
+            .order((subfolder.asc()))
             .load::<NotesMetadata>(&self.connection)?;
 
         let note_bodies: Vec<Body> = ::model::Body::belonging_to(&notes)
