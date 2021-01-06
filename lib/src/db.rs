@@ -328,7 +328,7 @@ mod db_tests {
         }
     }
 
-    #[test]K
+    #[test]
     pub fn mock_test() {
         let mut mock_db_service = MockDatabaseService::<SqliteDBConnection>::new();
 
