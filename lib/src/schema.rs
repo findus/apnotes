@@ -1,5 +1,6 @@
 table! {
     body (message_id) {
+        old_remote_message_id -> Nullable<Text>,
         message_id -> Text,
         text -> Nullable<Text>,
         uid -> Nullable<BigInt>,
@@ -9,7 +10,6 @@ table! {
 
 table! {
     metadata (uuid) {
-        old_remote_id -> Nullable<Text>,
         subfolder -> Text,
         locally_deleted -> Bool,
         locally_edited -> Bool,

@@ -1,7 +1,6 @@
 -- Your SQL goes here
 
 CREATE TABLE metadata (
-    old_remote_id VARCHAR,
     subfolder VARCHAR NOT NULL,
     locally_deleted BOOLEAN NOT NULL,
     locally_edited BOOLEAN NOT NULL,
@@ -12,6 +11,7 @@ CREATE TABLE metadata (
 );
 
 CREATE TABLE body (
+    old_remote_message_id VARCHAR,
     message_id VARCHAR PRIMARY KEY NOT NULL,
     text VARCHAR,
     uid BIGINT,

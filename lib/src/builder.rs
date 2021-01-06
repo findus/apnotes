@@ -17,6 +17,7 @@ impl BodyMetadataBuilder {
         let profile = self::profile::load_profile();
         BodyMetadataBuilder {
             body: Body {
+                old_remote_message_id: None,
                 message_id: format!("<{}@{}", generate_uuid(), profile.domain()),
                 text: None,
                 uid: Some(-1),
@@ -46,6 +47,11 @@ impl BodyMetadataBuilder {
         self
     }
 
+    pub fn with_old_remote_message_id(mut self, id: &str) -> Self {
+        self.body.old_remote_message_id = Some(id.to_string());
+        self
+    }
+
     pub fn build(self) -> Body {
         self.body
     }
@@ -65,7 +71,6 @@ impl NotesMetadataBuilder {
         let date = Utc::now().to_rfc2822();
         NotesMetadataBuilder {
             notes_metadata:  NotesMetadata {
-                old_remote_id: None,
                 subfolder: "".to_string(),
                 locally_deleted: false,
                 locally_edited: false,

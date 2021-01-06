@@ -9,11 +9,6 @@ use std::str::Lines;
 #[table_name="metadata"]
 #[primary_key(uuid)]
 pub struct NotesMetadata {
-    /// Stores old message-id after editing
-    /// the note. If the notes are getting synced
-    /// this is neede to check if the remote note
-    /// also changed, if this is the case
-    pub old_remote_id: Option<String>,
     /// Stores the subfolder name of the folder in which
     /// the note is saved
     pub subfolder: String,
@@ -39,7 +34,6 @@ pub struct NotesMetadata {
 impl NotesMetadata {
     pub fn new(header: &NoteHeaders, subfolder: String) -> Self {
         NotesMetadata {
-            old_remote_id: None,
             subfolder,
             locally_deleted: false,
             locally_edited: false,
@@ -52,7 +46,6 @@ impl NotesMetadata {
 
     pub fn from_remote_metadata(remote_metadata: &RemoteNoteMetaData) -> Self {
         NotesMetadata {
-            old_remote_id: None,
             subfolder: remote_metadata.folder.clone(),
             locally_deleted: false,
             locally_edited: false,
@@ -69,6 +62,11 @@ impl NotesMetadata {
 #[belongs_to(NotesMetadata, foreign_key="metadata_uuid")]
 #[primary_key(message_id)]
 pub struct Body {
+    /// Stores old message-id after editing
+    /// the note. If the notes are getting synced
+    /// this is neede to check if the remote note
+    /// also changed, if this is the case
+    pub old_remote_message_id: Option<String>,
     /// Identifier for a note in a certain state. This
     /// ID changes every time the note gets edited.
     ///
@@ -88,6 +86,7 @@ impl Body {
     pub fn new(uid: Option<i64>, metadata_reference: String) -> Body {
         let profile = profile::load_profile();
         Body {
+            old_remote_message_id: None,
             message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
             text: None,
             uid,
