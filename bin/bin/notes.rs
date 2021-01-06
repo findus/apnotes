@@ -40,6 +40,12 @@ fn main() {
         .author("Philipp Hentschel")
         .subcommand(App::new("list")
             .about("Lists all available notes")
+            .arg(Arg::with_name("uuid")
+                .short("u")
+                .long("uuid")
+                .help("Prints additional uuid")
+                .required(false)
+            )
         )
         .about("Interface for interacting with Apple Notes on Linux")
         .subcommand(App::new("edit")
@@ -77,7 +83,7 @@ fn main() {
     let _res = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
         ("sync", Some(_sub_matches)) => sync_notes(),
-        ("list", Some(_sub_matches)) => list_notes(),
+        ("list", Some(sub_matches)) => list_notes(sub_matches),
       //  ("edit", Some(sub_matches)) => edit_notes(sub_matches),
         (_, _) => unreachable!(),
     };
@@ -105,7 +111,8 @@ fn sync_notes() {
     sync(&mut imap_service, &db_connection);
 }
 
-fn list_notes() {
+fn list_notes(sub_matches: &ArgMatches) {
+    let show_uuid = sub_matches.is_present("uuid");
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     match db_connection.fetch_all_notes() {
         Ok(notes) => {
@@ -117,17 +124,24 @@ fn list_notes() {
 
             n_plus_1.enumerate().zip(n).for_each(|((idx, prev_note), this_note)| {
                 if prev_note.metadata.subfolder != this_note.metadata.subfolder || idx == 0 {
-                    println!("{}", prev_note.metadata.subfolder.white() );
+                    println!("Folder: {}", prev_note.metadata.subfolder.white() );
                 }
                 if prev_note.body.len() > 1 {
+                    if show_uuid {
+                        print!("{}",this_note.metadata.uuid.as_str().bright_black());
+                    }
                     print!("     ");
                     prev_note.body.iter().for_each(|body| {
                         print!("{}", format!("[{}], ", body.subject()));
                     });
-                    print!("{}","[Needs merge!]".red());
+                    print!("{}","Needs merge!".red());
                     println!();
                 } else {
-                    println!("     {}", prev_note.body.first().unwrap().subject());
+                    if show_uuid {
+                        print!("{}",this_note.metadata.uuid.as_str().bright_black());
+                    }
+                    print!("     {} ", prev_note.body.first().unwrap().subject());
+                    println!();
                 }
 
             });
