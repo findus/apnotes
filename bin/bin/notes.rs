@@ -6,17 +6,19 @@ extern crate diesel;
 extern crate diesel_migrations;
 extern crate colored;
 extern crate itertools;
+extern crate regex;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 use log::Level;
 use apple_notes_rs_lib::error::{NoteError};
 use apple_notes_rs_lib::create_new_note;
-use apple_notes_rs_lib::edit::edit_note;
 use self::diesel_migrations::*;
 use apple_notes_rs_lib::sync::sync;
 use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
 use colored::Colorize;
 use itertools::*;
+use regex::Regex;
+use apple_notes_rs_lib::edit::edit_note;
 
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
@@ -51,10 +53,10 @@ fn main() {
         .subcommand(App::new("edit")
             //TODO handling of duplicate note names
             .about("Edits an existing note")
-            .arg(Arg::with_name("name")
+            .arg(Arg::with_name("edit")
                 .required(true)
                 .takes_value(true)
-                .help("Name of the note that you want to edit")
+                .help("uuid or name of the note that you want to edit")
             )
         )
         .subcommand(App::new("sync")
@@ -84,26 +86,35 @@ fn main() {
         ("new",  Some(sub_matches)) => new(sub_matches),
         ("sync", Some(_sub_matches)) => sync_notes(),
         ("list", Some(sub_matches)) => list_notes(sub_matches),
-      //  ("edit", Some(sub_matches)) => edit_notes(sub_matches),
+        ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
         (_, _) => unreachable!(),
     };
 
 }
 
-/*fn edit_notes(sub_matches: &ArgMatches) {
-    let folder = sub_matches.value_of("name").unwrap().to_string();
+fn edit_passed_note(sub_matches: &ArgMatches) {
+    let uuid_or_name = sub_matches.value_of("name").unwrap().to_string();
+    let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
+    let note = match is_uuid(&uuid_or_name) {
+        true => {
+            match db.fetch_single_note(&uuid_or_name) {
+                Ok(Some(note)) => note,
+                Ok(None) => panic!("Note does not exist"),
+                Err(e) => panic!(e.to_string())
+            }
+        }
+        false => {
+            unimplemented!();
+        }
+    };
+    apple_notes_rs_lib::edit::edit_note(&note, false);
+}
 
-    let metadata_file_path =
-        apple_notes_rs_lib::util::get_hash_path(Path::new(&folder));
-
-    let metadata_file = std::fs::File::open(metadata_file_path.as_path())
-        .expect(&format!("Could not open {}", &metadata_file_path.to_string_lossy()));
-
-    let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
-
-    apple_notes_rs_lib::util::get_hash_path(Path::new(&folder));
-    apple_notes_rs_lib::edit::edit(&metadata, false).unwrap();
-}*/
+fn is_uuid(string: &str) -> bool {
+    let uuid_regex: Regex =
+        Regex::new(r"\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b").unwrap();
+    uuid_regex.is_match(string)
+}
 
 fn sync_notes() {
     let mut imap_service = ::apple_notes_rs_lib::apple_imap::MailServiceImpl::new_with_login();

@@ -58,6 +58,7 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> R
         return Err(ContentNotChanged);
     } else {
         Ok(
+            // todo new message id on existing notes
             note!(
                   local_note.metadata.clone(),
                   BodyMetadataBuilder::new()
