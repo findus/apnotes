@@ -301,7 +301,7 @@ mod db_tests {
 
     //complete note should be gone because of only one body child
     #[test]
-    fn delete_body_test() {
+    fn delete_body_test_one_child() {
 
         let note_body = BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build();
 
@@ -323,6 +323,35 @@ mod db_tests {
                     .fetch_single_note(&note.metadata.uuid).unwrap();
 
                 assert_eq!(new_note,None);
+            }
+            _ => { panic!("Failed") }
+        }
+    }
+
+    /// Metadataobject should remain because of second body
+    #[test]
+    fn delete_body_test_two_child() {
+
+        let note_body = BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build();
+
+        let note = note![
+            NotesMetadataBuilder::new().build(),
+            note_body.clone(),
+            BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build()
+        ];
+
+        let note_body = note.body[0].clone();
+
+        let db_connection = ::db::SqliteDBConnection::new();
+
+        db_connection.delete_everything().unwrap();
+        db_connection.insert_into_db(&note).unwrap();
+
+        match db_connection.delete_body(&note_body) {
+            Ok(()) => {
+                let note_len = db_connection.fetch_all_notes().unwrap().len() == 1;
+
+                assert_eq!(note_len,true);
             }
             _ => { panic!("Failed") }
         }
