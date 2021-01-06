@@ -55,7 +55,7 @@ fn main() {
             .arg(Arg::with_name("path")
                 .required(true)
                 .takes_value(true)
-                .help("Path to note that should be edited")
+                .help("Subject or UUID of the note that should be edited")
             )
         )
         .subcommand(App::new("sync")

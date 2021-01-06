@@ -111,23 +111,35 @@ fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
 
     let uuids: Vec<&String> = remote_uuids.difference(&local_uuids).collect();
 
-    remote_note_headers
+    let actions = remote_note_headers
         .iter()
         .filter(|remote_header_collection|
             uuids.contains(&&remote_header_collection.uuid()))
         .map(|new_note|
                  UpdateAction::AddLocally(new_note )
         )
-        .collect()
+        .collect();
+    info!("Found {} Notes that are going to be added locally", &local_flagged_notes.len());
+    actions
 }
 
 fn get_add_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
                                 local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
-    local_notes.iter()
+    let actions = local_notes.iter()
         .filter(|note| note.metadata.new == true)
         .map(|note| UpdateAction::AddRemotely(note))
-        .collect()
+        .collect();
+    info!("Found {} Notes that are going to be added remotely", &local_flagged_notes.len());
+    actions
 }
+
+fn get_update_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
+                                   local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
+
+    // oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == remote_uuid
+    info!("Found {} Notes that are going to be updated remotely", &local_flagged_notes.len());
+}
+
 
 fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
                         local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {

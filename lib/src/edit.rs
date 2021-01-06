@@ -18,6 +18,7 @@ use self::regex::*;
 use diesel::SqliteConnection;
 use converter::{convert_to_html, convert_to_html_str};
 
+/// Edits the passed note and alters the metadata if successful
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
 
 
@@ -58,11 +59,10 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> R
         return Err(ContentNotChanged);
     } else {
         Ok(
-            // todo new message id on existing notes
             note!(
+            // note: bodymetadatabuilder generates a new message-id here
                   local_note.metadata.clone(),
                   BodyMetadataBuilder::new()
-                  .with_message_id(&note.message_id)
                   .with_text(&file_content)
                   .build()
             )
