@@ -122,25 +122,26 @@ fn list_notes(sub_matches: &ArgMatches) {
             let n =
                 notes.iter().sorted_by_key(|i| &i.metadata.subfolder);
 
-            n_plus_1.enumerate().zip(n).for_each(|((idx, prev_note), this_note)| {
-                if prev_note.metadata.subfolder != this_note.metadata.subfolder || idx == 0 {
-                    println!("Folder: {}", prev_note.metadata.subfolder.white() );
+            //TODO this iterator might skip the last note
+            n_plus_1.enumerate().zip(n).for_each(|((idx, this_note), last_note)| {
+                if this_note.metadata.subfolder != last_note.metadata.subfolder || idx == 0 {
+                    println!("Folder: {}", this_note.metadata.subfolder.white() );
                 }
-                if prev_note.body.len() > 1 {
+                if this_note.body.len() > 1 {
                     if show_uuid {
-                        print!("{}",this_note.metadata.uuid.as_str().bright_black());
+                        print!("{}", last_note.metadata.uuid.as_str().bright_black());
                     }
                     print!("     ");
-                    prev_note.body.iter().for_each(|body| {
+                    this_note.body.iter().for_each(|body| {
                         print!("{}", format!("[{}], ", body.subject()));
                     });
                     print!("{}","Needs merge!".red());
                     println!();
                 } else {
                     if show_uuid {
-                        print!("{}",this_note.metadata.uuid.as_str().bright_black());
+                        print!("{}", last_note.metadata.uuid.as_str().bright_black());
                     }
-                    print!("     {} ", prev_note.body.first().unwrap().subject());
+                    print!("     {} ", this_note.body.first().unwrap().subject());
                     println!();
                 }
 
