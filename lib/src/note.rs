@@ -2,7 +2,7 @@ extern crate mailparse;
 extern crate html2runes;
 extern crate log;
 
-use std::hash::Hasher;
+use std::hash::{Hasher, Hash};
 use model::{NotesMetadata, Body};
 use std::collections::HashSet;
 use builder::{HeaderBuilder, NotesMetadataBuilder};
@@ -27,6 +27,7 @@ impl LocalNote {
     pub(crate) fn needs_merge(&self) -> bool {
         self.body.len() > 1
     }
+    //TODO right not it only works for merged notes
     pub fn to_header_vector(&self) -> NoteHeaders {
         let mut headers: Vec<(String,String)> = vec![];
         let profile = profile::load_profile();
@@ -42,6 +43,29 @@ impl LocalNote {
         headers.push(("Subject".to_string(), self.body.first().unwrap().subject().clone()));
         headers
     }
+
+    pub fn to_remote_metadata(&self) -> RemoteNoteMetaData {
+        RemoteNoteMetaData {
+            headers: self.to_header_vector(),
+            folder: self.folder(),
+            uid: self.body.first().unwrap().uid.unwrap()
+        }
+    }
+}
+
+impl MergeableNoteBody for LocalNote {
+
+    fn needs_merge(&self) -> bool {
+        self.body.len() > 1
+    }
+
+    fn get_message_id(&self) -> Option<String> {
+        if self.needs_merge() {
+            None
+        } else {
+            return Some(self.body[0].message_id.clone());
+        }
+    }
 }
 
 impl IdentifyableNote for LocalNote {
@@ -53,11 +77,31 @@ impl IdentifyableNote for LocalNote {
     fn uuid(&self) -> String {
         self.metadata.uuid()
     }
+
 }
 
 /// A collection of remote note metadata that share the
 /// same uuid
 pub type RemoteNoteHeaderCollection = Vec<RemoteNoteMetaData>;
+
+impl MergeableNoteBody for RemoteNoteHeaderCollection {
+    fn needs_merge(&self) -> bool {
+        self.len() > 1
+    }
+
+    /// Returns the message-id of the Remote Note
+    /// Returns None if note needs to be merged
+    fn get_message_id(&self) -> Option<String> {
+        match self.needs_merge() {
+            true => None,
+            false => {
+                Some(self.iter().last()
+                    .expect("At least one Element must be present")
+                    .headers.message_id())
+            }
+        }
+    }
+}
 
 impl IdentifyableNote for RemoteNoteHeaderCollection {
 
@@ -82,6 +126,7 @@ impl IdentifyableNote for GroupedRemoteNoteHeaders {
     fn uuid(&self) -> String {
         self.iter().map(|note| note.uuid()).last().unwrap()
     }
+
 }
 
 impl RemoteNoteMetaData {
@@ -196,6 +241,11 @@ pub trait HeaderParser {
 pub trait IdentifyableNote {
     fn folder(&self) -> String;
     fn uuid(&self) -> String;
+}
+
+pub trait MergeableNoteBody {
+    fn needs_merge(&self) -> bool;
+    fn get_message_id(&self) -> Option<String>;
 }
 
 impl IdentifyableNote for NotesMetadata {

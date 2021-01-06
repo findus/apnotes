@@ -6,19 +6,18 @@ extern crate itertools;
 extern crate ctor;
 
 use self::itertools::Itertools;
-use note::{HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData};
+Imuse note::{HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData, MergeableNoteBody};
 use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
 
-use sync::UpdateAction::AddLocally;
+use sync::UpdateAction::{AddLocally, UpdateRemotely};
 
 
 
 use imap::Session;
 use native_tls::TlsStream;
 use std::net::TcpStream;
-use diesel::SqliteConnection;
 use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
@@ -49,7 +48,7 @@ pub enum UpdateAction<'a> {
     /// Apply to all notes that:
     ///     have their "locally_edited" flag set
     ///     their "old_remote_id" value equals the remotes message-id
-    UpdateRemotely(String),
+    UpdateRemotely(&'a LocalNote),
     /// Apply to all notes that:
     ///     have their locally_edited flag set to false
     ///     remotes message-id != the locals message-id
@@ -111,7 +110,7 @@ fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
 
     let uuids: Vec<&String> = remote_uuids.difference(&local_uuids).collect();
 
-    let actions = remote_note_headers
+    let actions: Vec<UpdateAction> = remote_note_headers
         .iter()
         .filter(|remote_header_collection|
             uuids.contains(&&remote_header_collection.uuid()))
@@ -119,17 +118,17 @@ fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
                  UpdateAction::AddLocally(new_note )
         )
         .collect();
-    info!("Found {} Notes that are going to be added locally", &local_flagged_notes.len());
+    info!("Found {} Notes that are going to be added locally", &actions.len());
     actions
 }
 
 fn get_add_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
                                 local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
-    let actions = local_notes.iter()
+    let actions: Vec<UpdateAction> = local_notes.iter()
         .filter(|note| note.metadata.new == true)
         .map(|note| UpdateAction::AddRemotely(note))
         .collect();
-    info!("Found {} Notes that are going to be added remotely", &local_flagged_notes.len());
+    info!("Found {} Notes that are going to be added remotely", &actions.len());
     actions
 }
 
@@ -137,7 +136,35 @@ fn get_update_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHea
                                    local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
 
     // oldest_remote_uuid.is_some() && oldest_remote_uuid.clone().unwrap() == remote_uuid
-    info!("Found {} Notes that are going to be updated remotely", &local_flagged_notes.len());
+
+    fn needs_update(note: &LocalNote, remote_note_headers: &GroupedRemoteNoteHeaders) -> bool {
+       // TODO maybe impl sanity check if iterator only houses 1 item, it should only exist one item per uuid
+        let mut note_iterator = remote_note_headers
+            .iter()
+            .filter(|header|
+                header.needs_merge() == false && header.uuid() == note.metadata.uuid
+            );
+
+        match note_iterator.next() {
+            Some(remote_note) => {
+                note.body[0].old_remote_message_id == remote_note.get_message_id()
+                && remote_note.get_message_id().is_some()
+            },
+            None => false
+        }
+    }
+
+    let filtered: Vec<_> = local_notes
+        .iter()
+        .filter(|note| note.needs_merge() == false)
+        .filter(|note| needs_update(note, remote_note_headers))
+        .map(|note| UpdateRemotely(note))
+        .collect();
+
+    info!("Found {} Notes that are going to be updated remotely", &filtered.len());
+
+    filtered
+
 }
 
 
@@ -154,9 +181,13 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         get_added_note_actions(&remote_note_headers, &local_notes);
     let mut add_remotely_actions = get_add_remotely_actions(&remote_note_headers, &local_notes);
 
+    let mut update_remotely_actions = get_update_remotely_actions(&remote_note_headers, &local_notes);
+
     concated_actions.append(&mut delete_actions);
     concated_actions.append(&mut add_actions);
     concated_actions.append(&mut add_remotely_actions);
+    concated_actions.append(&mut update_remotely_actions);
+
     concated_actions
 
      /*
@@ -264,7 +295,6 @@ where C: 'static + DBConnector, T: 'static
                         let body = localnote.body.first().unwrap();
                         let note = note!(
                             NotesMetadata {
-                                old_remote_id: localnote.metadata.old_remote_id.clone(),
                                 subfolder: localnote.metadata.subfolder.clone(),
                                 locally_deleted: localnote.metadata.locally_deleted,
                                 locally_edited: localnote.metadata.locally_edited,
@@ -274,6 +304,7 @@ where C: 'static + DBConnector, T: 'static
                                 mime_version: localnote.metadata.mime_version.clone()
                             },
                             Body {
+                                old_remote_message_id: body.old_remote_message_id.clone(),
                                 message_id: body.message_id.clone(),
                                 text: body.text.clone(),
                                 uid: Some(uid as i64),
@@ -318,6 +349,7 @@ where T: 'static
         match result {
             Ok(body) => {
                 Some(Body {
+                    old_remote_message_id: None,
                     message_id: remote_metadata.headers.message_id(),
                     text: Some(convert2md(&body)),
                     uid: Some(remote_metadata.uid),
@@ -369,10 +401,52 @@ mod sync_tests {
         simple_logger::init_with_level(Level::Debug).unwrap();
     }
 
+    /// tests if locally updated note gets properly detected
     #[test]
-    pub fn add_locally_not_merged() {
+    pub fn update_remotely_test() {
+
+        let note_to_be_update = NotesMetadataBuilder::new().build();
+        let mut body_to_get_updated = BodyMetadataBuilder::new()
+            .with_message_id("1")
+            .build();
+
+        let remote_note = note![
+            note_to_be_update.clone(),
+            body_to_get_updated.clone()
+        ];
+
+        let remote_header = set![vec![remote_note.to_remote_metadata()]];
+
+        body_to_get_updated.old_remote_message_id = Some("1".to_string());
+        body_to_get_updated.message_id = "2".to_string();
+
+        let local_note = note![
+            note_to_be_update.clone(),
+            body_to_get_updated.clone()
+        ];
+
+        let noteset = set![
+        local_note,
+        note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+        ]
+    ];
+        let update = get_update_remotely_actions(&remote_header,  &noteset);
+
+        assert_eq!(update.len(), 1);
+
+        match update.first().unwrap() {
+            UpdateAction::UpdateRemotely(localnote) => {
+                assert_eq!(localnote.metadata.uuid(), note_to_be_update.uuid)
+            }
+            _ => {
+                panic!("Wrong Action provided")
+            }
+        }
 
     }
+
 
     #[test]
     pub fn sync_test() {

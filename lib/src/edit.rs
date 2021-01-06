@@ -63,6 +63,7 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> R
             // note: bodymetadatabuilder generates a new message-id here
                   local_note.metadata.clone(),
                   BodyMetadataBuilder::new()
+                  .with_old_remote_message_id(&note.message_id)
                   .with_text(&file_content)
                   .build()
             )

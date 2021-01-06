@@ -110,7 +110,10 @@ fn edit_passed_note(sub_matches: &ArgMatches) {
             }
         }
     };
-    apple_notes_rs_lib::edit::edit_note(&note, false);
+    apple_notes_rs_lib::edit::edit_note(&note, false)
+        .and_then(|note| db.update(&note)
+            .map_err(|e| NoteError::InsertionError(e.to_string()))
+            );
 }
 
 fn is_uuid(string: &str) -> bool {
