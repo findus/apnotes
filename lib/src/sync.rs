@@ -271,50 +271,14 @@ where C: 'static + DBConnector, T: 'static
             UpdateAction::DeleteLocally(_) => {
                 unimplemented!();
             }
-            UpdateAction::UpdateRemotely(_) => {
-                unimplemented!();
-            }
             UpdateAction::UpdateLocally(_) => {
                 unimplemented!();
             }
             UpdateAction::Merge(_) => {
                 unimplemented!();
             }
-            UpdateAction::AddRemotely(localnote) => {
-                info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
-                let metadata = &localnote.metadata;
-                imap_connection.create_mailbox(metadata)
-                    .map_err(|e| SyncError(e.to_string()))
-                    .and_then(|_
-                    | imap_connection.select(&metadata.subfolder)
-                        .map_err(|e| SyncError(e.to_string())))
-                    .and_then(|_| imap_connection.update_message(localnote)
-                        .map_err(|e| UpdateError::SyncError(e.to_string()))
-                    )
-                    .and_then(|uid| {
-                        let body = localnote.body.first().unwrap();
-                        let note = note!(
-                            NotesMetadata {
-                                subfolder: localnote.metadata.subfolder.clone(),
-                                locally_deleted: localnote.metadata.locally_deleted,
-                                locally_edited: localnote.metadata.locally_edited,
-                                new: false,
-                                date: localnote.metadata.date.clone(),
-                                uuid:localnote.metadata.uuid.clone(),
-                                mime_version: localnote.metadata.mime_version.clone()
-                            },
-                            Body {
-                                old_remote_message_id: body.old_remote_message_id.clone(),
-                                message_id: body.message_id.clone(),
-                                text: body.text.clone(),
-                                uid: Some(uid as i64),
-                                metadata_uuid: body.metadata_uuid.clone()
-                            }
-                        );
-                        db_connection.update(&note)
-                            .map_err(|e| UpdateError::SyncError(e.to_string()))
-                    })
-
+            UpdateAction::AddRemotely(localnote) | UpdateAction::UpdateRemotely(localnote) => {
+                update_message_remotely(imap_connection, db_connection, &localnote)
             }
             AddLocally(noteheaders) => {
                 match localnote_from_remote_header(imap_connection, noteheaders) {
@@ -332,6 +296,43 @@ where C: 'static + DBConnector, T: 'static
             }
         }
     }).collect()
+}
+
+fn update_message_remotely<'a,T,C>(imap_connection: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>, localnote: &LocalNote) -> Result<(), UpdateError>
+    where C: 'static + DBConnector, T: 'static
+{
+    info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
+    let metadata = &localnote.metadata;
+    imap_connection.create_mailbox(metadata)
+        .map_err(|e| SyncError(e.to_string()))
+        .and_then(|_| imap_connection.select(&metadata.subfolder)
+            .map_err(|e| SyncError(e.to_string())))
+        .and_then(|_| imap_connection.update_message(localnote)
+            .map_err(|e| UpdateError::SyncError(e.to_string()))
+        )
+        .and_then(|uid| {
+            let body = localnote.body.first().unwrap();
+            let note = note!(
+                            NotesMetadata {
+                                subfolder: localnote.metadata.subfolder.clone(),
+                                locally_deleted: localnote.metadata.locally_deleted,
+                                locally_edited: localnote.metadata.locally_edited,
+                                new: false,
+                                date: localnote.metadata.date.clone(),
+                                uuid:localnote.metadata.uuid.clone(),
+                                mime_version: localnote.metadata.mime_version.clone()
+                            },
+                            Body {
+                                old_remote_message_id: None,
+                                message_id: body.message_id.clone(),
+                                text: body.text.clone(),
+                                uid: Some(uid as i64),
+                                metadata_uuid: body.metadata_uuid.clone()
+                            }
+                        );
+            db_connection.update(&note)
+                .map_err(|e| UpdateError::SyncError(e.to_string()))
+        })
 }
 
 fn localnote_from_remote_header<T>(imap_connection: &mut MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
