@@ -6,7 +6,7 @@ extern crate itertools;
 extern crate ctor;
 
 use self::itertools::Itertools;
-Imuse note::{HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData, MergeableNoteBody};
+use note::{HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData, MergeableNoteBody};
 use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
@@ -445,6 +445,43 @@ mod sync_tests {
             }
         }
 
+    }
+
+    /// tests if locally and remotely update notes are not getting flagged as updated
+    /// remotely
+    #[test]
+    pub fn update_remotely_test_also_changed_remotely() {
+
+        let note_to_be_update = NotesMetadataBuilder::new().build();
+        let mut body_to_get_updated = BodyMetadataBuilder::new()
+            .with_message_id("3")
+            .build();
+
+        let remote_note = note![
+            note_to_be_update.clone(),
+            body_to_get_updated.clone()
+        ];
+
+        let remote_header = set![vec![remote_note.to_remote_metadata()]];
+
+        body_to_get_updated.old_remote_message_id = Some("1".to_string());
+        body_to_get_updated.message_id = "2".to_string();
+
+        let local_note = note![
+            note_to_be_update.clone(),
+            body_to_get_updated.clone()
+        ];
+
+        let noteset = set![
+        local_note,
+        note![
+            NotesMetadataBuilder::new().build(),
+            BodyMetadataBuilder::new().build()
+        ]
+    ];
+        let update = get_update_remotely_actions(&remote_header,  &noteset);
+
+        assert_eq!(update.len(), 0);
     }
 
 
