@@ -51,12 +51,11 @@ fn main() {
         )
         .about("Interface for interacting with Apple Notes on Linux")
         .subcommand(App::new("edit")
-            //TODO handling of duplicate note names
             .about("Edits an existing note")
-            .arg(Arg::with_name("edit")
+            .arg(Arg::with_name("path")
                 .required(true)
                 .takes_value(true)
-                .help("uuid or name of the note that you want to edit")
+                .help("Path to note that should be edited")
             )
         )
         .subcommand(App::new("sync")
@@ -93,7 +92,7 @@ fn main() {
 }
 
 fn edit_passed_note(sub_matches: &ArgMatches) {
-    let uuid_or_name = sub_matches.value_of("name").unwrap().to_string();
+    let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
     let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
     let note = match is_uuid(&uuid_or_name) {
         true => {
@@ -104,7 +103,11 @@ fn edit_passed_note(sub_matches: &ArgMatches) {
             }
         }
         false => {
-            unimplemented!();
+            match db.fetch_single_note_with_name(&uuid_or_name){
+                Ok(Some(note)) => note,
+                Ok(None) => panic!("Note does not exist"),
+                Err(e) => panic!(e.to_string())
+            }
         }
     };
     apple_notes_rs_lib::edit::edit_note(&note, false);
