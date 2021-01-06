@@ -36,11 +36,14 @@ pub trait DatabaseService<C: 'static + DBConnector> {
     fn append_note(&self, model: &::model::Body) -> Result<(), Error>;
     fn update_merged_note(&self, note_body: &Body) -> Result<(), Error>;
     fn delete(&self, local_note: &LocalNote) -> Result<(), Error>;
+    fn delete_body(&self, note_body: &Body) -> Result<(), Error>;
     fn update(&self, local_note: &LocalNote) -> Result<(), Error>;
     fn insert_into_db(&self,note: &LocalNote) -> Result<(), Error>;
     fn fetch_all_notes(&self) -> Result<HashSet<LocalNote>,Error>;
     fn fetch_single_note_with_name(&self, name: &str) -> Result<Option<LocalNote>, Error>;
     fn fetch_single_note(&self, id: &str) -> Result<Option<LocalNote>, Error>;
+    fn has_orphan_metadata(&self, id: &str) -> Result<bool, Error>;
+    fn delete_metadata(&self, uuid: &str) -> Result<(), Error>;
 }
 
 pub struct SqLiteConnector {
@@ -123,6 +126,17 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         })
     }
 
+    fn delete_metadata(&self, uuid: &str) -> Result<(), Error> {
+        self.connection.transaction::<_, Error, _>(|| {
+
+            diesel::delete(schema::metadata::dsl::metadata)
+                .filter(schema::metadata::dsl::uuid.eq(uuid))
+                .execute(&self.connection)?;
+
+            Ok(())
+        })
+    }
+
     fn delete(&self, local_note: &LocalNote) -> Result<(), Error> {
         self.connection.transaction::<_, Error, _>(|| {
 
@@ -133,6 +147,24 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
             diesel::delete(schema::body::dsl::body)
                 .filter(schema::body::dsl::metadata_uuid.eq(&local_note.metadata.uuid))
                 .execute(&self.connection)?;
+
+            Ok(())
+        })
+    }
+
+    fn delete_body(&self, note_body: &Body) -> Result<(), Error> {
+        self.connection.transaction::<_, Error, _>(|| {
+
+            diesel::delete(schema::body::dsl::body)
+                .filter(schema::body::dsl::message_id.eq(&note_body.message_id))
+                .execute(&self.connection)?;
+
+            let uuid = note_body.metadata_uuid.clone();
+
+            // if parent localnote object has no childs any more delete it
+            if self.has_orphan_metadata(&uuid)? {
+                self.delete_metadata(&uuid);
+            }
 
             Ok(())
         })
@@ -228,14 +260,28 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         let note_body = ::model::Body::belonging_to(&first_note)
             .load::<Body>(&self.connection)?;
 
-        assert!(&note_body.len() >= &1_usize);
-
         debug!("This note has {} subnotes ", note_body.len());
 
         Ok(Some(LocalNote {
             metadata: first_note,
             body: note_body
         }))
+    }
+
+    fn has_orphan_metadata(&self, id: &str) -> Result<bool, Error> {
+        let first_note = metadata
+            .filter(schema::metadata::dsl::uuid.eq(&id))
+            .load::<NotesMetadata>(&self.connection)?;
+
+        let first_note = first_note.first();
+
+        if let Some(first_note) = first_note {
+            let d = ::model::Body::belonging_to(first_note)
+                .load::<Body>(&self.connection)?.len() == 0;
+            return Ok(d);
+        } else {
+            return Ok(false);
+        }
     }
 }
 
@@ -253,7 +299,36 @@ mod db_tests {
     use std::net::TcpStream;
     use error::UpdateError;
 
+    //complete note should be gone because of only one body child
     #[test]
+    fn delete_body_test() {
+
+        let note_body = BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build();
+
+        let note = note![
+            NotesMetadataBuilder::new().build(),
+            note_body.clone()
+        ];
+
+        let note_body = note.body[0].clone();
+
+        let db_connection = ::db::SqliteDBConnection::new();
+
+        db_connection.delete_everything().unwrap();
+        db_connection.insert_into_db(&note).unwrap();
+
+        match db_connection.delete_body(&note_body) {
+            Ok(()) => {
+                let new_note = db_connection
+                    .fetch_single_note(&note.metadata.uuid).unwrap();
+
+                assert_eq!(new_note,None);
+            }
+            _ => { panic!("Failed") }
+        }
+    }
+
+    #[test]K
     pub fn mock_test() {
         let mut mock_db_service = MockDatabaseService::<SqliteDBConnection>::new();
 

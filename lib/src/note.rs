@@ -66,6 +66,10 @@ impl MergeableNoteBody for LocalNote {
             return Some(self.body[0].message_id.clone());
         }
     }
+
+    fn all_message_ids(&self) -> Vec<String> {
+        self.body.iter().map(|b| b.message_id.clone()).collect()
+    }
 }
 
 impl IdentifyableNote for LocalNote {
@@ -100,6 +104,12 @@ impl MergeableNoteBody for RemoteNoteHeaderCollection {
                     .headers.message_id())
             }
         }
+    }
+
+    fn all_message_ids(&self) -> Vec<String> {
+        self.iter()
+            .map(|n| n.headers.message_id())
+            .collect()
     }
 }
 
@@ -246,6 +256,7 @@ pub trait IdentifyableNote {
 pub trait MergeableNoteBody {
     fn needs_merge(&self) -> bool;
     fn get_message_id(&self) -> Option<String>;
+    fn all_message_ids(&self) -> Vec<String>;
 }
 
 impl IdentifyableNote for NotesMetadata {

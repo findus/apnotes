@@ -44,7 +44,7 @@ pub enum UpdateAction<'a> {
     /// Apply to all notes that
     ///     are not getting transmitted anymore and dont have the
     ///     "new" flag inside the db
-    DeleteLocally(String),
+    DeleteLocally(&'a Body),
     /// Apply to all notes that:
     ///     have their "locally_edited" flag set
     ///     their "old_remote_id" value equals the remotes message-id
@@ -97,6 +97,36 @@ fn get_deleted_note_actions<'a>(_remote_note_headers: Option<&GroupedRemoteNoteH
         .collect();
     info!("Found {} Notes that are going to be deleted remotely", &local_flagged_notes.len());
     local_flagged_notes
+}
+
+fn get_remotely_deleted_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
+                              local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
+    let remote_message_ids: HashSet<String> = remote_note_headers
+        .iter()
+        .map(|e| e.all_message_ids())
+        .flatten()
+        .collect();
+
+    let local_message_ids: HashSet<String> = local_notes.iter()
+        .map(|e| e.all_message_ids())
+        .flatten()
+        .collect();
+
+    let message_ids_to_delete_locally: Vec<&String> =
+        remote_message_ids.difference(&local_message_ids).collect();
+
+    let bodies: Vec<&Body> = local_notes.iter().map(|n| &n.body).flatten().collect();
+
+    let actions: Vec<UpdateAction> = bodies
+        .into_iter()
+        .filter(|body| message_ids_to_delete_locally.contains(&&body.message_id))
+        .map(|to_delete|
+            UpdateAction::DeleteLocally(&to_delete)
+        )
+        .collect();
+
+    info!("Found {} Note Bodies that are going to be deleted locally", &actions.len());
+    actions
 }
 
 fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
@@ -179,14 +209,18 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         get_deleted_note_actions(Some(&remote_note_headers), &local_notes);
     let mut add_actions =
         get_added_note_actions(&remote_note_headers, &local_notes);
-    let mut add_remotely_actions = get_add_remotely_actions(&remote_note_headers, &local_notes);
-
-    let mut update_remotely_actions = get_update_remotely_actions(&remote_note_headers, &local_notes);
+    let mut add_remotely_actions =
+        get_add_remotely_actions(&remote_note_headers, &local_notes);
+    let mut update_remotely_actions =
+        get_update_remotely_actions(&remote_note_headers, &local_notes);
+    let mut remotely_deleted_actions =
+        get_remotely_deleted_note_actions(&remote_note_headers, &local_notes);
 
     concated_actions.append(&mut delete_actions);
     concated_actions.append(&mut add_actions);
     concated_actions.append(&mut add_remotely_actions);
     concated_actions.append(&mut update_remotely_actions);
+    concated_actions.append(&mut remotely_deleted_actions);
 
     concated_actions
 
@@ -268,8 +302,12 @@ where C: 'static + DBConnector, T: 'static
             UpdateAction::DeleteRemote(_note) => {
                 unimplemented!();
             }
-            UpdateAction::DeleteLocally(_) => {
-                unimplemented!();
+            UpdateAction::DeleteLocally(b) => {
+                //TODO what happens if remote umerged note gets deleted only delete this body
+                // what happens if to be deleted note with message-id:x has merged un-updated
+                //content on local side
+                db_connection.delete_body(b).map_err(|e| UpdateError::IoError("Could not delete".to_string()))
+             //   unimplemented!();
             }
             UpdateAction::UpdateLocally(_) => {
                 unimplemented!();
@@ -400,6 +438,12 @@ mod sync_tests {
     fn init() {
         dotenv::dotenv().ok();
         simple_logger::init_with_level(Level::Debug).unwrap();
+    }
+
+    /// tests : Standard, note with 2 bodies, check if parent note gets deleted if only 1 body
+    #[test]
+    pub fn delete_local_body_test() {
+
     }
 
     /// tests if locally updated note gets properly detected
