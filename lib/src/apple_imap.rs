@@ -63,12 +63,24 @@ impl ImapSession<Session<TlsStream<TcpStream>>> for TlsImapSession {
 
 #[cfg_attr(test, automock)]
 pub trait MailService<T: 'static> {
-    fn fetch_mails(&self) -> Vec<LocalNote>;
+    /// Iterates through all Note-Imap folders and fetches the mail header content plus
+    /// the folder name.
+    ///
+    /// The generated dataset can be used to check for duplicated notes that needs
+    /// to be merged
     fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection,Error>;
+    /// Creates a new Subfolder for storing notes
     fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error>;
+    /// Fetches the actual content from a note
     fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String, Error>;
+    /// Exposes the active imap connection
     fn get_session(&self) -> T;
+    /// Updates a local message, either if it got updated or if it is a new localnote
+    /// This App should only support "merged" notes, notes that only have one body.
+    ///
+    /// If the passed localnote has >1 bodies it will reject it.
     fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error>;
+    /// Selects a specific subfolder
     fn select(&mut self, folder: &str) -> Result<Mailbox, Error>;
 }
 
@@ -82,58 +94,6 @@ impl MailServiceImpl {
             session: TlsImapSession {
                 session: TlsImapSession::login()
             }
-        }
-    }
-
-    pub fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String,Error> {
-
-        if let Some(result) = self.session.session.select(&subfolder).err() {
-            warn!("Could not select folder {} [{}]", &subfolder, result)
-        }
-
-        let messages_result = self.session.session.uid_fetch(uid.to_string(), "(RFC822 UID)");
-        match messages_result {
-            Ok(message) => {
-                debug!("Message Loading for message with UID {} successful", uid);
-                let first_message = message.first().expect("Expected message");
-                Ok(self.get_body(first_message).expect("Expected note body, found none"))
-            },
-            Err(error) => {
-                warn!("Could not load notes from {}! {}", &subfolder, error);
-                Err(error)
-            }
-        }
-    }
-
-    /// Iterate thorugh all Note-Imap folders and fetches the mail header content plus
-    /// the folder name.
-    ///
-    /// The generated dataset can be used to check for duplicated notes that needs
-    /// to be mergedK
-    pub fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection,Error> {
-        info!("Fetching Headers of Remote Notes...");
-        let folders = self.list_note_folders()?;
-        let headers = folders.iter().map(|folder_name| {
-            self.fetch_headers_in_folder( folder_name.to_string())
-        })
-            .flatten()
-            .collect();
-        Ok(headers)
-    }
-
-    pub fn create_folder(&mut self, mailbox: &str) {
-        match self.session.session.create(&mailbox) {
-            Err(e) => warn!("warn {}", e),
-            _ => {}
-        };
-    }
-
-    pub fn copy_uid(&mut self, id: &str, mailbox: &str) {
-
-        if let Some(error) = self.session.session.select(mailbox).and_then( |_| {
-            self.session.session.uid_copy(id, &mailbox)
-        }).err() {
-            warn!("warn {}", error)
         }
     }
 
@@ -230,15 +190,7 @@ impl MailServiceImpl {
 
 
 impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
-    fn fetch_mails(&self) -> Vec<LocalNote> {
-        unimplemented!()
-    }
 
-    /// Iterate thorugh all Note-Imap folders and fetches the mail header content plus
-    /// the folder name.
-    ///
-    /// The generated dataset can be used to check for duplicated notes that needs
-    /// to be merged
     fn fetch_headers(&mut self) -> Result<Vec<RemoteNoteMetaData>,Error> {
         info!("Fetching Headers of Remote Notes...");
         let folders = self.list_note_folders()?;
@@ -277,10 +229,6 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
         unimplemented!()
     }
 
-    /// Updates a local message, either if it got updated or if it is a new localnote
-    /// This App should only support "merged" notes, notes that only have one body.
-    ///
-    /// If the passed localnote has >1 bodies it will reject it.
     fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error> {
         //Todo check >1
 
