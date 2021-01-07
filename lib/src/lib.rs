@@ -17,7 +17,7 @@ extern crate mockall;
 extern crate colored;
 
 use note::LocalNote;
-use diesel::SqliteConnection;
+
 use db::{DatabaseService, DBConnector};
 
 #[macro_use]
@@ -45,7 +45,7 @@ pub mod builder;
     //save_all_notes_to_file(&notes);
 }*/
 
-pub fn create_new_note<C>(db_connection: &DatabaseService<C>, with_subject: String, folder: String)
+pub fn create_new_note<C>(db_connection: &dyn DatabaseService<C>, with_subject: String, folder: String)
     -> Result<LocalNote,::error::NoteError> where C: 'static + DBConnector
 {
 

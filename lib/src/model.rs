@@ -2,8 +2,9 @@ use note::{NoteHeaders, HeaderParser, RemoteNoteMetaData};
 use ::{util, profile};
 use schema::metadata;
 use schema::body;
+#[cfg(test)]
 use note::LocalNote;
-use std::str::Lines;
+
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
 #[table_name="metadata"]
@@ -134,4 +135,5 @@ impl Body {
             return false
         }
     }
+
 }

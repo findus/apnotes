@@ -23,7 +23,7 @@ use std::collections::hash_map::RandomState;
 #[cfg(test)]
 extern crate mockall;
 #[cfg(test)]
-use mockall::{automock, mock, predicate::*};
+use mockall::{automock, predicate::*};
 use schema::metadata::columns::subfolder;
 
 pub trait DBConnector {
@@ -163,7 +163,7 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
 
             // if parent localnote object has no childs any more delete it
             if self.has_orphan_metadata(&uuid)? {
-                self.delete_metadata(&uuid);
+                self.delete_metadata(&uuid)?;
             }
 
             Ok(())
@@ -197,7 +197,7 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
 
     fn fetch_all_notes(&self) -> Result<HashSet<LocalNote, RandomState>, Error> {
         let notes: Vec<NotesMetadata> = metadata
-            .order((subfolder.asc()))
+            .order(subfolder.asc())
             .load::<NotesMetadata>(&self.connection)?;
 
         let note_bodies: Vec<Body> = ::model::Body::belonging_to(&notes)
@@ -292,12 +292,9 @@ mod db_tests {
     use builder::*;
     use ::model::Body;
     use super::*;
-    use mockall::predicate::*;
-    use apple_imap::{ImapSession, TlsImapSession, MailServiceImpl, MailService};
     use imap::Session;
     use native_tls::TlsStream;
     use std::net::TcpStream;
-    use error::UpdateError;
 
     //complete note should be gone because of only one body child
     #[test]

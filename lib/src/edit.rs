@@ -15,8 +15,8 @@ use ::model::Body;
 
 use builder::{BodyMetadataBuilder};
 use self::regex::*;
-use diesel::SqliteConnection;
-use converter::{convert_to_html, convert_to_html_str};
+
+
 
 /// Edits the passed note and alters the metadata if successful
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {

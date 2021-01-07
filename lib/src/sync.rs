@@ -15,14 +15,14 @@ use sync::UpdateAction::{AddLocally, UpdateRemotely};
 
 
 
-use imap::Session;
-use native_tls::TlsStream;
-use std::net::TcpStream;
+
+
+
 use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
-use error;
-use apple_imap::{MailService, ImapSession};
+
+use apple_imap::{MailService};
 use db::{DBConnector, DatabaseService};
 use converter::convert2md;
 
@@ -152,7 +152,7 @@ fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
     actions
 }
 
-fn get_add_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
+fn get_add_remotely_actions<'a>(_remote_note_headers: &'a GroupedRemoteNoteHeaders,
                                 local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
     let actions: Vec<UpdateAction> = local_notes.iter()
         .filter(|note| note.metadata.new == true)
@@ -261,7 +261,7 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
     });*/
 }
 
-pub fn sync<T,C>(imap_session: &mut MailService<T>, db_connection: &DatabaseService<C>) -> Result<(), ::error::UpdateError>
+pub fn sync<T,C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>) -> Result<(), ::error::UpdateError>
     where C: 'static + DBConnector, T: 'static
 {
     let headers = imap_session.fetch_headers().map_err(|e| SyncError(e.to_string()))?;
@@ -290,8 +290,8 @@ pub fn sync<T,C>(imap_session: &mut MailService<T>, db_connection: &DatabaseServ
 }
 
 pub fn process_actions<'a,T,C>(
-    imap_connection: &mut MailService<T>,
-    db_connection: &DatabaseService<C>,
+    imap_connection: &mut dyn MailService<T>,
+    db_connection: &dyn DatabaseService<C>,
     actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(),UpdateError>>
 where C: 'static + DBConnector, T: 'static
 {
@@ -306,7 +306,7 @@ where C: 'static + DBConnector, T: 'static
                 //TODO what happens if remote umerged note gets deleted only delete this body
                 // what happens if to be deleted note with message-id:x has merged un-updated
                 //content on local side
-                db_connection.delete_body(b).map_err(|e| UpdateError::IoError("Could not delete".to_string()))
+                db_connection.delete_body(b).map_err(|_e| UpdateError::IoError("Could not delete".to_string()))
              //   unimplemented!();
             }
             UpdateAction::UpdateLocally(_) => {
@@ -326,8 +326,7 @@ where C: 'static + DBConnector, T: 'static
                             .map_err(|e| UpdateError::IoError(e.to_string()))
                     }
                     Err(e) => { Err(e) }
-                };
-                Ok(())
+                }.map(|_| ())
             }
             UpdateAction::DoNothing => {
                 unimplemented!();
@@ -373,7 +372,7 @@ fn update_message_remotely<'a,T,C>(imap_connection: &mut dyn MailService<T>, db_
         })
 }
 
-fn localnote_from_remote_header<T>(imap_connection: &mut MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
+fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
 where T: 'static
 {
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
@@ -536,7 +535,7 @@ mod sync_tests {
         let db_connection = ::db::SqliteDBConnection::new();
 
         // ::db::delete_everything(&db_connection);
-        sync(&mut imap_service, &db_connection);
+        sync(&mut imap_service, &db_connection).unwrap();
     }
 
     /// Tests if metadata with multiple bodies is getting properly grouped

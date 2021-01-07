@@ -2,10 +2,10 @@ extern crate mailparse;
 extern crate html2runes;
 extern crate log;
 
-use std::hash::{Hasher, Hash};
+use std::hash::{Hasher};
 use model::{NotesMetadata, Body};
 use std::collections::HashSet;
-use builder::{HeaderBuilder, NotesMetadataBuilder};
+use builder::{HeaderBuilder};
 use profile;
 
 #[derive(Eq,Clone,Debug)]

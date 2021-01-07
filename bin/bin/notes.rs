@@ -164,7 +164,7 @@ fn list_notes(sub_matches: &ArgMatches) {
 
             });
         },
-        Err(e) => {
+        Err(_e) => {
             println!("Something went wrong, check loggos")
         }
     };
