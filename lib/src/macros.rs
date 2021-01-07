@@ -22,6 +22,7 @@ macro_rules! note {
     };
 }
 
+#[cfg(test)]
 macro_rules! set {
     ( $( $x:expr ),* ) => {  // Match zero or more comma delimited items
         {

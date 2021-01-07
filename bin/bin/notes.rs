@@ -83,15 +83,15 @@ fn main() {
 
     let _res = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(_sub_matches)) => sync_notes(),
+        ("sync", Some(_sub_matches)) => sync_notes().unwrap(),
         ("list", Some(sub_matches)) => list_notes(sub_matches),
-        ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
+        ("edit", Some(sub_matches)) => edit_passed_note(sub_matches).unwrap(),
         (_, _) => unreachable!(),
     };
 
 }
 
-fn edit_passed_note(sub_matches: &ArgMatches) {
+fn edit_passed_note(sub_matches: &ArgMatches) -> Result<(), NoteError> {
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
     let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
     let note = match is_uuid(&uuid_or_name) {
@@ -113,7 +113,7 @@ fn edit_passed_note(sub_matches: &ArgMatches) {
     apple_notes_rs_lib::edit::edit_note(&note, false)
         .and_then(|note| db.update(&note)
             .map_err(|e| NoteError::InsertionError(e.to_string()))
-            );
+            )
 }
 
 fn is_uuid(string: &str) -> bool {
@@ -122,10 +122,10 @@ fn is_uuid(string: &str) -> bool {
     uuid_regex.is_match(string)
 }
 
-fn sync_notes() {
+fn sync_notes() -> Result<(),::apple_notes_rs_lib::error::UpdateError> {
     let mut imap_service = ::apple_notes_rs_lib::apple_imap::MailServiceImpl::new_with_login();
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
-    sync(&mut imap_service, &db_connection);
+    sync(&mut imap_service, &db_connection)
 }
 
 fn list_notes(sub_matches: &ArgMatches) {

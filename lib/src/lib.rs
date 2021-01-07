@@ -21,7 +21,7 @@ use note::LocalNote;
 use db::{DatabaseService, DBConnector};
 
 #[macro_use]
-pub mod macros;
+mod macros;
 pub mod apple_imap;
 pub mod note;
 pub mod converter;
@@ -29,7 +29,7 @@ pub mod profile;
 pub mod sync;
 pub mod io;
 #[macro_use]
-pub mod util;
+mod util;
 pub mod error;
 pub mod edit;
 pub mod db;

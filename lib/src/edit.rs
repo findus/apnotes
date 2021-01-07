@@ -6,17 +6,10 @@ extern crate uuid;
 use note::LocalNote;
 use error::NoteError;
 use error::NoteError::{EditError, ContentNotChanged};
-
 use self::log::*;
 use std::io::{Write};
-
-
 use ::model::Body;
-
 use builder::{BodyMetadataBuilder};
-use self::regex::*;
-
-
 
 /// Edits the passed note and alters the metadata if successful
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
@@ -70,13 +63,6 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> R
             )
         )
     }
-}
-
-fn replace_uuid(string: &str) -> String {
-    let uuid_regex = Regex::new(r"(.*<)\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b(.*)").unwrap();
-    let new_uuid = uuid::Uuid::new_v4().to_string().to_uppercase();
-    let dd = format!("${{1}}{}${{2}}",new_uuid);
-    uuid_regex.replace(string, dd.as_str()).to_string()
 }
 
 #[cfg(test)]
