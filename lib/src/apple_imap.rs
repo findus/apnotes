@@ -97,7 +97,6 @@ impl MailServiceImpl {
         }
     }
 
-
     pub fn fetch_headers_in_folder(&mut self, folder_name: String) -> Vec<RemoteNoteMetaData> {
         if let Some(result) = self.session.session.select(&folder_name).err() {
             warn!("Could not select folder {} [{}]", &folder_name, result)
@@ -186,9 +185,6 @@ impl MailServiceImpl {
     }
 }
 
-
-
-
 impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
 
     fn fetch_headers(&mut self) -> Result<Vec<RemoteNoteMetaData>,Error> {
@@ -274,142 +270,3 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
         self.session.session.select(folder)
     }
 }
-
-
-/*
-pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<NotesMetadata> {
-    if let Some(result) = session.select(&metadata.subfolder).err() {
-        warn!("Could not select folder {} [{}]", &metadata.subfolder, result)
-    }
-
-    assert_eq!(&metadata.needs_merge(), &false);
-
-    let note = &metadata.notes
-        .first()
-        .expect(&format!("No notes available for {}", metadata.uuid.clone()));
-
-    let uid = &note.uid
-        .expect(&format!("Note does not have a UID {}", metadata.uuid.clone()))
-        .to_string();
-
-    let messages_result = session.uid_fetch(uid, "(RFC822 RFC822.HEADER UID)");
-    match messages_result {
-        Ok(message) => {
-            debug!("Message Loading for {} successful", &note.subject());
-
-            let first_message = message.first().unwrap();
-            let headers = get_headers(message.first().unwrap());
-
-            let body = Body {
-                message_id: headers.message_id(),
-                body: get_body(first_message).unwrap(),
-                uid: first_message.uid.map(|uid| uid as i64)
-            };
-
-            Some(
-                NotesMetadata::new(
-                    get_headers(message.first().unwrap()),
-                    metadata.subfolder.clone(),
-                    first_message.uid.unwrap(),
-                    Some(vec![body])
-                )
-            )
-
-        },
-        Err(error) => {
-            warn!("Could not load notes from {}! {}", &metadata.subfolder, error);
-            None
-        }
-    }
-}
-*/
-
-/*
-pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
-let folders = list_note_folders(session);
-info!("Loading remote messages");
-folders.iter().map(|folder_name| {
-    apple_imap::get_messages_from_foldersession(session, folder_name.to_string())
-})
-    .flatten()
-    .collect()
-}
-*/
-
-/*
-pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
-
-    if let Some(result) = session.select(&folder_name).err() {
-        warn!("Could not select folder {} [{}]", folder_name, result)
-    }
-    let messages_result = session.fetch("1:*", "(RFC822 RFC822.HEADER UID)");
-    let messages = match messages_result {
-        Ok(messages) => {
-            debug!("Message Loading for {} successful", &folder_name.to_string());
-            get_notes(messages, folder_name)
-        }
-        Err(error) => {
-            warn!("Could not load notes from {}! {}", &folder_name.to_string(), error);
-            Vec::new()
-        }
-    };
-    messages
-}
-*/
-
-
-/*
-pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<Fetch> {
-
-    let connection = crate::db::establish_connection();
-    fetch_vector.into_iter().map(|fetch| {
-        let headers = get_headers(&fetch);
-        let body = get_body(&fetch);
-
-       match crate::db::fetch_single_note(&connection,headers.identifier()) {
-           Ok(Some((metadata,notes))) =>  {
-               //Note aleady exists, append
-               debug!("Found note for fetched note, append to body table ({})", metadata.uuid);
-               let body = Body {
-                   message_id: headers.message_id(),
-                   text: body,
-                   uid: Some(fetch.uid.unwrap() as i64),
-                   metadata_uuid: metadata.uuid
-               };
-               crate::db::append_note(&connection,&body);
-           },
-           Ok(None) => {
-               crate::db::insert_into_db(&connection, (
-                   &NotesMetadata {
-                       old_remote_id: None,
-                       subfolder: folder_name.clone(),
-                       locally_deleted: false,
-                       new: false,
-                       date: headers.date(),
-                       uuid: headers.identifier(),
-                       mime_version: headers.mime_version()
-                   },
-                   &Body {
-                       message_id: headers.message_id(),
-                       text: body,
-                       uid: Some(fetch.uid.unwrap() as i64),
-                       metadata_uuid: headers.identifier()
-                   }
-                   ));
-           },
-           Err(e) => {
-               panic!("{}",e.to_string());
-           }
-       }
-
-        //TODO check if duplicate notes are present that needs to be merged
-        let body = Body {
-            message_id: "".to_string(),
-            uid: Some(fetch.uid.expect(&format!("No UID found for {}", headers.identifier())) as i64),
-            text: None,
-            metadata_uuid: "".to_string()
-        };
-        NotesMetadata::new(headers, folder_name.clone(), fetch.uid.unwrap(), Some(vec![body]))
-    }).collect()
-}
-*/

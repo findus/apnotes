@@ -327,8 +327,6 @@ mod db_tests {
             note_body.clone()
         ];
 
-        let note_body = note.body[0].clone();
-
         let db_connection = ::db::SqliteDBConnection::new();
 
         db_connection.delete_everything().unwrap();
@@ -336,9 +334,7 @@ mod db_tests {
 
         match db_connection.delete_metadata(&note.uuid()) {
             Ok(_) => { panic!("Should fail") }
-            Err(e) => {
-
-            }
+            _ => {}
         }
 
 
