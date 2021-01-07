@@ -141,7 +141,9 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
 
     fn update_merged_note(&self, note_body: &Body) -> Result<(), Error> {
         self.connection.transaction::<_,Error,_>(|| {
-            diesel::delete(schema::body::dsl::body.filter(metadata_uuid.eq(note_body.metadata_uuid.clone())))
+            diesel::delete(schema::body::dsl::body
+                .filter(metadata_uuid.eq(note_body.metadata_uuid.clone()))
+            )
                 .execute(&self.connection)?;
             self.append_note(note_body)?;
             Ok(())
@@ -216,7 +218,10 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
 
         let grouped = note_bodies.grouped_by(&notes);
 
-        let d = notes.into_iter().zip(grouped).map(|(m_data,bodies)| {
+        let d = notes
+            .into_iter()
+            .zip(grouped)
+            .map(|(m_data,bodies)| {
             LocalNote {
                 metadata: m_data,
                 body: bodies
@@ -237,11 +242,14 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         }
 
         let m_data: Vec<NotesMetadata> = metadata
-            .filter(schema::metadata::dsl::uuid.eq(&note_bodies.first().unwrap().metadata_uuid))
+            .filter(schema::metadata::dsl::uuid
+                .eq(&note_bodies.first().unwrap().metadata_uuid)
+            )
             .limit(1)
             .load::<NotesMetadata>(&self.connection)?;
 
-        let first_metadata = m_data.first().expect("Expected at least one metadata object");
+        let first_metadata = m_data.first()
+            .expect("Expected at least one metadata object");
 
         // Refetch note in case note has umerged notes with other subjects
         let note = self.fetch_single_note(&first_metadata.uuid)?;
@@ -320,7 +328,8 @@ mod db_tests {
     #[test]
     fn delete_fake_widow_note() {
 
-        let note_body = BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build();
+        let note_body = BodyMetadataBuilder::new()
+            .with_text("meem\nTestTestTest").build();
 
         let note = note![
             NotesMetadataBuilder::new().build(),
@@ -344,7 +353,8 @@ mod db_tests {
     #[test]
     fn delete_body_test_one_child() {
 
-        let note_body = BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build();
+        let note_body = BodyMetadataBuilder::new()
+            .with_text("meem\nTestTestTest").build();
 
         let note = note![
             NotesMetadataBuilder::new().build(),
@@ -373,7 +383,8 @@ mod db_tests {
     #[test]
     fn delete_body_test_two_child() {
 
-        let note_body = BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build();
+        let note_body = BodyMetadataBuilder::new()
+            .with_text("meem\nTestTestTest").build();
 
         let note = note![
             NotesMetadataBuilder::new().build(),
@@ -410,7 +421,11 @@ mod db_tests {
         mock_imap_service.expect_fetch_headers().returning(|| Err(imap::error::Error::Append) );
 
 
-        let err = ::sync::sync(&mut mock_imap_service, &mock_db_service).err();
+        let err = ::sync::sync(
+            &mut mock_imap_service,
+            &mock_db_service)
+            .err();
+
         assert_eq!(err,Some(::error::UpdateError::SyncError("oops".to_string())))
 
     }
@@ -420,7 +435,7 @@ mod db_tests {
         let note = note![
             NotesMetadataBuilder::new().build(),
             BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build()
-    ];
+        ];
 
         let db_connection = ::db::SqliteDBConnection::new();
 
@@ -491,8 +506,12 @@ mod db_tests {
             Ok(notes) => {
                 let body_in_first_note = note.body.first().unwrap();
 
-                // Check if the first note with only one body has correct body assigned to metadata object
-                let first_note: Vec<&LocalNote> = notes.iter().filter(|e| e.metadata.uuid == body_in_first_note.metadata_uuid).collect();
+                // Check if the first note with only one body has
+                // correct body assigned to metadata object
+                let first_note: Vec<&LocalNote> = notes.iter()
+                    .filter(|e| e.metadata.uuid == body_in_first_note.metadata_uuid)
+                    .collect();
+
                 assert_eq!(first_note.len(),1);
                 let first: &LocalNote = first_note.first().unwrap();
                 assert_eq!(first.body.len(), 1);
@@ -524,7 +543,10 @@ mod db_tests {
                     .filter(|e| e.metadata.uuid == second_body.metadata_uuid)
                     .collect();
                 assert_eq!(third_note.len(),1);
-                assert_eq!(body_in_first_note.is_inside_localnote(third_note.first().unwrap()), false);
+                assert_eq!(
+                    body_in_first_note.is_inside_localnote(third_note.first().unwrap()),
+                    false
+                );
 
             },
             _ => panic!("could not fetch notes")
@@ -539,8 +561,10 @@ mod db_tests {
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
 
-        let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(),
-                                                                "test".to_string()
+        let m_data: ::model::NotesMetadata =
+            NotesMetadata::new(
+                &HeaderBuilder::new().build(),
+                "test".to_string()
         );
 
         let note_body = Body::new(Some(0), m_data.uuid.clone());
@@ -598,8 +622,9 @@ mod db_tests {
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
 
-        let m_data: ::model::NotesMetadata = NotesMetadata::new(&::builder::HeaderBuilder::new().build(),
-                                                                "test".to_string()
+        let m_data: ::model::NotesMetadata =
+            NotesMetadata::new(&::builder::HeaderBuilder::new().build(),
+                               "test".to_string()
         );
 
         let note_body = Body::new(Some(0), m_data.uuid.clone());
@@ -654,7 +679,12 @@ mod db_tests {
         use builder::HeaderBuilder;
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
-        let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
+        let m_data: ::model::NotesMetadata =
+            NotesMetadata::new(
+                &HeaderBuilder::new().build(),
+                "test".to_string()
+            );
+
         let note_body = Body::new(Some(0), m_data.uuid.clone());
 
         let note = note!(
@@ -687,7 +717,10 @@ mod db_tests {
         dotenv::dotenv().ok();
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete everything");
-        let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
+
+        let m_data: ::model::NotesMetadata =
+            NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
+
         let note_body = Body::new(Some(0), m_data.uuid.clone());
 
         let note = note!(
@@ -710,7 +743,9 @@ mod db_tests {
         dotenv::dotenv().ok();
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete everything");
-        let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
+        let m_data: ::model::NotesMetadata =
+            NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
+
         let note_body = Body::new(Some(0), m_data.uuid.clone());
         let additional_body = Body::new(Some(1), m_data.uuid.clone());
 
@@ -749,7 +784,9 @@ mod db_tests {
         dotenv::dotenv().ok();
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete everything");
-        let m_data: ::model::NotesMetadata = NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
+        let m_data: ::model::NotesMetadata =
+            NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
+
         let note_body = Body::new(Some(0), m_data.uuid.clone());
         let additional_body = Body::new(Some(1), m_data.uuid.clone());
 
