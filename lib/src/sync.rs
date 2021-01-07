@@ -335,7 +335,9 @@ where C: 'static + DBConnector, T: 'static
     }).collect()
 }
 
-fn update_message_remotely<'a,T,C>(imap_connection: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>, localnote: &LocalNote) -> Result<(), UpdateError>
+fn update_message_remotely<'a,T,C>(imap_connection: &mut dyn MailService<T>,
+                                   db_connection: &dyn DatabaseService<C>,
+                                   localnote: &LocalNote) -> Result<(), UpdateError>
     where C: 'static + DBConnector, T: 'static
 {
     info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
@@ -372,7 +374,8 @@ fn update_message_remotely<'a,T,C>(imap_connection: &mut dyn MailService<T>, db_
         })
 }
 
-fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
+fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>,
+                                   noteheaders: &Vec<RemoteNoteMetaData>) -> Result<LocalNote,UpdateError>
 where T: 'static
 {
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
