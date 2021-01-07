@@ -306,7 +306,7 @@ where C: 'static + DBConnector, T: 'static
                 //TODO what happens if remote umerged note gets deleted only delete this body
                 // what happens if to be deleted note with message-id:x has merged un-updated
                 //content on local side
-                db_connection.delete_body(b).map_err(|_e| UpdateError::IoError("Could not delete".to_string()))
+                db_connection.delete_note_body(b).map_err(|_e| UpdateError::IoError("Could not delete".to_string()))
              //   unimplemented!();
             }
             UpdateAction::UpdateLocally(_) => {

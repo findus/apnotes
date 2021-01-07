@@ -10,6 +10,8 @@ use self::log::*;
 use std::io::{Write};
 use ::model::Body;
 use builder::{BodyMetadataBuilder};
+#[cfg(test)]
+use self::regex::Regex;
 
 /// Edits the passed note and alters the metadata if successful
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
@@ -23,10 +25,19 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
         .expect("Expected at least 1 note body");
 
     #[cfg(target_family = "unix")]
-        let open_with = "xdg-open".to_owned();
-        let file_path = format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped());
+        let (file_path,open_with) = {
+        (
+            "xdg-open".to_owned(),
+            format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped())
+        )
+    };
     #[cfg(target_family = "windows")]
-        let open_with = (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned();
+        let (file_path,open_with) = {
+        (
+            format!("{}\\{}_{}",std::env::var_os("TEMP").unwrap().to_string_lossy().to_owned(), note.metadata_uuid , note.subject_escaped()),
+            (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned()
+        )
+    };
 
     info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
 
@@ -63,6 +74,14 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> R
             )
         )
     }
+}
+
+#[cfg(test)]
+fn replace_uuid(string: &str) -> String {
+    let uuid_regex = Regex::new(r"(.*<)\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b(.*)").unwrap();
+    let new_uuid = uuid::Uuid::new_v4().to_string().to_uppercase();
+    let dd = format!("${{1}}{}${{2}}",new_uuid);
+    uuid_regex.replace(string, dd.as_str()).to_string()
 }
 
 #[cfg(test)]

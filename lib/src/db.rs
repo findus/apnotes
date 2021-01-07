@@ -32,17 +32,43 @@ pub trait DBConnector {
 
 #[cfg_attr(test, automock)]
 pub trait DatabaseService<C: 'static + DBConnector> {
+    /// Deletes everything
     fn delete_everything(&self) -> Result<(), Error>;
+    /// Appends a note to an already present note
+    ///
+    /// Multiple notes only occur if you altered a note locally
+    /// and server-side, or if 2 separate devices edited the
+    /// same note, in that case 2 notes exists on the imap
+    /// server.
+    ///
+    /// If multiple notes exists tell user that a merge needs to happen
+    ///
     fn append_note(&self, model: &::model::Body) -> Result<(), Error>;
+    /// In case of a successful merge this method replaces all unmerged notes with a single
+    /// merged note
     fn update_merged_note(&self, note_body: &Body) -> Result<(), Error>;
+    /// Deletes the passed local_note with all note_bodies
     fn delete(&self, local_note: &LocalNote) -> Result<(), Error>;
-    fn delete_body(&self, note_body: &Body) -> Result<(), Error>;
+    /// Deletes a single note_body
+    fn delete_note_body(&self, note_body: &Body) -> Result<(), Error>;
+    /// Updates the passed local_note with the new content
+    ///
+    /// Overrides everything
     fn update(&self, local_note: &LocalNote) -> Result<(), Error>;
+    /// Inserts the passed local_note
     fn insert_into_db(&self,note: &LocalNote) -> Result<(), Error>;
+    /// Returns all local_notes that are currently inside the database, including
+    /// the note_bodies
     fn fetch_all_notes(&self) -> Result<HashSet<LocalNote>,Error>;
+    /// Returns a single note with a specified subject-name. If multiple
+    /// notes with the same subject exist only the first one gets returned.
     fn fetch_single_note_with_name(&self, name: &str) -> Result<Option<LocalNote>, Error>;
-    fn fetch_single_note(&self, id: &str) -> Result<Option<LocalNote>, Error>;
-    fn has_orphan_metadata(&self, id: &str) -> Result<bool, Error>;
+    /// Returns a single note with the specified uuid
+    fn fetch_single_note(&self, uuid: &str) -> Result<Option<LocalNote>, Error>;
+    /// Checks if the Note-Metadata Entry with the specified id
+    /// does have note-bodies.
+    fn is_widow(&self, metadata_unique_id: &str) -> Result<bool, Error>;
+    /// Deletes a single metadata object, needed to delete widow_metadata_entries
     fn delete_metadata(&self, uuid: &str) -> Result<(), Error>;
 }
 
@@ -55,11 +81,15 @@ impl SqLiteConnector {
         let database_url = env::var("DATABASE_URL")
             .unwrap_or("test".to_string());
 
-        /*    println!("{}", env::current_dir().unwrap().to_string_lossy());
-            println!("{}", database_url);*/
+            println!("{}", env::current_dir().unwrap().to_string_lossy());
+            println!("{}", database_url);
 
-        SqliteConnection::establish(&database_url)
-            .expect(&format!("Error connecting to {}", database_url))
+        let connection = SqliteConnection::establish(&database_url)
+            .expect(&format!("Error connecting to {}", database_url));
+
+        &connection.execute("PRAGMA foreign_keys = ON").unwrap();
+
+        connection
     }
 }
 
@@ -87,24 +117,18 @@ impl SqliteDBConnection {
 impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
     fn delete_everything(&self) -> Result<(), Error> {
         self.connection.transaction::<_,Error,_>(|| {
-            diesel::delete(schema::metadata::dsl::metadata)
-                .execute(&self.connection)?;
 
             diesel::delete(schema::body::dsl::body)
                 .execute(&self.connection)?;
 
+            diesel::delete(schema::metadata::dsl::metadata)
+                .execute(&self.connection)?;
+
+
             Ok(())
         })
     }
-    /// Appends a note to an already present note
-    ///
-    /// Multiple notes only occur if you altered a note locally
-    /// and server-side, or if 2 separate devices edited the
-    /// same note, in that case 2 notes exists on the imap
-    /// server.
-    ///
-    /// If multiple notes exists tell user that a merge needs to happen
-    ///
+
     fn append_note(&self, model: &Body) -> Result<(), Error> {
         self.connection.transaction::<_,Error,_>(|| {
             diesel::insert_into(schema::body::table)
@@ -115,8 +139,6 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         })
     }
 
-    /// In case of a successful merge this method replaces all unmerged notes with a single
-/// merged note
     fn update_merged_note(&self, note_body: &Body) -> Result<(), Error> {
         self.connection.transaction::<_,Error,_>(|| {
             diesel::delete(schema::body::dsl::body.filter(metadata_uuid.eq(note_body.metadata_uuid.clone())))
@@ -152,7 +174,7 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         })
     }
 
-    fn delete_body(&self, note_body: &Body) -> Result<(), Error> {
+    fn delete_note_body(&self, note_body: &Body) -> Result<(), Error> {
         self.connection.transaction::<_, Error, _>(|| {
 
             diesel::delete(schema::body::dsl::body)
@@ -162,7 +184,7 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
             let uuid = note_body.metadata_uuid.clone();
 
             // if parent localnote object has no childs any more delete it
-            if self.has_orphan_metadata(&uuid)? {
+            if self.is_widow(&uuid)? {
                 self.delete_metadata(&uuid)?;
             }
 
@@ -178,7 +200,7 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
             Ok(())
         })
     }
-    /// Inserts the provided post into the sqlite db
+
     fn insert_into_db(&self, note: &LocalNote) -> Result<(), Error> {
         self.connection.transaction::<_,Error,_>(|| {
             diesel::insert_into(schema::metadata::table)
@@ -215,8 +237,6 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         Ok(d)
     }
 
-    /// Returns a note with a specific subject, if multiple notes have the same subject, the first
-    /// found note gets returned
     fn fetch_single_note_with_name(&self, name: &str) -> Result<Option<LocalNote>, Error> {
         let note_bodies: Vec<Body> = body
             .filter(schema::body::dsl::text.like(&format!("{}%",name)))
@@ -268,9 +288,9 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         }))
     }
 
-    fn has_orphan_metadata(&self, id: &str) -> Result<bool, Error> {
+    fn is_widow(&self, metadata_unique_id: &str) -> Result<bool, Error> {
         let first_note = metadata
-            .filter(schema::metadata::dsl::uuid.eq(&id))
+            .filter(schema::metadata::dsl::uuid.eq(&metadata_unique_id))
             .load::<NotesMetadata>(&self.connection)?;
 
         let first_note = first_note.first();
@@ -296,6 +316,34 @@ mod db_tests {
     use native_tls::TlsStream;
     use std::net::TcpStream;
 
+    /// Should return an error, because this note still has child note_bodies
+    #[test]
+    fn delete_fake_widow_note() {
+
+        let note_body = BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build();
+
+        let note = note![
+            NotesMetadataBuilder::new().build(),
+            note_body.clone()
+        ];
+
+        let note_body = note.body[0].clone();
+
+        let db_connection = ::db::SqliteDBConnection::new();
+
+        db_connection.delete_everything().unwrap();
+        db_connection.insert_into_db(&note).unwrap();
+
+        match db_connection.delete_metadata(&note.uuid()) {
+            Ok(_) => { panic!("Should fail") }
+            Err(e) => {
+
+            }
+        }
+
+
+    }
+
     //complete note should be gone because of only one body child
     #[test]
     fn delete_body_test_one_child() {
@@ -314,7 +362,7 @@ mod db_tests {
         db_connection.delete_everything().unwrap();
         db_connection.insert_into_db(&note).unwrap();
 
-        match db_connection.delete_body(&note_body) {
+        match db_connection.delete_note_body(&note_body) {
             Ok(()) => {
                 let new_note = db_connection
                     .fetch_single_note(&note.metadata.uuid).unwrap();
@@ -344,7 +392,7 @@ mod db_tests {
         db_connection.delete_everything().unwrap();
         db_connection.insert_into_db(&note).unwrap();
 
-        match db_connection.delete_body(&note_body) {
+        match db_connection.delete_note_body(&note_body) {
             Ok(()) => {
                 let note_len = db_connection.fetch_all_notes().unwrap().len() == 1;
 
