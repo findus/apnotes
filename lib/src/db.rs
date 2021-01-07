@@ -148,17 +148,6 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         })
     }
 
-    fn delete_metadata(&self, uuid: &str) -> Result<(), Error> {
-        self.connection.transaction::<_, Error, _>(|| {
-
-            diesel::delete(schema::metadata::dsl::metadata)
-                .filter(schema::metadata::dsl::uuid.eq(uuid))
-                .execute(&self.connection)?;
-
-            Ok(())
-        })
-    }
-
     fn delete(&self, local_note: &LocalNote) -> Result<(), Error> {
         self.connection.transaction::<_, Error, _>(|| {
 
@@ -302,6 +291,17 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
         } else {
             return Ok(false);
         }
+    }
+
+    fn delete_metadata(&self, uuid: &str) -> Result<(), Error> {
+        self.connection.transaction::<_, Error, _>(|| {
+
+            diesel::delete(schema::metadata::dsl::metadata)
+                .filter(schema::metadata::dsl::uuid.eq(uuid))
+                .execute(&self.connection)?;
+
+            Ok(())
+        })
     }
 }
 
