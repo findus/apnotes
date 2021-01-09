@@ -105,7 +105,7 @@ fn get_remotely_deleted_note_actions<'a>(remote_note_headers: &'a GroupedRemoteN
         .collect();
 
     let message_ids_to_delete_locally: Vec<&String> =
-        remote_message_ids.difference(&local_message_ids).collect();
+        local_message_ids.difference(&remote_message_ids).collect();
 
     let bodies: Vec<&Body> = local_notes.iter().map(|n| &n.body).flatten().collect();
 
@@ -588,7 +588,7 @@ mod sync_tests {
 
     /// Should find one item that should be deleted
     #[test]
-    fn test_delete_actions() {
+    fn test_delete_remote_actions() {
 
         let note_to_be_deleted =
             NotesMetadataBuilder::new()
@@ -768,6 +768,67 @@ mod sync_tests {
                 panic!("Wrong Action provided")
             }
         }
+    }
+
+    /// missing remote body should be deleted on the local side
+    #[test]
+    pub fn delete_locally_2_bodies() {
+
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("1").build(),
+                BodyMetadataBuilder::new().with_message_id("2").build()
+            ]
+        ];
+
+        let remote_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("1").build()
+            ]
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let action = get_remotely_deleted_note_actions(&remote_data, &local_notes);
+
+        match action {
+            UpdateAction::DeleteLocally(actions) => {
+                assert_eq!(actions.len(),1);
+                assert_eq!(actions[0].metadata_uuid,"1");
+                assert_eq!(actions[0].message_id,"2");
+            }
+            _ => panic!("wrong action")
+        }
+
+    }
+
+    /// whole note should be deleted because last body got removed
+    #[test]
+    pub fn delete_locally() {
+
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("1").build(),
+                BodyMetadataBuilder::new().with_message_id("2").build()
+            ]
+        ];
+
+        let remote = GroupedRemoteNoteHeaders::new();
+
+        let action = get_remotely_deleted_note_actions(&remote, &local_notes);
+
+        match action {
+            UpdateAction::DeleteLocally(actions) => {
+                assert_eq!(actions.len(),2);
+            }
+            _ => panic!("wrong action")
+        }
+
     }
 
 

@@ -139,9 +139,11 @@ impl HeaderBuilder {
         }
     }
 
+    //TODO reimplement message-id formatting somwhere else
     pub fn with_message_id(mut self, message_id: String) -> Self {
-        let profile = self::profile::load_profile();
-        self.headers.push(("Message-Id".to_string(), format!("<{}@{}", message_id, profile.domain())));
+      //  let profile = self::profile::load_profile();
+//        self.headers.push(("Message-Id".to_string(), format!("<{}@{}", message_id, profile.domain())));
+        self.headers.push(("Message-Id".to_string(), message_id));
         self
     }
 
