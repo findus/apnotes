@@ -11,6 +11,7 @@ CREATE TABLE metadata (
 );
 
 CREATE TABLE body (
+    old_remote_message_id VARCHAR,
     message_id VARCHAR PRIMARY KEY NOT NULL,
     text VARCHAR,
     uid BIGINT,
