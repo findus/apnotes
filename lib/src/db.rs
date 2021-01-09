@@ -421,7 +421,7 @@ mod db_tests {
         mock_imap_service.expect_fetch_headers().returning(|| Err(imap::error::Error::Append) );
 
 
-        let err = ::sync::sync(
+        let _err = ::sync::sync(
             &mut mock_imap_service,
             &mock_db_service)
             .err();
