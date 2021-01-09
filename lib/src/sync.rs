@@ -10,18 +10,10 @@ use note::{HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection
 use self::log::*;
 use std::collections::HashSet;
 use ::note::{GroupedRemoteNoteHeaders};
-
 use sync::UpdateAction::{AddLocally, UpdateRemotely};
-
-
-
-
-
-
 use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
-
 use apple_imap::{MailService};
 use db::{DBConnector, DatabaseService};
 use converter::convert2md;
@@ -84,7 +76,7 @@ fn get_deleted_note_actions<'a>(_remote_note_headers: Option<&GroupedRemoteNoteH
         .iter()
         .filter(|local_note| local_note.metadata.locally_deleted)
         .map(|deleted_local_note| {
-            if deleted_local_note.body.len() > 1 {
+            if deleted_local_note.needs_merge() {
                 warn!("Note with uuid {} is not merged, skipping", deleted_local_note.metadata.uuid);
                 UpdateAction::DoNothing
             } else {
@@ -623,7 +615,6 @@ mod sync_tests {
                 panic!("Wrong Action provided")
             }
         }
-
     }
 
     /// Should find zero items because item is flagged but unmerged
