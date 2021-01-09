@@ -843,4 +843,40 @@ mod db_tests {
             }
         }
     }
+
+    #[test]
+    fn test_delete_multiple_bodies() {
+
+        dotenv::dotenv().ok();
+        let con = ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete everything");
+
+        let first = note![
+                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("1").build(),
+                BodyMetadataBuilder::new().with_message_id("2").build()
+        ];
+
+        let second = note![
+                NotesMetadataBuilder::new().with_uuid("2".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("3").build()
+        ];
+
+        con.insert_into_db(&first);
+        con.insert_into_db(&second);
+
+        assert_eq!(con.fetch_all_notes().unwrap().len(),2);
+
+        con.delete_note_bodies(&vec![
+            &BodyMetadataBuilder::new().with_metadata_uuid("2").with_message_id("3").build(),
+            &BodyMetadataBuilder::new().with_metadata_uuid("1").with_message_id("2").build()
+        ]).unwrap();
+
+        let notes = con.fetch_all_notes().unwrap();
+
+        // one note should be deleted
+        assert_eq!(notes.len(),1);
+        assert_eq!(notes.iter().next().unwrap().metadata.uuid,"1".to_string());
+
+    }
 }
