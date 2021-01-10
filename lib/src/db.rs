@@ -22,10 +22,6 @@ use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
 use note::{LocalNote};
 use std::collections::hash_map::RandomState;
-#[cfg(test)]
-use mockall::*;
-#[cfg(test)]
-use mockall::predicate::*;
 use schema::metadata::columns::subfolder;
 
 pub trait DBConnector {
@@ -862,8 +858,8 @@ mod db_tests {
                 BodyMetadataBuilder::new().with_message_id("3").build()
         ];
 
-        con.insert_into_db(&first);
-        con.insert_into_db(&second);
+        con.insert_into_db(&first).unwrap();
+        con.insert_into_db(&second).unwrap();
 
         assert_eq!(con.fetch_all_notes().unwrap().len(),2);
 
