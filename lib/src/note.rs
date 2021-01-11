@@ -51,11 +51,15 @@ impl LocalNote {
             uid: self.body.first().unwrap().uid.unwrap()
         }
     }
+
+    pub fn content_changed_locally(&self) -> bool {
+        self.body.iter().filter(|body| body.old_remote_message_id != None).next() != None
+    }
 }
 
 impl MergeableNoteBody for LocalNote {
 
-    fn needs_merge(&self) -> bool {
+    fn needs_local_merge(&self) -> bool {
         self.body.len() > 1
     }
 
@@ -89,14 +93,14 @@ impl IdentifyableNote for LocalNote {
 pub type RemoteNoteHeaderCollection = Vec<RemoteNoteMetaData>;
 
 impl MergeableNoteBody for RemoteNoteHeaderCollection {
-    fn needs_merge(&self) -> bool {
+    fn needs_local_merge(&self) -> bool {
         self.len() > 1
     }
 
     /// Returns the message-id of the Remote Note
     /// Returns None if note needs to be merged
     fn get_message_id(&self) -> Option<String> {
-        match self.needs_merge() {
+        match self.needs_local_merge() {
             true => None,
             false => {
                 Some(self.iter().last()
@@ -254,7 +258,7 @@ pub trait IdentifyableNote {
 }
 
 pub trait MergeableNoteBody {
-    fn needs_merge(&self) -> bool;
+    fn needs_local_merge(&self) -> bool;
     fn get_message_id(&self) -> Option<String>;
     fn all_message_ids(&self) -> Vec<String>;
 }
