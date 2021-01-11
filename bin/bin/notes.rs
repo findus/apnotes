@@ -173,6 +173,7 @@ fn list_notes(sub_matches: &ArgMatches) {
 fn new(sub_matches: &ArgMatches) {
     let folder = sub_matches.value_of("folder").unwrap().to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
+
     let db_connection = ::apple_notes_rs_lib::db::SqliteDBConnection::new();
 
     match create_new_note(&db_connection,subject,folder)

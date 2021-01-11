@@ -32,8 +32,6 @@ impl BodyMetadataBuilder {
     }
 
     pub fn with_metadata_uuid(mut self, uuid: &str) -> Self {
-     //   let profile = self::profile::load_profile();
-     //   self.body.metadata_uuid =  format!("<{}@{}", uuid.to_string(), profile.domain());
         self.body.metadata_uuid = uuid.to_string();
         self
     }
