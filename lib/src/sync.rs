@@ -78,13 +78,13 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         get_update_remotely_actions(&remote_note_headers, &local_notes);
     let mut delete_remotely_actions =
         get_delete_remotely_actions(Some(&remote_note_headers), &local_notes);
-    let update_locally_actions =
+    let _update_locally_actions =
         get_update_locally_actions(&remote_note_headers, &local_notes);
 
     let mut delete_locally_actions =
         get_delete_locally_actions(&remote_note_headers, &local_notes)
             .into_iter()
-            .map(|(e,g)| g)
+            .map(|(_e,g)| g)
             .collect();
 
 
@@ -230,8 +230,8 @@ fn get_add_remotely_actions<'a>(_remote_note_headers: &'a GroupedRemoteNoteHeade
     actions
 }
 
-fn get_update_locally_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
-                                  local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
+fn get_update_locally_actions<'a>(_remote_note_headers: &'a GroupedRemoteNoteHeaders,
+                                  _local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
     Vec::new()
 }
 
