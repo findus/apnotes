@@ -145,7 +145,7 @@ fn get_added_note_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         .filter(|remote_header_collection|
             uuids.contains(&&remote_header_collection.uuid()))
         .map(|new_note|
-                 UpdateAction::AddLocally(new_note )
+                 UpdateAction::AddLocally(new_note)
         )
         .collect();
     info!("Found {} Notes that are going to be added locally", &actions.len());
@@ -169,13 +169,17 @@ fn get_update_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHea
 
     fn needs_update(note: &LocalNote, remote_note_headers: &GroupedRemoteNoteHeaders) -> bool {
        // TODO maybe impl sanity check if iterator only houses 1 item, it should only exist one item per uuid
-        let mut note_iterator = remote_note_headers
+        let mut remote_note_iterator = remote_note_headers
             .iter()
             .filter(|header|
-                header.needs_merge() == false && header.uuid() == note.metadata.uuid
+                // Temporary solution, merged note = app is eligible to overwrite everything
+                // remotely, but that might lead to data loss if one of the remote notes
+                // got also edited
+                // header.needs_merge() == false &&
+                header.uuid() == note.metadata.uuid
             );
 
-        match note_iterator.next() {
+        match remote_note_iterator.next() {
             Some(remote_note) => {
                 note.body[0].old_remote_message_id == remote_note.get_message_id()
                 && remote_note.get_message_id().is_some()
@@ -653,6 +657,32 @@ mod sync_tests {
                 panic!("Wrong Action provided")
             }
         }
+
+    }
+
+    /// Note got updated remotely, that note should not appear as add-action
+    #[test]
+    fn test_add_action_remotely_changed() {
+
+        let note_metadata = NotesMetadataBuilder::new().build();
+
+        let local_note = note![
+                note_metadata.clone(),
+                BodyMetadataBuilder::new().build()
+        ];
+
+        let changed_remote_note = note![
+                note_metadata.clone(),
+                BodyMetadataBuilder::new().build()
+        ];
+
+        let local_notes = set![local_note];
+
+        let remote_data: GroupedRemoteNoteHeaders = set![RemoteNoteMetaData::new(&changed_remote_note)];
+
+        let added_actions = get_added_note_actions(&remote_data, &local_notes);
+
+        assert_eq!(added_actions.len(),0);
 
     }
 
