@@ -1,4 +1,6 @@
 extern crate log;
+#[cfg(test)]
+extern crate mockall;
 
 /**
 Windows: Register sqlite dll with "lib /MACHINE:X64 /def:sqlite3.def /out:sqlite3.lib" on x64
@@ -20,18 +22,13 @@ use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
 use note::{LocalNote};
 use std::collections::hash_map::RandomState;
-#[cfg(test)]
-extern crate mockall;
-#[cfg(test)]
-use mockall::{automock, predicate::*};
 use schema::metadata::columns::subfolder;
 
 pub trait DBConnector {
 
 }
 
-#[cfg_attr(test, automock)]
-pub trait DatabaseService<C: 'static + DBConnector> {
+pub trait DatabaseService<C: DBConnector> {
     /// Deletes everything
     fn delete_everything(&self) -> Result<(), Error>;
     /// Appends a note to an already present note
@@ -51,6 +48,8 @@ pub trait DatabaseService<C: 'static + DBConnector> {
     fn delete(&self, local_note: &LocalNote) -> Result<(), Error>;
     /// Deletes a single note_body
     fn delete_note_body(&self, note_body: &Body) -> Result<(), Error>;
+    /// Delete multiple note_bodies
+    fn delete_note_bodies<'a>(&self, note_bodies: &Vec<&'a Body>) -> Result<(), Error>;
     /// Updates the passed local_note with the new content
     ///
     /// Overrides everything
@@ -177,6 +176,17 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
             // if parent localnote object has no childs any more delete it
             if self.is_widow(&uuid)? {
                 self.delete_metadata(&uuid)?;
+            }
+
+            Ok(())
+        })
+    }
+
+    fn delete_note_bodies<'a>(&self, note_bodies: &Vec<&'a Body>) -> Result<(), Error> {
+        self.connection.transaction::<_, Error, _>(|| {
+
+            for b in note_bodies {
+                self.delete_note_body(b)?;
             }
 
             Ok(())
@@ -409,26 +419,26 @@ mod db_tests {
         }
     }
 
-    #[test]
-    pub fn mock_test() {
-        let mut mock_db_service = MockDatabaseService::<SqliteDBConnection>::new();
-
-        mock_db_service.expect_fetch_all_notes().returning(|| Err(diesel::result::Error::NotFound));
-
-        let mut mock_imap_service: ::apple_imap::MockMailService<Session<TlsStream<TcpStream>>> =
-            ::apple_imap::MockMailService::<_>::new();
-
-        mock_imap_service.expect_fetch_headers().returning(|| Err(imap::error::Error::Append) );
-
-
-        let _err = ::sync::sync(
-            &mut mock_imap_service,
-            &mock_db_service)
-            .err();
-
-        //assert_eq!(err,Some(::error::UpdateError::SyncError("oops".to_string())))
-
-    }
+    // #[test]
+    // pub fn mock_test() {
+    //     let mut mock_db_service = MockDatabaseService::<SqliteDBConnection>::new();
+    //
+    //     mock_db_service.expect_fetch_all_notes().returning(|| Err(diesel::result::Error::NotFound));
+    //
+    //     let mut mock_imap_service: ::apple_imap::MockMailService<Session<TlsStream<TcpStream>>> =
+    //         ::apple_imap::MockMailService::<_>::new();
+    //
+    //     mock_imap_service.expect_fetch_headers().returning(|| Err(imap::error::Error::Append) );
+    //
+    //
+    //     let _err = ::sync::sync(
+    //         &mut mock_imap_service,
+    //         &mock_db_service)
+    //         .err();
+    //
+    //     //assert_eq!(err,Some(::error::UpdateError::SyncError("oops".to_string())))
+    //
+    // }
 
     #[test]
     pub fn note_by_subject() {
@@ -828,5 +838,41 @@ mod db_tests {
                 panic!("Error while updating merged body: {}", e.to_string());
             }
         }
+    }
+
+    #[test]
+    fn test_delete_multiple_bodies() {
+
+        dotenv::dotenv().ok();
+        let con = ::db::SqliteDBConnection::new();
+        con.delete_everything().expect("Should delete everything");
+
+        let first = note![
+                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("1").build(),
+                BodyMetadataBuilder::new().with_message_id("2").build()
+        ];
+
+        let second = note![
+                NotesMetadataBuilder::new().with_uuid("2".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("3").build()
+        ];
+
+        con.insert_into_db(&first).unwrap();
+        con.insert_into_db(&second).unwrap();
+
+        assert_eq!(con.fetch_all_notes().unwrap().len(),2);
+
+        con.delete_note_bodies(&vec![
+            &BodyMetadataBuilder::new().with_metadata_uuid("2").with_message_id("3").build(),
+            &BodyMetadataBuilder::new().with_metadata_uuid("1").with_message_id("2").build()
+        ]).unwrap();
+
+        let notes = con.fetch_all_notes().unwrap();
+
+        // one note should be deleted
+        assert_eq!(notes.len(),1);
+        assert_eq!(notes.iter().next().unwrap().metadata.uuid,"1".to_string());
+
     }
 }
