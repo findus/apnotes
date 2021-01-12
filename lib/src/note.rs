@@ -65,7 +65,7 @@ impl LocalNote {
 
         self.body.iter()
             .filter(|local_body| remote_message_ids.contains(&local_body.message_id))
-            .count() < self.body.len()
+            .count() != self.body.len()
     }
 }
 
