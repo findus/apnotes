@@ -134,10 +134,13 @@ fn list_notes(sub_matches: &ArgMatches) {
     match db_connection.fetch_all_notes() {
         Ok(notes) => {
             let n_plus_1 =
-                notes.iter().sorted_by_key(|i| &i.metadata.subfolder).skip(1);
+                notes.iter()
+                    .sorted_by_key(|i| format!("{}_{}",&i.metadata.subfolder,&i.body[0].subject()))
+                    .skip(1);
 
             let n =
-                notes.iter().sorted_by_key(|i| &i.metadata.subfolder);
+                notes.iter()
+                    .sorted_by_key(|i| format!("{}_{}",&i.metadata.subfolder,&i.body[0].subject()));
 
             //TODO this iterator might skip the last note
             n_plus_1.enumerate().zip(n).for_each(|((idx, this_note), last_note)| {
