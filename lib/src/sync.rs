@@ -36,7 +36,7 @@ pub enum UpdateAction<'a> {
     /// Apply to all notes that
     ///     are not getting transmitted anymore and dont have the
     ///     "new" flag inside the db
-    DeleteLocally(Vec<&'a Body>),
+    DeleteLocally(&'a LocalNote),
     /// Apply to all notes that:
     ///     have their "locally_edited" flag set
     ///     their "old_remote_id" value equals the remotes message-id
@@ -85,12 +85,8 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         get_update_locally_actions(&remote_note_headers, &local_notes);
     let mut delete_remotely_actions =
         get_delete_remotely_actions(Some(&remote_note_headers), &local_notes);
-
     let mut delete_locally_actions =
-        get_delete_locally_actions(&remote_note_headers, &local_notes)
-            .into_iter()
-            .map(|(_e,g)| g)
-            .collect();
+        get_delete_locally_actions(&remote_note_headers, &local_notes);
 
 
     concated_actions.append(&mut delete_remotely_actions);
@@ -141,32 +137,24 @@ fn get_delete_remotely_actions<'a>(_remote_note_headers: Option<&GroupedRemoteNo
 }
 
 fn get_delete_locally_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
-                                  local_notes: &'a HashSet<LocalNote>) -> Vec<(String, UpdateAction<'a>)> {
+                                  local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
 
     let remote_message_ids: HashSet<String> = remote_note_headers
         .iter()
-        .map(|e| e.all_message_ids())
-        .flatten()
+        .map(|e| e.uuid())
         .collect();
 
     let local_message_ids: HashSet<String> = local_notes.iter()
-        .map(|e| e.all_message_ids())
-        .flatten()
+        .map(|e| e.uuid())
         .collect();
 
-    let message_ids_to_delete_locally: Vec<&String> =
+    let message_uuids_to_delete_locally: Vec<&String> =
         local_message_ids.difference(&remote_message_ids).collect();
 
-    let bodies: Vec<&Body> = local_notes.iter().map(|n| &n.body).flatten().collect();
-
-
-
-    let actions: Vec<(String,UpdateAction)>= bodies
+    let actions: Vec<UpdateAction>= local_notes
         .into_iter()
-        .filter(|body| message_ids_to_delete_locally.contains(&&body.message_id))
-        .group_by(|e| e.metadata_uuid.clone())
-        .into_iter()
-        .map(|(uuid,vec)| (uuid,UpdateAction::DeleteLocally(vec.collect())))
+        .filter(|note| message_uuids_to_delete_locally.contains(&&note.metadata.uuid))
+        .map(|localnote| UpdateAction::DeleteLocally(localnote))
         .collect();
 
     info!("Found {} Notes that have bodies to be deleted locally", &actions.len());
@@ -324,7 +312,7 @@ pub fn process_actions<'a, T, C>(
                     //TODO what happens if remote umerged note gets deleted only delete this body
                     // what happens if to be deleted note with message-id:x has merged un-updated
                     //content on local side
-                    db_connection.delete_note_bodies(b)
+                    db_connection.delete(b)
                         .map_err(|e| UpdateError::SyncError(e.to_string()))
 
                     //   unimplemented!();
@@ -809,7 +797,7 @@ mod sync_tests {
         }
     }
 
-    /// missing remote body should be deleted on the local side
+    /// this should be handled by the updatelocally action generator
     #[test]
     pub fn delete_locally_2_bodies() {
         let local_notes = set![
@@ -833,16 +821,7 @@ mod sync_tests {
 
         let action = get_delete_locally_actions(&remote_data, &local_notes);
 
-        let first_action = &action[0].1;
-
-        match first_action {
-            UpdateAction::DeleteLocally(actions) => {
-                assert_eq!(actions.len(), 1);
-                assert_eq!(actions[0].metadata_uuid, "1");
-                assert_eq!(actions[0].message_id, "2");
-            }
-            _ => panic!("wrong action")
-        }
+        assert_eq!(action.len(), 0)
     }
 
     /// whole note should be deleted because last body got removed
@@ -858,11 +837,12 @@ mod sync_tests {
 
         let remote = GroupedRemoteNoteHeaders::new();
 
-        let action = &get_delete_locally_actions(&remote, &local_notes)[0].1;
+        let action = &get_delete_locally_actions(&remote, &local_notes)[0];
 
         match action {
             UpdateAction::DeleteLocally(actions) => {
-                assert_eq!(actions.len(), 2);
+                assert_eq!(actions.metadata.uuid, "1");
+                assert_eq!(actions.body[0].message_id, "1");
             }
             _ => panic!("wrong action")
         }
@@ -1024,6 +1004,34 @@ mod sync_tests {
         let action = get_update_locally_actions(&remote_data, &local_notes);
 
         assert_eq!(action.len(), 0);
+
+    }
+
+    // Remote note has additional note
+    #[test]
+    pub fn update_locally_subnote_added() {
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("2").build()
+            ]
+        ];
+
+        let remote_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                BodyMetadataBuilder::new().with_message_id("2").build(),
+                BodyMetadataBuilder::new().with_message_id("3").build()
+            ]
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let action = get_update_locally_actions(&remote_data, &local_notes);
+
+        assert_eq!(action.len(), 1);
 
     }
 

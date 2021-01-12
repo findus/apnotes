@@ -58,6 +58,10 @@ impl LocalNote {
 
     pub fn changed_remotely(&self, remote_metadata: &RemoteNoteHeaderCollection) -> bool {
 
+        if remote_metadata.len() != self.body.len() {
+            return true;
+        }
+
         let remote_message_ids:Vec<String> = remote_metadata
             .iter()
             .map(|e| e.headers.message_id())
