@@ -27,10 +27,11 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     #[cfg(target_family = "unix")]
         let (file_path,open_with) = {
         (
-            "xdg-open".to_owned(),
-            format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped())
+            format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped()),
+            "xdg-open".to_owned()
         )
     };
+
     #[cfg(target_family = "windows")]
         let (file_path,open_with) = {
         (
