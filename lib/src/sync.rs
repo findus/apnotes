@@ -94,6 +94,7 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
     concated_actions.append(&mut add_remotely_actions);
     concated_actions.append(&mut update_remotely_actions);
     concated_actions.append(&mut delete_locally_actions);
+    concated_actions.append(&mut update_locally_actions);
 
     concated_actions
 
