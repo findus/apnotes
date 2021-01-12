@@ -101,41 +101,6 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
 
     concated_actions
 
-    /*
-   for noteheader in grouped_not_headers.drain() != None {
-
-   }*/
-    // check db if deletable notes are present
-    /* grouped.into_iter().for_each(|mut note_header_collection| {
-
-         let first_notes_headers =
-             note_header_collection.pop()
-                 .expect("Could not find note headers");
-
-         if note_header_collection.len() > 1 {
-             warn!("Note [{}] has more than one body needs to be merged",
-                   first_notes_headers.identifier());
-         } else {
-             let local_note = ::db::fetch_single_note(&db_connection, first_notes_headers.identifier())
-                 .expect("Error while querying local note");
-             if local_note.is_none() {
-                 //Add locally
-                 let subfolder = first_notes_headers.folder().clone();
-                 let uid = first_notes_headers.uid();
-                 let notemetadata =
-                     NotesMetadata::new(&first_notes_headers, subfolder.clone() );
-                 let text =
-                     ::apple_imap::fetch_note_content(&mut imap_session, subfolder, uid);
-                 let body = Body {
-                     message_id: first_notes_headers.message_id(),
-                     text: Some(::converter::convert2md(&text.unwrap())),
-                     uid: Some(uid),
-                     metadata_uuid: notemetadata.uuid.clone()
-                 };
-                 ::db::insert_into_db(&db_connection,(&notemetadata,&body));
-             }
-         }
-     });*/
 }
 
 fn get_all_uuids(remote_note_headers: &HashSet<Vec<RemoteNoteMetaData>>, local_notes: &HashSet<LocalNote>) -> Vec<String> {
