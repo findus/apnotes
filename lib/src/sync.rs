@@ -327,8 +327,38 @@ pub fn process_actions<'a, T, C>(
 
                     //   unimplemented!();
                 }
-                UpdateAction::UpdateLocally(_) => {
-                    unimplemented!();
+                UpdateAction::UpdateLocally(new_note_bodies) => {
+                    let d: Vec<Result<Body,UpdateError>> =
+                        new_note_bodies.iter().map(|e| {
+                            let folder = &e.folder;
+                            imap_connection.select(folder)
+                                .map_err(|e| SyncError(e.to_string()))
+                                .and_then(|_| imap_connection.fetch_note_content(folder, e.uid)
+                                    .map_err(|e| UpdateError::SyncError(e.to_string()))
+                                    .map(|content| (e, content)))
+                                .and_then(|(headers, content)| {
+                                    Ok(
+                                        Body {
+                                            old_remote_message_id: None,
+                                            message_id: headers.headers.message_id(),
+                                            text: Some(content),
+                                            uid: Some(headers.uid),
+                                            metadata_uuid: headers.headers.uuid(),
+                                        }
+                                    )
+                                })
+                        }).collect();
+
+                    if d.iter().filter(|c| c.is_err()).next() != None {
+                        return Err(UpdateError::SyncError("Could not fetch note bodies".to_string()));
+                    };
+
+                    let f: Vec<Body> = d.into_iter().map(|d| d.unwrap()).collect();
+
+                    db_connection.replace_notes(
+                        &f,
+                        new_note_bodies.iter().next().unwrap().headers.uuid()
+                    ).map_err(|e| UpdateError::IoError(e.to_string()))
                 }
                 UpdateAction::Merge(_) => {
                     unimplemented!();

@@ -69,6 +69,7 @@ pub trait DatabaseService<C: DBConnector> {
     fn is_widow(&self, metadata_unique_id: &str) -> Result<bool, Error>;
     /// Deletes a single metadata object, needed to delete widow_metadata_entries
     fn delete_metadata(&self, uuid: &str) -> Result<(), Error>;
+    fn replace_notes(&self, notes: &Vec<Body>, uuid: String) -> Result<(), Error>;
 }
 
 pub struct SqLiteConnector {
@@ -317,6 +318,21 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
             diesel::delete(schema::metadata::dsl::metadata)
                 .filter(schema::metadata::dsl::uuid.eq(uuid))
                 .execute(&self.connection)?;
+
+            Ok(())
+        })
+    }
+
+    fn replace_notes(&self, notes: &Vec<Body>, uuid: String) -> Result<(), Error> {
+        self.connection.transaction::<_, Error, _>(|| {
+
+            diesel::delete(schema::body::dsl::body)
+                .filter(schema::body::dsl::metadata_uuid.eq(uuid))
+                .execute(&self.connection)?;
+
+            for note in notes {
+                self.append_note(note)?;
+            }
 
             Ok(())
         })
