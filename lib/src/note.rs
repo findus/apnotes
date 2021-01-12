@@ -55,6 +55,18 @@ impl LocalNote {
     pub fn content_changed_locally(&self) -> bool {
         self.body.iter().filter(|body| body.old_remote_message_id != None).next() != None
     }
+
+    pub fn changed_remotely(&self, remote_metadata: &RemoteNoteHeaderCollection) -> bool {
+
+        let remote_message_ids:Vec<String> = remote_metadata
+            .iter()
+            .map(|e| e.headers.message_id())
+            .collect();
+
+        self.body.iter()
+            .filter(|local_body| remote_message_ids.contains(&local_body.message_id))
+            .count() < self.body.len()
+    }
 }
 
 impl MergeableNoteBody for LocalNote {

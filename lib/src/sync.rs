@@ -256,7 +256,7 @@ fn get_update_locally_actions<'a>(remote_note_headers: &'a HashSet<Vec<RemoteNot
         match (ln, rm) {
             (Some(ln), Some(rn)) => {
                 //Check if no merge needs to happen
-                if ln.content_changed_locally() == false {
+                if ln.content_changed_locally() == false && ln.changed_remotely(rn){
                     return Some(UpdateLocally(rn));
                 } else {
                     return None
@@ -273,6 +273,8 @@ fn get_update_locally_actions<'a>(remote_note_headers: &'a HashSet<Vec<RemoteNot
             }
         })
         .collect();
+
+    info!("Found {} Notes that are going to be updated locally", &updateactions.len());
 
     updateactions
 }
