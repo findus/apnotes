@@ -21,12 +21,6 @@ use regex::Regex;
 use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::note::{LocalNote, IdentifyableNote, MergeableNoteBody};
 
-//use apple_notes_rs_lib::{apple_imap};
-//use apple_notes_rs_lib::sync::sync;
-//use apple_notes_rs_lib::error::UpdateError;
-//use apple_notes_rs_lib::edit::edit;
-//use apple_notes_rs_lib::model::NotesMetadata;
-
 embed_migrations!("../migrations/");
 
 fn main() {
