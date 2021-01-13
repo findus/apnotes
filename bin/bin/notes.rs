@@ -19,7 +19,7 @@ use colored::Colorize;
 use itertools::*;
 use regex::Regex;
 use apple_notes_rs_lib::edit::edit_note;
-use apple_notes_rs_lib::note::{LocalNote, IdentifyableNote, MergeableNoteBody};
+use apple_notes_rs_lib::note::{IdentifyableNote, MergeableNoteBody};
 
 embed_migrations!("../migrations/");
 
@@ -124,7 +124,7 @@ fn sync_notes() -> Result<(),::apple_notes_rs_lib::error::UpdateError> {
 }
 
 fn list_notes(sub_matches: &ArgMatches) {
-    let show_uuid = sub_matches.is_present("uuid");
+    let _show_uuid = sub_matches.is_present("uuid");
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     match db_connection.fetch_all_notes() {
         Ok(notes) => {
@@ -135,7 +135,7 @@ fn list_notes(sub_matches: &ArgMatches) {
 
             notes.iter().
                 sorted_by_key(|note| &note.metadata.subfolder)
-                .foreach(|ee| {
+                .for_each(|ee| {
                 let titles = ee.body.iter()
                     .map(|body| body.subject())
                     .join(",");
