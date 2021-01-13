@@ -12,13 +12,13 @@ use log::Level;
 use apple_notes_rs_lib::error::{NoteError};
 use apple_notes_rs_lib::create_new_note;
 use self::diesel_migrations::*;
-use apple_notes_rs_lib::sync::sync;
+
 use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
 use colored::Colorize;
 use itertools::*;
 use apple_notes_rs_lib::edit::edit_note;
-use apple_notes_rs_lib::note::{IdentifyableNote, MergeableNoteBody, LocalNote};
-use apple_notes_rs_lib::error::NoteError::*;
+use apple_notes_rs_lib::note::{IdentifyableNote, MergeableNoteBody};
+
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
