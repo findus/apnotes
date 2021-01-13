@@ -19,6 +19,7 @@ use colored::Colorize;
 use itertools::*;
 use regex::Regex;
 use apple_notes_rs_lib::edit::edit_note;
+use apple_notes_rs_lib::note::{LocalNote, IdentifyableNote, MergeableNoteBody};
 
 //use apple_notes_rs_lib::{apple_imap};
 //use apple_notes_rs_lib::sync::sync;
@@ -113,7 +114,7 @@ fn edit_passed_note(sub_matches: &ArgMatches) -> Result<(), NoteError> {
     apple_notes_rs_lib::edit::edit_note(&note, false)
         .and_then(|note| db.update(&note)
             .map_err(|e| NoteError::InsertionError(e.to_string()))
-            )
+        )
 }
 
 fn is_uuid(string: &str) -> bool {
@@ -133,38 +134,23 @@ fn list_notes(sub_matches: &ArgMatches) {
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     match db_connection.fetch_all_notes() {
         Ok(notes) => {
-            let n_plus_1 =
-                notes.iter()
-                    .sorted_by_key(|i| format!("{}_{}",&i.metadata.subfolder,&i.body[0].subject()))
-                    .skip(1);
+            let max_len = notes.iter()
+                .map(|note| format!("{} {}", note.metadata.uuid, note.metadata.folder()).len())
+                .max()
+                .unwrap();
 
-            let n =
-                notes.iter()
-                    .sorted_by_key(|i| format!("{}_{}",&i.metadata.subfolder,&i.body[0].subject()));
+            notes.iter().foreach(|ee| {
+                let titles = ee.body.iter()
+                    .map(|body| body.subject())
+                    .join(",");
 
-            //TODO this iterator might skip the last note
-            n_plus_1.enumerate().zip(n).for_each(|((idx, this_note), last_note)| {
-                if this_note.metadata.subfolder != last_note.metadata.subfolder || idx == 0 {
-                    println!("Folder: {}", this_note.metadata.subfolder.white() );
-                }
-                if this_note.body.len() > 1 {
-                    if show_uuid {
-                        print!("{}", last_note.metadata.uuid.as_str().bright_black());
-                    }
-                    print!("     ");
-                    this_note.body.iter().for_each(|body| {
-                        print!("{}", format!("[{}], ", body.subject()));
-                    });
-                    print!("{}","Needs merge!".red());
-                    println!();
+                let formatted_uuid_folder = format!("{} {}", ee.metadata.uuid, ee.metadata.folder());
+
+                if ee.needs_local_merge() {
+                    println!("{:<width$}  [{}] [{}]", formatted_uuid_folder, titles.red(), "Needs Merge".red(), width = max_len);
                 } else {
-                    if show_uuid {
-                        print!("{}", last_note.metadata.uuid.as_str().bright_black());
-                    }
-                    print!("     {} ", this_note.body.first().unwrap().subject());
-                    println!();
+                    println!("{:<width$}  [{}]", formatted_uuid_folder, titles, width = max_len);
                 }
-
             });
         },
         Err(_e) => {
