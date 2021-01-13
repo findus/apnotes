@@ -86,8 +86,12 @@ fn main() {
         (_, _) => unreachable!(),
     };
 
-    if result.is_err() {
-        eprint!("Error: {}", result.err().unwrap().to_string())
+    match result {
+        Ok(_) => {println!("Done")}
+        Err(e) => {
+            eprint!("Error: {}", e.to_string());
+            std::process::exit(-1);
+        },
     }
 
 }
