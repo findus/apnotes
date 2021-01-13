@@ -21,7 +21,7 @@ use regex::Regex;
 use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::note::{IdentifyableNote, MergeableNoteBody, LocalNote};
 use apple_notes_rs_lib::error::NoteError::*;
-use std::error::Error;
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 embed_migrations!("../migrations/");
