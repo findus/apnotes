@@ -24,7 +24,6 @@ pub mod note;
 pub mod converter;
 pub mod profile;
 pub mod sync;
-pub mod io;
 #[macro_use]
 mod util;
 pub mod error;
