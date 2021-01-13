@@ -139,7 +139,9 @@ fn list_notes(sub_matches: &ArgMatches) {
                 .max()
                 .unwrap();
 
-            notes.iter().foreach(|ee| {
+            notes.iter().
+                sorted_by_key(|note| &note.metadata.subfolder)
+                .foreach(|ee| {
                 let titles = ee.body.iter()
                     .map(|body| body.subject())
                     .join(",");
@@ -147,7 +149,7 @@ fn list_notes(sub_matches: &ArgMatches) {
                 let formatted_uuid_folder = format!("{} {}", ee.metadata.uuid, ee.metadata.folder());
 
                 if ee.needs_local_merge() {
-                    println!("{:<width$}  [{}] [{}]", formatted_uuid_folder, titles.red(), "Needs Merge".red(), width = max_len);
+                    println!("{:<width$}  [{}] {}", formatted_uuid_folder, titles.red(), "<<Needs Merge>>".red(), width = max_len);
                 } else {
                     println!("{:<width$}  [{}]", formatted_uuid_folder, titles, width = max_len);
                 }
