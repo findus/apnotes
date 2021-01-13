@@ -18,6 +18,8 @@ use apple_imap::{MailService};
 use db::{DBConnector, DatabaseService};
 use converter::convert2md;
 
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 pub enum UpdateResult {
     Success()
 }
@@ -65,6 +67,13 @@ pub enum UpdateAction<'a> {
     ///     second arg: imap-uid
     AddLocally(&'a RemoteNoteHeaderCollection),
     DoNothing,
+}
+
+pub fn sync_notes() -> Result<()> {
+    let mut imap_service = ::apple_imap::MailServiceImpl::new_with_login();
+    let db_connection= ::db::SqliteDBConnection::new();
+    sync(&mut imap_service, &db_connection)
+        .map_err(|e| e.into())
 }
 
 fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
@@ -268,7 +277,8 @@ fn get_update_locally_actions<'a>(remote_note_headers: &'a HashSet<Vec<RemoteNot
     updateactions
 }
 
-pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>) -> Result<(), ::error::UpdateError>
+pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>)
+    -> std::result::Result<(), ::error::UpdateError>
     where C: 'static + DBConnector, T: 'static
 {
     let headers = imap_session.fetch_headers().map_err(|e| SyncError(e.to_string()))?;
@@ -299,7 +309,7 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
 pub fn process_actions<'a, T, C>(
     imap_connection: &mut dyn MailService<T>,
     db_connection: &dyn DatabaseService<C>,
-    actions: &Vec<UpdateAction<'a>>) -> Vec<Result<(), UpdateError>>
+    actions: &Vec<UpdateAction<'a>>) -> Vec<std::result::Result<(), UpdateError>>
     where C: 'static + DBConnector, T: 'static
 {
     actions
@@ -319,7 +329,7 @@ pub fn process_actions<'a, T, C>(
                     //   unimplemented!();
                 }
                 UpdateAction::UpdateLocally(new_note_bodies) => {
-                    let d: Vec<Result<Body,UpdateError>> =
+                    let d: Vec<std::result::Result<Body,UpdateError>> =
                         new_note_bodies.iter().map(|e| {
                             let folder = &e.folder;
                             imap_connection.select(folder)
@@ -374,7 +384,8 @@ pub fn process_actions<'a, T, C>(
         }).collect()
 }
 
-fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>, localnote: &LocalNote) -> Result<(), UpdateError>
+fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>, localnote: &LocalNote)
+    -> std::result::Result<(), UpdateError>
     where C: 'static + DBConnector, T: 'static
 {
     info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
@@ -411,7 +422,8 @@ fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>, d
         })
 }
 
-fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>) -> Result<LocalNote, UpdateError>
+fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>)
+    -> std::result::Result<LocalNote, UpdateError>
     where T: 'static
 {
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {

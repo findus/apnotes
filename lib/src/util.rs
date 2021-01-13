@@ -1,14 +1,15 @@
-use uuid::Uuid;
+extern crate regex;
 
-/*pub fn get_notes_file_path_from_metadata(metadata: &NotesMetadata) -> PathBuf {
-    let pathbuf = PathBuf::new()
-        .join(profile::get_notes_dir())
-        .join(PathBuf::from(&metadata.subfolder))
-        .join(PathBuf::from(metadata.subject_with_identifier()));
-    pathbuf
-}
-*/
+use uuid::Uuid;
+use regex::Regex;
+
 pub fn generate_uuid() -> String {
     Uuid::new_v4().to_string().to_uppercase()
 }
 
+
+pub fn is_uuid(string: &str) -> bool {
+    let uuid_regex: Regex =
+        Regex::new(r"\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b").unwrap();
+    uuid_regex.is_match(string)
+}

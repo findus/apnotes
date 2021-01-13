@@ -6,7 +6,6 @@ extern crate diesel;
 extern crate diesel_migrations;
 extern crate colored;
 extern crate itertools;
-extern crate regex;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 use log::Level;
@@ -17,7 +16,6 @@ use apple_notes_rs_lib::sync::sync;
 use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
 use colored::Colorize;
 use itertools::*;
-use regex::Regex;
 use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::note::{IdentifyableNote, MergeableNoteBody, LocalNote};
 use apple_notes_rs_lib::error::NoteError::*;
@@ -81,7 +79,7 @@ fn main() {
 
     let result = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(_sub_matches)) => sync_notes(),
+        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync::sync_notes(),
         ("list", Some(sub_matches)) => list_notes(sub_matches),
         ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
         (_, _) => unreachable!(),
@@ -96,59 +94,10 @@ fn main() {
 fn edit_passed_note(sub_matches: &ArgMatches) -> Result<()> {
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
     let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
-    find_note(&uuid_or_name, &db)
+    ::apple_notes_rs_lib::find_note(&uuid_or_name, &db)
         .and_then(|note| apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into()))
         .and_then(|note| db.update(&note).map_err(|e| e.into()))
         .map_err(|e| NoteError::InsertionError(e.to_string()).into())
-}
-
-///Queries the database and tries to find a note with the provided search string
-/// Auto-Detects if the user provides the title or a uuid.
-///
-/// If multiple notes with the same title exist it returns the first one
-/// avaiable
-fn find_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<LocalNote> {
-    match is_uuid(&uuid_or_name) {
-        true => {
-            match db.fetch_single_note(&uuid_or_name) {
-                Ok(Some(note)) => Ok(note),
-                Ok(None) => {
-                    eprintln!("Note does not exist");
-                    Err(NoteNotFound.into())
-                },
-                Err(e) => {
-                    eprint!("Error occured: {}", e.to_string());
-                    Err(e.into())
-                }
-            }
-        }
-        false => {
-            match db.fetch_single_note_with_name(&uuid_or_name) {
-                Ok(Some(note)) => Ok(note),
-                Ok(None) => {
-                    eprintln!("Note does not exist");
-                    Err(NoteNotFound.into())
-                },
-                Err(e) => {
-                    eprint!("Error occured: {}", e.to_string());
-                    Err(e.into())
-                }
-            }
-        }
-    }
-}
-
-fn is_uuid(string: &str) -> bool {
-    let uuid_regex: Regex =
-        Regex::new(r"\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b").unwrap();
-    uuid_regex.is_match(string)
-}
-
-fn sync_notes() -> Result<()> {
-    let mut imap_service = ::apple_notes_rs_lib::apple_imap::MailServiceImpl::new_with_login();
-    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
-    sync(&mut imap_service, &db_connection)
-        .map_err(|e| e.into())
 }
 
 fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
