@@ -17,7 +17,8 @@ use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
 use colored::Colorize;
 use itertools::*;
 use apple_notes_rs_lib::edit::edit_note;
-use apple_notes_rs_lib::note::{IdentifyableNote, MergeableNoteBody};
+use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
+use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -97,7 +98,6 @@ fn edit_passed_note(sub_matches: &ArgMatches) -> Result<()> {
     ::apple_notes_rs_lib::find_note(&uuid_or_name, &db)
         .and_then(|note| apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into()))
         .and_then(|note| db.update(&note).map_err(|e| e.into()))
-        .map_err(|e| NoteError::InsertionError(e.to_string()).into())
 }
 
 fn list_notes(sub_matches: &ArgMatches) -> Result<()>{

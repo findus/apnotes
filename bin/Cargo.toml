@@ -18,9 +18,6 @@ itertools = "0.10.0"
 
 apple_notes_rs_lib = { path = "../lib" }
 
-[[bin]]
-name = "fetch"
-path = "bin/fetch_all.rs"
 
 [[bin]]
 name = "backup"

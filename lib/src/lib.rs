@@ -20,7 +20,6 @@ extern crate regex;
 #[macro_use]
 mod macros;
 pub mod apple_imap;
-pub mod note;
 pub mod converter;
 pub mod profile;
 pub mod sync;
@@ -32,14 +31,14 @@ pub mod db;
 pub mod model;
 pub mod schema;
 pub mod builder;
+pub mod notes;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-use note::LocalNote;
 use db::{DatabaseService, DBConnector, SqliteDBConnection};
 use error::NoteError::NoteNotFound;
 use util::is_uuid;
-
+use notes::localnote::LocalNote;
 
 pub fn create_new_note<C>(db_connection: &dyn DatabaseService<C>, with_subject: String, folder: String)
     -> std::result::Result<LocalNote,::error::NoteError> where C: 'static + DBConnector

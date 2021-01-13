@@ -1,8 +1,10 @@
 use model::{Body, NotesMetadata};
 use util::generate_uuid;
-use note::{RemoteNoteMetaData, NoteHeaders, HeaderParser};
 use chrono::Utc;
 use profile;
+use notes::remote_note_metadata::RemoteNoteMetaData;
+use notes::note_headers::NoteHeaders;
+use notes::traits::header_parser::HeaderParser;
 
 pub struct BodyMetadataBuilder {
     body: Body

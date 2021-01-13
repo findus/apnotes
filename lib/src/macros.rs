@@ -1,6 +1,5 @@
 //Make sure to mod this as first item in lib.rs
 
-
 /// Small macro that sets the metadata_uuid foreign key
 /// for all provided bodies
 macro_rules! note {
@@ -14,7 +13,7 @@ macro_rules! note {
                 mutable_body.metadata_uuid = uuid.clone();
                 temp_set.push(mutable_body);
             )*
-            LocalNote {
+            ::notes::localnote::LocalNote {
                 metadata: localnote,
                 body: temp_set
             }
@@ -38,7 +37,7 @@ macro_rules! set {
 #[cfg(test)]
 mod macro_test {
     use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
-    use note::LocalNote;
+    use notes::localnote::LocalNote;
 
     #[test]
     fn note_macro_uuid() {

@@ -6,10 +6,8 @@ extern crate itertools;
 extern crate ctor;
 
 use self::itertools::Itertools;
-use note::{HeaderParser, LocalNote, IdentifyableNote, RemoteNoteHeaderCollection, RemoteNoteMetaData, MergeableNoteBody};
 use self::log::*;
 use std::collections::HashSet;
-use ::note::{GroupedRemoteNoteHeaders};
 use sync::UpdateAction::{AddLocally, UpdateRemotely, UpdateLocally};
 use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
@@ -17,6 +15,13 @@ use error::UpdateError;
 use apple_imap::{MailService};
 use db::{DBConnector, DatabaseService};
 use converter::convert2md;
+use notes::localnote::{LocalNote};
+use notes::remote_note_metadata::RemoteNoteMetaData;
+use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
+use notes::grouped_remote_note_headers::GroupedRemoteNoteHeaders;
+use notes::traits::identifyable_note::IdentifyableNote;
+use notes::traits::header_parser::HeaderParser;
+use notes::traits::mergeable_note_body::MergeableNoteBody;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -478,8 +483,7 @@ pub fn collect_mergeable_notes(header_metadata: RemoteNoteHeaderCollection) -> G
 #[cfg(test)]
 mod sync_tests {
     use super::*;
-    use note::{GroupedRemoteNoteHeaders, RemoteNoteMetaData};
-    use builder::{BodyMetadataBuilder, NotesMetadataBuilder};
+    use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
 
 
     #[cfg(test)]

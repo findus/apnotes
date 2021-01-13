@@ -1,9 +1,13 @@
-use note::{NoteHeaders, HeaderParser, RemoteNoteMetaData};
 use ::{util, profile};
 use schema::metadata;
 use schema::body;
 #[cfg(test)]
-use note::LocalNote;
+use notes::localnote::LocalNote;
+use std::hash::Hasher;
+use notes::note_headers::NoteHeaders;
+use notes::remote_note_metadata::RemoteNoteMetaData;
+use notes::traits::identifyable_note::IdentifyableNote;
+use notes::traits::header_parser::HeaderParser;
 
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
@@ -55,6 +59,30 @@ impl NotesMetadata {
             uuid: remote_metadata.headers.uuid(),
             mime_version: remote_metadata.headers.mime_version()
         }
+    }
+}
+
+impl IdentifyableNote for NotesMetadata {
+
+    fn folder(&self) -> String { self.subfolder.clone() }
+    fn uuid(&self) -> String {
+        self.uuid.clone()
+    }
+}
+
+impl std::cmp::PartialEq for NotesMetadata  {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.uuid != other.uuid
+    }
+}
+
+impl std::hash::Hash for NotesMetadata {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.uuid.hash(state);
     }
 }
 
@@ -136,4 +164,20 @@ impl Body {
         }
     }
 
+}
+
+impl std::cmp::PartialEq for Body  {
+    fn eq(&self, other: &Self) -> bool {
+        self.message_id == other.message_id && self.metadata_uuid == other.metadata_uuid
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.message_id != other.message_id || self.metadata_uuid != other.metadata_uuid
+    }
+}
+
+impl std::hash::Hash for Body {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.message_id.hash(state);
+    }
 }

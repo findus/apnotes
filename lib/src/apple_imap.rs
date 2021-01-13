@@ -8,15 +8,12 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate serde;
 
-
 use self::log::{info, warn, debug};
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
 use model::{NotesMetadata};
-use note::{RemoteNoteHeaderCollection, RemoteNoteMetaData, LocalNote, IdentifyableNote};
-
 use ::{profile};
 use imap::error::Error;
 use converter::convert_to_html;
@@ -25,6 +22,10 @@ use imap::types::Mailbox;
 extern crate mockall;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
+use notes::localnote::LocalNote;
+use notes::remote_note_metadata::RemoteNoteMetaData;
+use notes::traits::identifyable_note::IdentifyableNote;
 
 pub trait ImapSession<S> {
 

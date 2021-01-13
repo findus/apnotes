@@ -3,13 +3,13 @@ extern crate regex;
 extern crate log;
 extern crate uuid;
 
-use note::LocalNote;
 use error::NoteError;
 use error::NoteError::{EditError, ContentNotChanged};
 use self::log::*;
 use std::io::{Write};
 use ::model::Body;
 use builder::{BodyMetadataBuilder};
+use notes::localnote::LocalNote;
 #[cfg(test)]
 use self::regex::Regex;
 
@@ -90,7 +90,6 @@ mod edit_tests {
     use error::NoteError;
     use edit::{edit_note, replace_uuid};
     use builder::*;
-    use note::LocalNote;
 
     #[test]
     fn should_generate_new_uuid() {

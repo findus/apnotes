@@ -20,9 +20,9 @@ use schema::body::dsl::body;
 use self::log::*;
 use schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
-use note::{LocalNote};
 use std::collections::hash_map::RandomState;
 use schema::metadata::columns::subfolder;
+use notes::localnote::LocalNote;
 
 pub trait DBConnector {
 
@@ -342,13 +342,10 @@ impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
 #[cfg(test)]
 mod db_tests {
     use model::NotesMetadata;
-    use note::{LocalNote, IdentifyableNote};
     use builder::*;
     use ::model::Body;
     use super::*;
-    
-    
-    
+    use notes::traits::identifyable_note::IdentifyableNote;
 
     /// Should return an error, because this note still has child note_bodies
     #[test]
