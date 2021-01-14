@@ -8,6 +8,7 @@ use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
 use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
 use notes::traits::header_parser::HeaderParser;
+use std::collections::HashSet;
 
 #[derive(Eq,Clone,Debug)]
 pub struct LocalNote {
@@ -63,6 +64,14 @@ impl LocalNote {
             .filter(|local_body| remote_message_ids.contains(&local_body.message_id))
             .count() != self.body.len()
     }
+
+    pub fn all_old_message_ids(&self) -> Option<HashSet<String>> {
+        if self.needs_merge() == false && self.content_changed_locally() {
+            return Some(self.body.first().unwrap().old_remote_message_id.clone().unwrap().split(",").map(|e| e.to_string()).collect());
+        } else {
+            return None;
+        }
+    }
 }
 
 impl IdentifyableNote for LocalNote {
@@ -91,7 +100,7 @@ impl MergeableNoteBody for LocalNote {
         }
     }
 
-    fn all_message_ids(&self) -> Vec<String> {
+    fn all_message_ids(&self) -> HashSet<String> {
         self.body.iter().map(|b| b.message_id.clone()).collect()
     }
 }

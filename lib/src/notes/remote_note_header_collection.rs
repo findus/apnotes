@@ -2,6 +2,7 @@ use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
 use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::header_parser::HeaderParser;
+use std::collections::HashSet;
 
 /// A collection of remote note metadata that share the
 /// same uuid
@@ -25,7 +26,7 @@ impl MergeableNoteBody for RemoteNoteHeaderCollection {
         }
     }
 
-    fn all_message_ids(&self) -> Vec<String> {
+    fn all_message_ids(&self) -> HashSet<String> {
         self.iter()
             .map(|n| n.headers.message_id())
             .collect()
