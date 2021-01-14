@@ -79,7 +79,7 @@ impl IdentifyableNote for LocalNote {
 
 impl MergeableNoteBody for LocalNote {
 
-    fn needs_local_merge(&self) -> bool {
+    fn needs_merge(&self) -> bool {
         self.body.len() > 1
     }
 

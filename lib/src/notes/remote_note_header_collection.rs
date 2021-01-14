@@ -8,14 +8,14 @@ use notes::traits::header_parser::HeaderParser;
 pub type RemoteNoteHeaderCollection = Vec<RemoteNoteMetaData>;
 
 impl MergeableNoteBody for RemoteNoteHeaderCollection {
-    fn needs_local_merge(&self) -> bool {
+    fn needs_merge(&self) -> bool {
         self.len() > 1
     }
 
     /// Returns the message-id of the Remote Note
     /// Returns None if note needs to be merged
     fn get_message_id(&self) -> Option<String> {
-        match self.needs_local_merge() {
+        match self.needs_merge() {
             true => None,
             false => {
                 Some(self.iter().last()

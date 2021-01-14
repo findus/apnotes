@@ -124,7 +124,7 @@ fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
 
                     let formatted_uuid_folder = format!("{} {}", ee.metadata.uuid, ee.metadata.folder());
 
-                    if ee.needs_local_merge() {
+                    if ee.needs_merge() {
                         println!("{:<width$}  [{}] {}", formatted_uuid_folder, titles.red(), "<<Needs Merge>>".red(), width = max_len);
                     } else {
                         println!("{:<width$}  [{}]", formatted_uuid_folder, titles, width = max_len);
