@@ -13,3 +13,11 @@ pub fn is_uuid(string: &str) -> bool {
         Regex::new(r"\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b").unwrap();
     uuid_regex.is_match(string)
 }
+
+pub fn filter_none<S>(e: Option<S>) -> Option<S> {
+    if e.is_some() {
+        e
+    } else {
+        None
+    }
+}

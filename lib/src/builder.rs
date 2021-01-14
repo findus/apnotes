@@ -84,8 +84,8 @@ impl NotesMetadataBuilder {
 
     }
 
-    pub fn with_uuid(mut self, uuid: String) -> Self {
-        self.notes_metadata.uuid = uuid;
+    pub fn with_uuid(mut self, uuid: &str) -> Self {
+        self.notes_metadata.uuid = uuid.to_string();
         self
     }
 

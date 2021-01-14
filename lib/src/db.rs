@@ -598,12 +598,12 @@ mod db_tests {
     );
 
         let note_2 = note!(
-        NotesMetadataBuilder::new().with_uuid("meem".to_string()).build(),
+        NotesMetadataBuilder::new().with_uuid("meem").build(),
         BodyMetadataBuilder::new().with_text("old text").build()
     );
 
         let note_3 = note!(
-        NotesMetadataBuilder::new().with_uuid("meem".to_string()).build(),
+        NotesMetadataBuilder::new().with_uuid("meem").build(),
         BodyMetadataBuilder::new().with_text("new text").build()
     );
 
@@ -861,13 +861,13 @@ mod db_tests {
         con.delete_everything().expect("Should delete everything");
 
         let first = note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
         ];
 
         let second = note![
-                NotesMetadataBuilder::new().with_uuid("2".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("2").build(),
                 BodyMetadataBuilder::new().with_message_id("3").build()
         ];
 

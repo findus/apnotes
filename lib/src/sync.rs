@@ -8,7 +8,7 @@ extern crate ctor;
 use self::itertools::Itertools;
 use self::log::*;
 use std::collections::HashSet;
-use sync::UpdateAction::{AddLocally, UpdateRemotely, UpdateLocally};
+use sync::UpdateAction::{AddLocally, UpdateRemotely, UpdateLocally, AddRemotely, DeleteLocally, DeleteRemote};
 use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
@@ -22,6 +22,7 @@ use notes::grouped_remote_note_headers::GroupedRemoteNoteHeaders;
 use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::header_parser::HeaderParser;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
+use util::filter_none;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -31,7 +32,7 @@ pub enum UpdateResult {
 
 /// Defines the Action that has to be done to the
 /// message with the corresponding uuid
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum UpdateAction<'a> {
     /// Deletes the note on the imap server
     /// Apply to all notes that:
@@ -85,32 +86,29 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
                         local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
     info!("Found {} local Notes", local_notes.len());
     info!("Found {} remote notes", remote_note_headers.len());
-    let mut concated_actions = vec![];
+
+    let all_uuids = get_all_uuids(remote_note_headers, local_notes);
+
+    let mut collection: Vec<(Option<&LocalNote>, Option<&RemoteNoteHeaderCollection>)> = all_uuids.into_iter().map(|uuid| {
+        let remote_note = remote_note_headers.iter().filter(|rn| rn.uuid() == uuid).next();
+        let local_note = local_notes.iter().filter(|ln| ln.uuid() == uuid).next();
+        (local_note, remote_note)
+    }).collect();
 
 
+    let acts: Vec<UpdateAction> = collection.drain(0..).map(|(ln, rn)| {
+        get_add_locally_action(rn,ln)
+            .or_else(|| get_add_remotely_action(rn,ln))
+            .or_else(|| get_update_remotely_action(rn,ln))
+            .or_else(|| get_update_locally_action(rn, ln))
+            .or_else(|| get_delete_locally_action(rn,ln))
+            .or_else(|| get_delete_remotely_action(rn,ln))
+    })
+        .filter_map(|e| { filter_none(e) })
+        .collect();
 
-    let mut add_locally_actions =
-        get_add_locally_actions(&remote_note_headers, &local_notes);
-    let mut add_remotely_actions =
-        get_add_remotely_actions(&remote_note_headers, &local_notes);
-    let mut update_remotely_actions =
-        get_update_remotely_actions(&remote_note_headers, &local_notes);
-    let mut update_locally_actions =
-        get_update_locally_actions(&remote_note_headers, &local_notes);
-    let mut delete_remotely_actions =
-        get_delete_remotely_actions(Some(&remote_note_headers), &local_notes);
-    let mut delete_locally_actions =
-        get_delete_locally_actions(&remote_note_headers, &local_notes);
-
-
-    concated_actions.append(&mut delete_remotely_actions);
-    concated_actions.append(&mut add_locally_actions);
-    concated_actions.append(&mut add_remotely_actions);
-    concated_actions.append(&mut update_remotely_actions);
-    concated_actions.append(&mut delete_locally_actions);
-    concated_actions.append(&mut update_locally_actions);
-
-    concated_actions
+    println!("{} Actions", acts.len());
+    acts
 
 }
 
@@ -129,157 +127,74 @@ fn get_all_uuids(remote_note_headers: &HashSet<Vec<RemoteNoteMetaData>>, local_n
 ///
 /// If the local note has multiple non-merged bodies the deletion gets skipped
 /// TODO: What to do if local note is flagged for deletion but got updated remotely
-fn get_delete_remotely_actions<'a>(_remote_note_headers: Option<&GroupedRemoteNoteHeaders>,
-                                   local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>>
-{
-    let local_flagged_notes: Vec<UpdateAction> = local_notes
-        .iter()
-        .filter(|local_note| local_note.metadata.locally_deleted)
-        .map(|deleted_local_note| {
-            if deleted_local_note.needs_merge() {
-                warn!("Note with uuid {} is not merged, skipping", deleted_local_note.metadata.uuid);
-                UpdateAction::DoNothing
-            } else {
-                let _note_body = deleted_local_note.body.first().unwrap();
-                UpdateAction::DeleteRemote(
-                    deleted_local_note
-                )
-            }
-        })
-        .collect();
-    info!("Found {} Notes that are going to be deleted remotely", &local_flagged_notes.len());
-    local_flagged_notes
-}
-
-fn get_delete_locally_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
-                                  local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
-
-    let remote_message_ids: HashSet<String> = remote_note_headers
-        .iter()
-        .map(|e| e.uuid())
-        .collect();
-
-    let local_message_ids: HashSet<String> = local_notes.iter()
-        .map(|e| e.uuid())
-        .collect();
-
-    let message_uuids_to_delete_locally: Vec<&String> =
-        local_message_ids.difference(&remote_message_ids).collect();
-
-    let actions: Vec<UpdateAction>= local_notes
-        .into_iter()
-        .filter(|note| message_uuids_to_delete_locally.contains(&&note.metadata.uuid))
-        .map(|localnote| UpdateAction::DeleteLocally(localnote))
-        .collect();
-
-    info!("Found {} Notes that have bodies to be deleted locally", &actions.len());
-
-    actions
-
-}
-
-fn get_add_locally_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
-                               local_notes: &HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
-    let remote_uuids: HashSet<String> =
-        remote_note_headers.iter().map(|item| item.uuid()).collect();
-
-    let local_uuids: HashSet<String> =
-        local_notes.iter().map(|item| item.uuid()).collect();
-
-    let uuids: Vec<&String> = remote_uuids.difference(&local_uuids).collect();
-
-    let actions: Vec<UpdateAction> = remote_note_headers
-        .iter()
-        .filter(|remote_header_collection|
-            uuids.contains(&&remote_header_collection.uuid()))
-        .map(|new_note|
-            UpdateAction::AddLocally(new_note)
-        )
-        .collect();
-    info!("Found {} Notes that are going to be added locally", &actions.len());
-    actions
-}
-
-fn get_add_remotely_actions<'a>(_remote_note_headers: &'a GroupedRemoteNoteHeaders,
-                                local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
-    let actions: Vec<UpdateAction> = local_notes.iter()
-        .filter(|note| note.metadata.new == true)
-        .map(|note| UpdateAction::AddRemotely(note))
-        .collect();
-    info!("Found {} Notes that are going to be added remotely", &actions.len());
-    actions
-}
-
-fn get_update_remotely_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
-                                   local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
-
-    fn needs_update(note: &LocalNote, remote_note_headers: &GroupedRemoteNoteHeaders) -> bool {
-        // TODO maybe impl sanity check if iterator only houses 1 item, it should only exist one item per uuid
-        let mut remote_note_iterator = remote_note_headers
-            .iter()
-            .filter(|header|
-                // Temporary solution, merged note = app is eligible to overwrite everything
-                // remotely, but that might lead to data loss if one of the remote notes
-                // got also edited
-                // header.needs_merge() == false &&
-                header.uuid() == note.metadata.uuid
-            );
-
-        match remote_note_iterator.next() {
-            Some(remote_note) => {
-                note.body[0].old_remote_message_id == remote_note.get_message_id()
-                    && remote_note.get_message_id().is_some()
-            }
-            None => false
+fn get_delete_remotely_action<'a>(remote_note_headers: Option<&'a RemoteNoteHeaderCollection>,
+                                 local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
+    match (remote_note_headers, local_note) {
+        (Some(rn), Some(ln)) if ln.needs_merge() == false && ln.metadata.locally_deleted => {
+            Some(DeleteRemote(ln))
         }
+        _ => None
     }
-
-    let filtered: Vec<_> = local_notes
-        .iter()
-        .filter(|note| note.needs_merge() == false)
-        .filter(|note| needs_update(note, remote_note_headers))
-        .map(|note| UpdateRemotely(note))
-        .collect();
-
-    info!("Found {} Notes that are going to be updated remotely", &filtered.len());
-
-    filtered
 }
 
-fn get_update_locally_actions<'a>(remote_note_headers: &'a HashSet<Vec<RemoteNoteMetaData>>, local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
-    let all_uuids = get_all_uuids(remote_note_headers, local_notes);
 
-    let collection: Vec<(Option<&LocalNote>, Option<&RemoteNoteHeaderCollection>)> = all_uuids.into_iter().map(|uuid| {
-        let remote_note = remote_note_headers.iter().filter(|rn| rn.uuid() == uuid).next();
-        let local_note = local_notes.iter().filter(|ln| ln.uuid() == uuid).next();
-        (local_note, remote_note)
-    }).collect();
+fn get_delete_locally_action<'a>(remote_note_headers: Option<&'a RemoteNoteHeaderCollection>,
+                              local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
+    match (remote_note_headers,local_note) {
+        (None,Some(ln)) if ln.metadata.new == false && ln.needs_merge() == false => {
+            Some(DeleteLocally(ln))
+        },
+        _ => None,
+    }
+}
 
-    let updateactions: Vec<UpdateAction> = collection.into_iter().map(|(ln, rm)| {
-        match (ln, rm) {
-            (Some(ln), Some(rn)) => {
-                //Check if no merge needs to happen
-                if ln.content_changed_locally() == false && ln.changed_remotely(rn){
-                    return Some(UpdateLocally(rn));
-                } else {
-                    return None
-                }
-            },
-            _ => None
+fn get_add_locally_action<'a>(remote_note_headers: Option<&'a RemoteNoteHeaderCollection>,
+                              local_note: Option<&LocalNote>) -> Option<UpdateAction<'a>> {
+    match (remote_note_headers,local_note) {
+        (Some(remote_note),None) => Some(AddLocally(remote_note)),
+        _ => None
+    }
+}
+
+fn get_add_remotely_action<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCollection>,
+                                local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
+    match (local_note,remote_note_header) {
+        (Some(local_note),None) if local_note.metadata.locally_deleted == false &&
+            local_note.metadata.new == true => Some(AddRemotely(local_note)),
+        _ => None
+    }
+}
+
+fn get_update_remotely_action<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCollection>,
+                                  local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
+    if let (Some(rn), Some(ln)) = (remote_note_header, local_note) {
+        if ln.body[0].old_remote_message_id == rn.get_message_id()
+            && rn.get_message_id().is_some()
+            && ln.needs_merge() == false
+        {
+
+            Some(UpdateRemotely(ln))
+        } else {
+            None
         }
-    })
-        .filter_map(|e| {
-            if e.is_some() {
-                e
+    } else {
+        None
+    }
+}
+
+fn get_update_locally_action<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCollection>,
+                                  local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
+    match (local_note, remote_note_header) {
+        (Some(ln), Some(rn)) if ln.metadata.locally_deleted == false => {
+            //Check if no merge needs to happen
+            if ln.content_changed_locally() == false && ln.changed_remotely(rn){
+                return Some(UpdateLocally(rn));
             } else {
-                None
+                return None
             }
-        })
-        .collect();
-
-    info!("Found {} Notes that are going to be updated locally", &updateactions.len());
-
-    updateactions
+        },
+        _ => None
+    }
 }
 
 pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>)
@@ -500,40 +415,31 @@ mod sync_tests {
     /// tests if locally updated note gets properly detected
     #[test]
     pub fn update_remotely_test() {
-        let note_to_be_update = NotesMetadataBuilder::new().build();
-        let mut body_to_get_updated = BodyMetadataBuilder::new()
-            .with_message_id("1")
-            .build();
 
         let remote_note = note![
-            note_to_be_update.clone(),
-            body_to_get_updated.clone()
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_message_id("1").build()
         ];
 
         let remote_header = set![vec![remote_note.to_remote_metadata()]];
 
-        body_to_get_updated.old_remote_message_id = Some("1".to_string());
-        body_to_get_updated.message_id = "2".to_string();
-
         let local_note = note![
-            note_to_be_update.clone(),
-            body_to_get_updated.clone()
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_message_id("2").with_old_remote_message_id("1").build()
         ];
 
         let noteset = set![
-        local_note,
-        note![
-            NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
-        ]
-    ];
-        let update = get_update_remotely_actions(&remote_header, &noteset);
+            local_note
+        ];
+        let update = get_sync_actions(&remote_header, &noteset);
 
         assert_eq!(update.len(), 1);
 
         match update.first().unwrap() {
             UpdateAction::UpdateRemotely(localnote) => {
-                assert_eq!(localnote.metadata.uuid(), note_to_be_update.uuid)
+                assert_eq!(localnote.metadata.uuid(), "1".to_string());
+                assert_eq!(localnote.body[0].message_id, "2".to_string());
+
             }
             _ => {
                 panic!("Wrong Action provided")
@@ -541,50 +447,31 @@ mod sync_tests {
         }
     }
 
-    /// tests if locally and remotely update notes are not getting flagged as updated
-    /// remotely
+    /// tests if locally and remotely changed notes are getting detected and flagged as
+    /// merge action
     #[test]
     pub fn update_remotely_test_also_changed_remotely() {
-        let note_to_be_update = NotesMetadataBuilder::new().build();
-        let mut body_to_get_updated = BodyMetadataBuilder::new()
-            .with_message_id("3")
-            .build();
 
         let remote_note = note![
-            note_to_be_update.clone(),
-            body_to_get_updated.clone()
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_message_id("3").build()
         ];
 
         let remote_header = set![vec![remote_note.to_remote_metadata()]];
 
-        body_to_get_updated.old_remote_message_id = Some("1".to_string());
-        body_to_get_updated.message_id = "2".to_string();
-
         let local_note = note![
-            note_to_be_update.clone(),
-            body_to_get_updated.clone()
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_old_remote_message_id("1").with_message_id("2").build()
         ];
 
         let noteset = set![
-        local_note,
-        note![
-            NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
-        ]
-    ];
-        let update = get_update_remotely_actions(&remote_header, &noteset);
+            local_note
+        ];
 
+        let update = get_sync_actions(&remote_header, &noteset);
+
+        //TODO check if merge action gets returned if implemented
         assert_eq!(update.len(), 0);
-    }
-
-
-    #[test]
-    pub fn sync_test() {
-        let mut imap_service = ::apple_imap::MailServiceImpl::new_with_login();
-        let db_connection = ::db::SqliteDBConnection::new();
-
-        // ::db::delete_everything(&db_connection);
-        sync(&mut imap_service, &db_connection).unwrap();
     }
 
     /// Tests if metadata with multiple bodies is getting properly grouped
@@ -639,28 +526,32 @@ mod sync_tests {
     /// Should find one item that should be deleted
     #[test]
     fn test_delete_remote_actions() {
-        let note_to_be_deleted =
-            NotesMetadataBuilder::new()
-                .is_flagged_for_deletion(true)
-                .build();
 
         let noteset = set![
-        note![
-            note_to_be_deleted.clone(),
-            BodyMetadataBuilder::new().build()
-        ],
-        note![
-            NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
-        ]
-    ];
-        let delete_actions = get_delete_remotely_actions(None, &noteset);
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").is_flagged_for_deletion(true).build(),
+                BodyMetadataBuilder::new().build()
+            ]
+        ];
+
+        let remote_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").build(),
+                BodyMetadataBuilder::new().build()
+            ]
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let delete_actions = get_sync_actions(&remote_data, &noteset);
 
         assert_eq!(delete_actions.len(), 1);
 
         match delete_actions.first().unwrap() {
             UpdateAction::DeleteRemote(localnote) => {
-                assert_eq!(localnote.metadata.uuid(), note_to_be_deleted.uuid)
+                assert_eq!(localnote.metadata.uuid(), "1".to_string())
             }
             _ => {
                 panic!("Wrong Action provided")
@@ -683,18 +574,13 @@ mod sync_tests {
             BodyMetadataBuilder::new().build()
         ]
     ];
-        let delete_actions = get_delete_remotely_actions(None, &noteset);
 
-        assert_eq!(delete_actions.len(), 1);
+        let nothing = GroupedRemoteNoteHeaders::new();
+        let delete_actions = get_sync_actions(&nothing, &noteset);
 
-        match delete_actions.first().unwrap() {
-            UpdateAction::DoNothing => {
-                println!("Success")
-            }
-            _ => {
-                panic!("Wrong Action provided")
-            }
-        }
+        assert_eq!(delete_actions.len(), 0);
+
+
     }
 
     /// Note got updated remotely, that note should not appear as add-action
@@ -716,9 +602,10 @@ mod sync_tests {
 
         let remote_data: GroupedRemoteNoteHeaders = set![RemoteNoteMetaData::new(&changed_remote_note)];
 
-        let added_actions = get_add_locally_actions(&remote_data, &local_notes);
+        let added_actions = get_sync_actions(&remote_data, &local_notes);
 
-        assert_eq!(added_actions.len(), 0);
+        assert_eq!(added_actions.len(), 1);
+        assert!(matches!(added_actions[0],UpdateLocally(_)));
     }
 
     /// Basic add test, there is one new note with a single body on remote side
@@ -729,29 +616,37 @@ mod sync_tests {
 
         let remote_only_body = BodyMetadataBuilder::new().build();
 
-        let notes_to_be_added = set![
+        let remote_notes = set![
         note![
             note_to_be_added.clone(),
             remote_only_body.clone()
+        ],
+         note![
+            NotesMetadataBuilder::new().with_uuid("2").build(),
+            BodyMetadataBuilder::new().with_message_id("21").build()
+        ],
+        note![
+            NotesMetadataBuilder::new().with_uuid("3").build(),
+            BodyMetadataBuilder::new().with_message_id("31").build()
         ]
     ];
 
         let local_notes = set![
         note![
-            NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
+            NotesMetadataBuilder::new().with_uuid("2").build(),
+            BodyMetadataBuilder::new().with_message_id("21").build()
         ],
         note![
-            NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
+            NotesMetadataBuilder::new().with_uuid("3").build(),
+            BodyMetadataBuilder::new().with_message_id("31").build()
         ]
     ];
 
-        let remote_data: GroupedRemoteNoteHeaders = notes_to_be_added.iter().map(|entry| {
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let added_actions = get_add_locally_actions(&remote_data, &local_notes);
+        let added_actions = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(added_actions.len(), 1);
 
@@ -778,17 +673,25 @@ mod sync_tests {
             first_note.clone(),
             first_body.clone(),
             second_body.clone()
+        ],
+        note![
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_message_id("11").build()
+        ],
+        note![
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_message_id("21").build()
         ]
     ];
 
         let local_notes = set![
         note![
-            NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_message_id("11").build()
         ],
         note![
-            NotesMetadataBuilder::new().build(),
-            BodyMetadataBuilder::new().build()
+            NotesMetadataBuilder::new().with_uuid("1").build(),
+            BodyMetadataBuilder::new().with_message_id("21").build()
         ]
     ];
 
@@ -796,7 +699,7 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let added_actions = get_add_locally_actions(&remote_data, &local_notes);
+        let added_actions = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(added_actions.len(), 1);
 
@@ -814,12 +717,15 @@ mod sync_tests {
         }
     }
 
-    /// this should be handled by the updatelocally action generator
+    /**
+    This should be handled by the updateLocally action generator
+    because note only gets altered, not deleted entirely
+    **/
     #[test]
     pub fn delete_locally_2_bodies() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
             ]
@@ -827,7 +733,7 @@ mod sync_tests {
 
         let remote_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("1").build()
             ]
         ];
@@ -836,28 +742,28 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let action = get_delete_locally_actions(&remote_data, &local_notes);
+        let action = get_sync_actions(&remote_data, &local_notes);
 
-        assert_eq!(action.len(), 0)
+        assert_eq!(action.len(), 1);
+        assert!(matches!(action[0], UpdateAction::UpdateLocally(_)));
     }
 
-    /// whole note should be deleted because last body got removed
+    /// whole note should be deleted because it does not exist remotely anymore
     #[test]
     pub fn delete_locally() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
-                BodyMetadataBuilder::new().with_message_id("1").build(),
-                BodyMetadataBuilder::new().with_message_id("2").build()
+                NotesMetadataBuilder::new().with_uuid("1").build(),
+                BodyMetadataBuilder::new().with_message_id("1").build()
             ]
         ];
 
         let remote = GroupedRemoteNoteHeaders::new();
 
-        let action = &get_delete_locally_actions(&remote, &local_notes)[0];
+        let action = &get_sync_actions(&remote, &local_notes);
 
-        match action {
-            UpdateAction::DeleteLocally(actions) => {
+        match action.iter().next() {
+            Some(UpdateAction::DeleteLocally(actions)) => {
                 assert_eq!(actions.metadata.uuid, "1");
                 assert_eq!(actions.body[0].message_id, "1");
             }
@@ -870,14 +776,14 @@ mod sync_tests {
     pub fn update_locally() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("1").build()
             ]
         ];
 
         let remote_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
             ]
         ];
@@ -886,7 +792,7 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let action = get_update_locally_actions(&remote_data, &local_notes);
+        let action = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(action.len(), 1);
 
@@ -907,7 +813,7 @@ mod sync_tests {
     pub fn update_locally_unmerged_local() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
             ]
@@ -915,7 +821,7 @@ mod sync_tests {
 
         let remote_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
             ]
         ];
@@ -924,7 +830,7 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let action = get_update_locally_actions(&remote_data, &local_notes);
+        let action = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(action.len(), 1);
 
@@ -946,14 +852,14 @@ mod sync_tests {
     pub fn update_locally_merged_local_changed_remote() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("3").with_old_remote_message_id("1,2").build()
             ]
         ];
 
         let remote_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("4".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("5").build()
             ]
         ];
@@ -962,9 +868,11 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let action = get_update_locally_actions(&remote_data, &local_notes);
+        let action = get_sync_actions(&remote_data, &local_notes);
 
+        //TODO change to 1 if merge logic is implemted
         assert_eq!(action.len(), 0);
+        //TODO check if merge enum gets returned
 
     }
 
@@ -974,14 +882,14 @@ mod sync_tests {
     pub fn update_locally_merged_local_unchanged_remote() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("3").with_old_remote_message_id("1,2").build()
             ]
         ];
 
         let remote_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
             ]
         ];
@@ -990,7 +898,7 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let action = get_update_locally_actions(&remote_data, &local_notes);
+        let action = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(action.len(), 0);
 
@@ -1002,14 +910,14 @@ mod sync_tests {
     pub fn update_locally_unmerged_local_partly_changed_remote() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("3").with_old_remote_message_id("1,2").build()
             ]
         ];
 
         let remote_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
             ]
         ];
@@ -1018,7 +926,7 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let action = get_update_locally_actions(&remote_data, &local_notes);
+        let action = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(action.len(), 0);
 
@@ -1029,14 +937,14 @@ mod sync_tests {
     pub fn update_locally_subnote_added() {
         let local_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build()
             ]
         ];
 
         let remote_notes = set![
             note![
-                NotesMetadataBuilder::new().with_uuid("1".to_string()).build(),
+                NotesMetadataBuilder::new().with_uuid("1").build(),
                 BodyMetadataBuilder::new().with_message_id("2").build(),
                 BodyMetadataBuilder::new().with_message_id("3").build()
             ]
@@ -1046,7 +954,7 @@ mod sync_tests {
             RemoteNoteMetaData::new(entry)
         }).collect();
 
-        let action = get_update_locally_actions(&remote_data, &local_notes);
+        let action = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(action.len(), 1);
 

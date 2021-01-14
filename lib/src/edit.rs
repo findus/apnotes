@@ -10,6 +10,7 @@ use std::io::{Write};
 use ::model::Body;
 use builder::{BodyMetadataBuilder};
 use notes::localnote::LocalNote;
+
 #[cfg(test)]
 use self::regex::Regex;
 
@@ -24,11 +25,13 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     let note = local_note.body.first()
         .expect("Expected at least 1 note body");
 
+    let env = std::env::var("RS_NOTES_EDITOR");
+
     #[cfg(target_family = "unix")]
         let (file_path,open_with) = {
         (
             format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped()),
-            "xdg-open".to_owned()
+            "nvim-float".to_owned()
         )
     };
 
@@ -45,6 +48,8 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     let mut file = std::fs::File::create(&file_path).expect("Could not create file");
     file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
         .expect("Could not write to file");
+
+    info!("Exec: {} {}", &open_with, &file_path);
 
     subprocess::Exec::cmd(open_with).arg(&file_path)
         .join()
