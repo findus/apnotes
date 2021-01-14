@@ -347,7 +347,7 @@ pub fn process_actions<'a, T, C>(
                                         Body {
                                             old_remote_message_id: None,
                                             message_id: headers.headers.message_id(),
-                                            text: Some(content),
+                                            text: Some(convert2md(&content)),
                                             uid: Some(headers.uid),
                                             metadata_uuid: headers.headers.uuid(),
                                         }
