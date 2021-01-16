@@ -70,7 +70,7 @@ pub fn get_db_path() -> PathBuf {
 }
 
 #[cfg(target_family = "windows")]
-pub fn get_config_path() -> PathBuf {
+pub fn get_db_path() -> PathBuf {
     let config_file_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\db".to_string()));
     if config_file_path.exists() {
         config_file_path
