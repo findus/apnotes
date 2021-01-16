@@ -38,15 +38,10 @@ pub enum UpdateResult {
 #[derive(Debug,PartialEq)]
 pub enum UpdateAction<'a> {
     /// Deletes the note on the imap server
-    /// Apply to all notes that:
-    ///     have their "locally_deleted" Flag set to true inside the db
-    ///
-    ///     First Argument: Subfolder
-    ///     Second Argument: imap-uid
     DeleteRemote(&'a LocalNote),
     /// Apply to all notes that
-    ///     are not getting transmitted anymore and dont have the
-    ///     "new" flag inside the db
+    ///     Are note flagged as "new" inside the db
+    ///     Are not present anymore on on remote side
     DeleteLocally(&'a LocalNote),
     /// Apply to all notes that:
     ///     have their "locally_edited" flag set
@@ -54,26 +49,19 @@ pub enum UpdateAction<'a> {
     UpdateRemotely(&'a LocalNote),
     /// Apply to all notes that:
     ///     have their locally_edited flag set to false
-    ///     first argument: local note to be deleted
-    ///     second argument: remote note to be added
-    ///
-    /// Action: delete all local bodies and replace with remote
+    ///     have different message-id on remote side or different count of note_bodies
+    /// Action: delete all local bodies and replace with remote content
     UpdateLocally(&'a Vec<RemoteNoteMetaData>),
     /// Apply to all notes that:
     ///     have old_remote id set to non null string
     ///     remotes message-id != the locals message-id
-    ///   OR
-    ///     Metadata has > 1 bodies as entries
     Merge(MergeMethod, &'a Vec<RemoteNoteMetaData>),
     /// Apply to all notes that:
     ///     have new flag set to true
     ///     their uuid is not present remotely
     AddRemotely(&'a LocalNote),
     /// Apply to all notes that:
-    ///
     ///     their uuid is not present locally
-    ///     first arg: folder
-    ///     second arg: imap-uid
     AddLocally(&'a RemoteNoteHeaderCollection),
     DoNothing,
 }
