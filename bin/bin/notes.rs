@@ -20,7 +20,6 @@ use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
 
-
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 embed_migrations!("../migrations/");

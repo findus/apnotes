@@ -54,6 +54,22 @@ pub fn get_config_path() -> PathBuf {
     }
 }
 
+#[cfg(target_family = "unix")]
+pub fn get_db_path() -> PathBuf {
+    let xdg_dir = BaseDirectories::new().expect("Could not find xdg dirs");
+    match xdg_dir.find_data_file("apple_notes/notes_db") {
+        Some(path) => path,
+        None => {
+            warn!("Could not detect database, gonna create empty one");
+            let mut path = xdg_dir.create_data_directory("apple_notes").expect("Could not create apple_notes config folder");
+            path.push("notes_db");
+            File::create(&path).expect("Unable to create file");
+            path.to_path_buf()
+        }
+    }
+}
+
+
 pub fn load_profile() -> Profile {
     let path = get_config_path();
     info!("Read config file from {}", &path.as_os_str().to_str().unwrap());

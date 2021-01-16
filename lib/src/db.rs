@@ -78,11 +78,10 @@ pub struct SqLiteConnector {
 
 impl SqLiteConnector {
     fn connect() -> SqliteConnection {
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or("test".to_string());
+        let database_url = env::var("NOTES_DATABASE_URL")
+            .unwrap_or(::profile::get_db_path().into_os_string().to_string_lossy().to_string());
 
-            //println!("{}", env::current_dir().unwrap().to_string_lossy());
-            //println!("{}", database_url);
+        println!("Database Path: {}", database_url);
 
         let connection = SqliteConnection::establish(&database_url)
             .expect(&format!("Error connecting to {}", database_url));
