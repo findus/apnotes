@@ -151,7 +151,7 @@ fn get_all_uuids(remote_note_headers: &HashSet<Vec<RemoteNoteMetaData>>, local_n
 fn get_delete_remotely_action<'a>(remote_note_headers: Option<&'a RemoteNoteHeaderCollection>,
                                  local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
     match (remote_note_headers, local_note) {
-        (Some(rn), Some(ln)) if
+        (Some(_rn), Some(ln)) if
             ln.needs_merge() == false &&
             ln.metadata.locally_deleted
         => {

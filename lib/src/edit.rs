@@ -13,9 +13,9 @@ use notes::localnote::LocalNote;
 
 #[cfg(test)]
 use self::regex::Regex;
-use std::sync::mpsc::{channel, RecvError};
-use std::path::PathBuf;
-use std::time::Duration;
+
+
+
 
 /// Edits the passed note and alters the metadata if successful
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
@@ -28,7 +28,7 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     let note = local_note.body.first()
         .expect("Expected at least 1 note body");
 
-    let env = std::env::var("RS_NOTES_EDITOR");
+    let _env = std::env::var("RS_NOTES_EDITOR");
 
     let profile = ::profile::load_profile();
 
