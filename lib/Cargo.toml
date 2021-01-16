@@ -30,6 +30,7 @@ diesel = { features = ["sqlite"], version =  "1.4.5"}
 dotenv = "0.15.0"
 itertools = "0.10.0"
 colored = "2"
+notify = "4.0.15"
 
 [dev-dependencies]
 ctor = "0.1.17"

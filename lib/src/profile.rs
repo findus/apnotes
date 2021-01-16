@@ -16,7 +16,9 @@ pub struct Profile {
     pub(crate) username: String,
     pub(crate) password: String,
     pub(crate) imap_server: String,
-    pub(crate) email: String
+    pub(crate) email: String,
+    pub(crate) editor: String,
+    pub(crate) editor_arguments: Vec<String>
 }
 
 impl Profile {
@@ -92,17 +94,23 @@ pub fn load_profile() -> Profile {
     let password_regex = Regex::new(r"password=(.*)").unwrap();
     let imap_regex = Regex::new(r"imap_server=(.*)").unwrap();
     let email_regex = Regex::new(r"email=(.*)").unwrap();
+    let editor_regex = Regex::new(r"editor=(.*)").unwrap();
+    let args_regex = Regex::new(r"editor_arguments=(.*)").unwrap();
 
     let username = get_with_regex(username_regex, &creds);
     let password = get_with_regex(password_regex, &creds);
     let imap_server = get_with_regex(imap_regex, &creds);
     let email = get_with_regex(email_regex, &creds);
+    let editor = get_with_regex(editor_regex, &creds);
+    let args = get_with_regex(args_regex, &creds).split(" ").map(|s| s.to_string()).collect();
 
     Profile {
         username,
         password,
         imap_server,
-        email
+        email,
+        editor,
+        editor_arguments: args
     }
 }
 

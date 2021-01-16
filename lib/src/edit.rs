@@ -13,6 +13,11 @@ use notes::localnote::LocalNote;
 
 #[cfg(test)]
 use self::regex::Regex;
+use std::sync::mpsc::{channel, RecvError};
+use notify::{raw_watcher, Watcher, RawEvent, watcher};
+use std::path::PathBuf;
+use notify::RecursiveMode::Recursive;
+use std::time::Duration;
 
 /// Edits the passed note and alters the metadata if successful
 pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
@@ -27,21 +32,13 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
 
     let env = std::env::var("RS_NOTES_EDITOR");
 
+    let profile = ::profile::load_profile();
+
     #[cfg(target_family = "unix")]
-        let (file_path,open_with) = {
-        (
-            format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped()),
-            "nvim-float".to_owned()
-        )
-    };
+        let file_path = format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped());
 
     #[cfg(target_family = "windows")]
-        let (file_path,open_with) = {
-        (
-            format!("{}\\{}_{}",std::env::var_os("TEMP").unwrap().to_string_lossy().to_owned(), note.metadata_uuid , note.subject_escaped()),
-            (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned()
-        )
-    };
+        let file_path = format!("{}\\{}_{}",std::env::var_os("TEMP").unwrap().to_string_lossy().to_owned(), note.metadata_uuid , note.subject_escaped());
 
     info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
 
@@ -49,20 +46,39 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
         .expect("Could not write to file");
 
-    info!("Exec: {} {}", &open_with, &file_path);
+    info!("Exec: {} {}", &profile.editor, &file_path);
 
-    subprocess::Exec::cmd(open_with).arg(&file_path)
+    subprocess::Exec::cmd(&profile.editor).args(&profile.editor_arguments).arg(&file_path)
         .join()
         .map_err(|e| EditError(e.to_string()))
-        .and_then(|_| read_edited_text(local_note, note, file_path))
+        .and_then(|_| read_edited_text(local_note, note, &file_path))
+        .and_then(|localnote| remove_temp_file(&file_path).map(|_| localnote))
 }
 
-fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: String) -> Result<LocalNote, NoteError> {
+pub fn watch(path: String) {
+    let (tx,rx) = channel();
+    let mut watcher = watcher(tx, Duration::from_secs(10)).unwrap();
+    watcher.watch(path, Recursive).unwrap();
+
+    loop {
+        match rx.recv() {
+            Ok(event) => println!("{:?}", event),
+            Err(e) => println!("watch error: {:?}", e),
+        }
+    }
+}
+
+fn remove_temp_file(file_path: &String) -> Result<(), NoteError> {
+    println!("Removing temp file {}", &file_path);
+    std::fs::remove_file(&file_path)
+        .map_err(|e| NoteError::EditError(e.to_string()))
+}
+
+fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Result<LocalNote, NoteError> {
     //Read content and save to body.text
     let file_content = std::fs::read_to_string(&file_path)
         .map_err(|e| NoteError::EditError(e.to_string()))?;
-    std::fs::remove_file(&file_path)
-        .map_err(|e| NoteError::EditError(e.to_string()))?;
+
 
     if &file_content == note.text.as_ref().unwrap_or(&"".to_string())
         && local_note.metadata.new == false {
