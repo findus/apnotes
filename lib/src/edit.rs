@@ -3,127 +3,99 @@ extern crate regex;
 extern crate log;
 extern crate uuid;
 
+use error::NoteError;
+use error::NoteError::{EditError, ContentNotChanged};
+use self::log::*;
+use std::io::{Write};
+use ::model::Body;
+use builder::{BodyMetadataBuilder};
+use notes::localnote::LocalNote;
 
-use std::fs::File;
+#[cfg(test)]
 use self::regex::Regex;
-use self::log::info;
-
-use self::log::debug;
-use std::io::{BufReader, BufRead};
-use std::time;
-use error::UpdateError::EditError;
-use error::UpdateError;
-use ::{util, io};
-use note::{NotesMetadata, HeaderParser};
 
 
-pub fn edit(metadata: &NotesMetadata, new: bool) -> Result<String, UpdateError> {
-    let path = util::get_notes_file_path_from_metadata(metadata);
-    let path = path.to_string_lossy().into_owned();
-    info!("Opening File for editing: {}", path);
+
+
+/// Edits the passed note and alters the metadata if successful
+pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
+
+
+    if local_note.needs_merge() {
+        return Err(NoteError::NeedsMerge);
+    }
+
+    let note = local_note.body.first()
+        .expect("Expected at least 1 note body");
+
+    let environment_editor = std::env::var("RS_NOTES_EDITOR");
+
+    let profile = ::profile::load_profile();
 
     #[cfg(target_family = "unix")]
-        let open_with = "xdg-open".to_owned();
+        let file_path = format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped());
+
     #[cfg(target_family = "windows")]
-        let open_with = (std::env::var_os("WINDIR").unwrap().to_string_lossy().to_owned() + "\\system32\\notepad.exe").into_owned();
+        let file_path = format!("{}\\{}_{}",std::env::var_os("TEMP").unwrap().to_string_lossy().to_owned(), note.metadata_uuid , note.subject_escaped());
 
-    subprocess::Exec::cmd(open_with).arg(&path)
-        .join()
-        .map_err(|e| EditError(e.to_string()))
-        .and_then(|_| std::fs::metadata(&path).map_err(|e| EditError(e.to_string())))
-        .and_then(|metadata| {
-            let change_duration =
-                time::SystemTime::now()
-                    .duration_since(metadata.modified()
-                        .expect("No System time found"))
-                    .unwrap();
+    info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
 
-            if change_duration.as_secs() > 10 {
-                Err(EditError("File not changed".to_string()))
-            } else {
-                Ok(())
-            }
-        })
-        .and_then(|_| self::update(&path, new))
-}
+    let mut file = std::fs::File::create(&file_path).expect("Could not create file");
+    file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
+        .expect("Could not write to file");
 
-fn update(file: &str, new: bool) -> Result<String, UpdateError> {
-    info!("Update Message_Id for {}", &file);
-    let path = std::path::Path::new(file).to_owned();
-    let metadata_file_path = util::get_hash_path(&path);
-
-    let file = File::open(path).unwrap();
-    let mut reader = BufReader::new(file);
-
-    let mut first_line= String::new();
-    reader.read_line(&mut first_line).expect("Could not read first line");
-    let len = first_line.len();
-
-    if len > 0 {
-        first_line.truncate(len - 1);
-    }
-
-    let metadata_file = File::open(&metadata_file_path)
-        .expect(&format!("Could not open {}", &metadata_file_path.to_string_lossy()));
-
-    let metadata: NotesMetadata = serde_json::from_reader(metadata_file).unwrap();
-
-    let old_subject = metadata.subject();
-
-    if old_subject != first_line {
-        info!("Title of note changed, will update metadata_file subject and file-name");
-    }
-
-    let metadata_identifier = metadata.message_id();
-    let new_metadata_headers_iterator =
-            metadata.header.clone()
-                .into_iter()
-                .filter(|(a,_)| a != "Message-Id")
-                .filter(|(a,_)| a != "Subject");
-
-    let mut new_metadata_headers: Vec<(String,String)> = new_metadata_headers_iterator.collect();
-
-    if old_subject != first_line {
-        info!("Title has changed, file is getting renamed");
-        new_metadata_headers.push(("Subject".to_owned(), first_line.to_owned()));
+    let (editor, args) = if environment_editor.is_ok() {
+        (environment_editor.unwrap(),vec![])
     } else {
-        new_metadata_headers.push(("Subject".to_owned(), old_subject.to_owned()));
-    }
-
-    //if there already is an "old" remote id,use that instead of using the current one
-    let old_remote_id = metadata.clone().old_remote_id.unwrap_or(metadata_identifier.clone());
-
-    let mut new_metadata = NotesMetadata {
-        header: new_metadata_headers.clone(),
-        old_remote_id: Some(old_remote_id.clone()),
-        subfolder: metadata.subfolder.to_string(),
-        locally_deleted: false,
-        uid: metadata.uid,
-        // check if ok
-        new: if new { true } else { false }
+        (profile.editor.clone(),profile.editor_arguments.clone())
     };
 
-    debug!("Changing files message id...");
-    let new_uuid_str = replace_uuid(&metadata_identifier);
-    new_metadata_headers.push(("Message-Id".to_owned(), new_uuid_str.clone()));
+    info!("Exec: {} {}", editor, &file_path);
 
-    new_metadata.header = new_metadata_headers.clone();
-
-    if old_subject != first_line {
-        io::save_metadata_to_file(&new_metadata)
-            .map_err(|e| std::io::Error::from(e))
-            .and_then(|_| io::move_note(&new_metadata, &metadata.subject_with_identifier()))
-            .and_then(|_| io::delete_metadata_file(&metadata))
-            .map(|_| new_metadata.subject_escaped())
-            .map_err(|e| EditError(e.to_string()))
+    let proc = if args.len() > 0 {
+        subprocess::Exec::cmd(&editor).args(&profile.editor_arguments).arg(&file_path)
     } else {
-        io::save_metadata_to_file(&new_metadata)
-            .map(|_| new_metadata.subject_escaped())
-            .map_err(|e| EditError(e.to_string()))
-    }
+        subprocess::Exec::cmd(&editor).arg(&file_path)
+    };
 
+    proc
+        .join()
+        .map_err(|e| EditError(e.to_string()))
+        .and_then(|_| read_edited_text(local_note, note, &file_path))
+        .and_then(|localnote| remove_temp_file(&file_path).map(|_| localnote))
 }
 
+fn remove_temp_file(file_path: &String) -> Result<(), NoteError> {
+    println!("Removing temp file {}", &file_path);
+    std::fs::remove_file(&file_path)
+        .map_err(|e| NoteError::EditError(e.to_string()))
+}
+
+fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Result<LocalNote, NoteError> {
+    //Read content and save to body.text
+    let file_content = std::fs::read_to_string(&file_path)
+        .map_err(|e| NoteError::EditError(e.to_string()))?;
+
+
+    if &file_content == note.text.as_ref().unwrap_or(&"".to_string())
+        && local_note.metadata.new == false {
+        return Err(ContentNotChanged);
+    } else {
+        Ok(
+            note!(
+            // note: bodymetadatabuilder generates a new message-id here
+                  local_note.metadata.clone(),
+                  BodyMetadataBuilder::new()
+                  .with_old_remote_message_id(&note.message_id)
+                  .with_uid(note.uid.expect("Expected UID").clone())
+                  .with_text(&file_content)
+                  .build()
+            )
+        )
+    }
+}
+
+#[cfg(test)]
 fn replace_uuid(string: &str) -> String {
     let uuid_regex = Regex::new(r"(.*<)\b[0-9A-F]{8}\b-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-\b[0-9A-F]{12}\b(.*)").unwrap();
     let new_uuid = uuid::Uuid::new_v4().to_string().to_uppercase();
@@ -131,8 +103,30 @@ fn replace_uuid(string: &str) -> String {
     uuid_regex.replace(string, dd.as_str()).to_string()
 }
 
-#[test]
-fn should_generate_new_uuid() {
-    let old_uuid = "Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@test.mail>";
-    assert_ne!(old_uuid.to_string(), replace_uuid(old_uuid));
+#[cfg(test)]
+mod edit_tests {
+    use error::NoteError;
+    use edit::{edit_note, replace_uuid};
+    use builder::*;
+
+    #[test]
+    fn should_generate_new_uuid() {
+        let old_uuid = "Message-Id: <7A41875C-2CCF-4AE4-869E-1F230E1B71BA@test.mail>";
+        assert_ne!(old_uuid.to_string(), replace_uuid(old_uuid));
+    }
+
+    /// A note should not be able to be edited if it is not merged
+    #[test]
+    fn edit_note_merge() {
+        let note = note!(
+        NotesMetadataBuilder::new().build(),
+        BodyMetadataBuilder::new().build(),
+        BodyMetadataBuilder::new().build()
+    );
+
+        match edit_note(&note, false) {
+            Err(e) => { assert_eq!(e, NoteError::NeedsMerge) }
+            Ok(_) => panic!("Should be error")
+        }
+    }
 }

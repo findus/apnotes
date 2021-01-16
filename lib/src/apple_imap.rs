@@ -12,251 +12,262 @@ use self::log::{info, warn, debug};
 use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
-use self::imap::types::{ZeroCopy, Fetch};
-
-use std::borrow::Borrow;
-use note::{Note, NotesMetadata, HeaderParser};
-use ::{apple_imap, converter};
-use profile;
+use self::imap::types::{Fetch};
+use model::{NotesMetadata};
+use ::{profile};
 use imap::error::Error;
+use converter::convert_to_html;
+use imap::types::Mailbox;
+#[cfg(test)]
+extern crate mockall;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
+use notes::localnote::LocalNote;
+use notes::remote_note_metadata::RemoteNoteMetaData;
+use notes::traits::identifyable_note::IdentifyableNote;
 
-pub trait MailFetcher {
-    fn fetch_mails() -> Vec<Note>;
+pub trait ImapSession<S> {
+
 }
 
-pub fn login() -> Session<TlsStream<TcpStream>> {
-
-    let profile = self::profile::load_profile();
-
-    let domain = profile.imap_server.as_str();
-    info!("Connecting to {}", domain);
-    let tls = native_tls::TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap();
-
-    // we pass in the domain twice to check that the server's TLS
-    // certificate is valid for the domain we're connecting to.
-    let client = imap::connect((domain, 993), domain, &tls).unwrap();
-
-    // the client we have here is unauthenticated.
-    // to do anything useful with the e-mails, we need to log in
-    let imap_session = client
-        .login(profile.username, profile.password)
-        .map_err(|e| e.0);
-
-    return imap_session.unwrap();
+pub struct TlsImapSession {
+    session: Session<TlsStream<TcpStream>>
 }
 
-pub fn fetch_notes(session: &mut Session<TlsStream<TcpStream>>) -> Vec<Note> {
-    let folders = list_note_folders(session);
-    info!("Loading remote messagges");
-    folders.iter().map(|folder_name| {
-        apple_imap::get_messages_from_foldersession(session, folder_name.to_string())
-    })
-        .flatten()
-        .collect()
-}
+impl TlsImapSession {
+    fn login() -> Session<TlsStream<TcpStream>> {
+        let profile = self::profile::load_profile();
 
-pub fn fetch_headers(session: &mut Session<TlsStream<TcpStream>>) -> Vec<NotesMetadata> {
-    info!("Fetching Headers of Remote Notes...");
-    let folders = list_note_folders(session);
-    folders.iter().map(|folder_name| {
-        apple_imap::fetch_headers_in_folder(session, folder_name.to_string())
-    })
-        .flatten()
-        .collect()
-}
+        let domain = profile.imap_server.as_str();
+        info!("Connecting to {}", domain);
 
-pub fn create_folder(session: &mut Session<TlsStream<TcpStream>>, mailbox: &str) {
-    match session.create(&mailbox) {
-        Err(e) => warn!("warn {}", e),
-        _ => {}
-    };
-}
+        let tls = native_tls::TlsConnector::builder().build().unwrap();
 
-pub fn copy_uid(session: &mut Session<TlsStream<TcpStream>>, id: &str, mailbox: &str) {
+        // we pass in the domain twice to check that the server's TLS
+        // certificate is valid for the domain we're connecting to.
+        let client = imap::connect((domain, 993), domain, &tls).unwrap();
 
-    if let Some(error) = session.select(mailbox).and_then( |_| {
-        session.uid_copy(id, &mailbox)
-    }).err() {
-        warn!("warn {}", error)
+        // the client we have here is unauthenticated.
+        // to do anything useful with the e-mails, we need to log in
+        let imap_session = client
+            .login(profile.username, profile.password)
+            .map_err(|e| e.0);
+
+        return imap_session.unwrap();
     }
 }
 
-pub fn fetch_uid_of_message_id(_session: &mut Session<TlsStream<TcpStream>>, _metadata: &NotesMetadata) {
+impl ImapSession<Session<TlsStream<TcpStream>>> for TlsImapSession {
 
 }
 
-pub fn fetch_single_note(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Option<Note> {
-    if let Some(result) = session.select(&metadata.subfolder).err() {
-        warn!("Could not select folder {} [{}]", &metadata.subfolder, result)
+#[cfg_attr(test, automock)]
+pub trait MailService<T: 'static> {
+    /// Iterates through all Note-Imap folders and fetches the mail header content plus
+    /// the folder name.
+    ///
+    /// The generated dataset can be used to check for duplicated notes that needs
+    /// to be merged
+    fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection,Error>;
+    /// Creates a new Subfolder for storing notes
+    fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error>;
+    /// Fetches the actual content from a note
+    fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String, Error>;
+    /// Exposes the active imap connection
+    fn get_session(&self) -> T;
+    /// Updates a local message, either if it got updated or if it is a new localnote
+    /// This App should only support "merged" notes, notes that only have one body.
+    ///
+    /// If the passed localnote has >1 bodies it will reject it.
+    fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error>;
+    /// Selects a specific subfolder
+    fn select(&mut self, folder: &str) -> Result<Mailbox, Error>;
+}
+
+pub struct MailServiceImpl {
+    session: TlsImapSession
+}
+
+impl MailServiceImpl {
+    pub fn new_with_login() -> MailServiceImpl {
+        MailServiceImpl {
+            session: TlsImapSession {
+                session: TlsImapSession::login()
+            }
+        }
     }
-    let messages_result = session.uid_fetch(metadata.uid.unwrap().to_string(), "(RFC822 RFC822.HEADER UID)");
-    match messages_result {
-        Ok(message) => {
-            debug!("Message Loading for {} successful", &metadata.subject());
-            let first_message = message.first().unwrap();
 
-            let new_metadata = NotesMetadata {
-                header: get_headers(message.first().unwrap()),
-                old_remote_id: None,
-                subfolder: metadata.subfolder.clone(),
-                locally_deleted: false,
-                uid: Some(first_message.uid.unwrap()),
-                new: false
-            };
+    pub fn fetch_headers_in_folder(&mut self, folder_name: String) -> Vec<RemoteNoteMetaData> {
+        if let Some(result) = self.session.session.select(&folder_name).err() {
+            warn!("Could not select folder {} [{}]", &folder_name, result)
+        }
+        let messages_result = self.session.session.fetch("1:*", "(RFC822.HEADER UID)");
+        match messages_result {
+            Ok(messages) => {
+                debug!("Message Loading for {} successful", &folder_name.to_string());
+                messages.iter().map( |fetch|{
+                    self.get_headers(fetch, folder_name.clone())
+                }).collect()
+            },
+            Err(error) => {
+                warn!("Could not load notes from {}! Does this Folder contains any messages? {}", &folder_name.to_string(), error);
+                Vec::new()
+            }
+        }
+    }
 
-            Some(
-                Note {
-                    mail_headers: new_metadata,
-                    folder: metadata.subfolder.to_string(),
-                    body: get_body(first_message).unwrap()
+    /**
+    Returns empty vector if something fails
+    */
+    fn get_headers(&mut self,fetch: &Fetch, foldername: String) -> RemoteNoteMetaData {
+        match mailparse::parse_headers(fetch.header().unwrap()) {
+            Ok((header, _)) => {
+                let  headers = header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect();
+                RemoteNoteMetaData {
+                    headers,
+                    folder: foldername.to_string(),
+                    uid: fetch.uid.unwrap() as i64,
                 }
-            )
-        },
-        Err(error) => {
-            warn!("Could not load notes from {}! {}", &metadata.subfolder, error);
-            None
+            },
+            _ => panic!("No Headers presentfor fetch with uid {}", fetch.uid.unwrap())
         }
     }
-}
 
-pub fn fetch_headers_in_folder(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<NotesMetadata> {
-    if let Some(result) = session.select(&folder_name).err() {
-        warn!("Could not select folder {} [{}]", folder_name, result)
+    fn get_body(&mut self,fetch: &Fetch) -> Option<String> {
+        match mailparse::parse_mail(fetch.body()?) {
+            Ok(body) => body.get_body().ok(),
+            _ => None
+        }
     }
-    let messages_result = session.fetch("1:*", "(RFC822.HEADER UID)");
-    match messages_result {
-        Ok(messages) => {
-            debug!("Message Loading for {} successful", &folder_name.to_string());
-            messages.iter().map(|fetch| {
-                NotesMetadata {
-                    header: get_headers(fetch),
-                    old_remote_id: None,
-                    subfolder: folder_name.clone(),
-                    locally_deleted: false,
-                    uid: Some(fetch.uid.unwrap()),
-                    new: false
+
+    pub fn list_note_folders(&mut self) -> Result<Vec<String>,imap::error::Error> {
+        let folders_result = self.session.session.list(None, Some("Notes*"));
+        match folders_result {
+            Ok(result) => {
+                let names: Vec<String> = result.iter().map(|name| name.name().to_string()).collect();
+                Ok(names)
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    /// Deletes all notes remotely that have the uuid provided by local_note, expect
+    /// the note with uid_to_keep
+    fn delete_old_mergeable_notes(&mut self,
+                                  local_note: &LocalNote,
+                                  uid_to_keep: u32) -> Result<(),Error>
+    {
+        self.session.session.
+            select(&local_note.metadata.folder())
+            .and_then(|_| self.session.session.uid_search(
+                format!("HEADER X-Universally-Unique-Identifier {}", local_note.body[0].message_id)))
+            .and_then(|uids| {
+                let uids: Vec<String> = uids.into_iter()
+                    .filter(|uid| uid != &uid_to_keep )
+                    .map(|x| (x.to_string())).collect();
+                for uid in uids {
+                    info!("Will delete remote note with uid: {}", uid);
+                    self.flag_as_deleted(uid)?;
                 }
-            }).collect()
-        },
-        Err(error) => {
-            warn!("Could not load notes from {}! Does this Folder contains any messages? {}", &folder_name.to_string(), error);
-            Vec::new()
-        }
-    }
-}
-
-pub fn get_messages_from_foldersession(session: &mut Session<TlsStream<TcpStream>>, folder_name: String) -> Vec<Note> {
-
-    if let Some(result) = session.select(&folder_name).err() {
-        warn!("Could not select folder {} [{}]", folder_name, result)
-    }
-    let messages_result = session.fetch("1:*", "(RFC822 RFC822.HEADER UID)");
-    let messages = match messages_result {
-        Ok(messages) => {
-            debug!("Message Loading for {} successful", &folder_name.to_string());
-            get_notes(messages, folder_name)
-        }
-        Err(error) => {
-            warn!("Could not load notes from {}! {}", &folder_name.to_string(), error);
-            Vec::new()
-        }
-    };
-    messages
-}
-
-pub fn get_notes(fetch_vector: ZeroCopy<Vec<Fetch>>, folder_name: String) -> Vec<Note> {
-    fetch_vector.into_iter().map(|fetch| {
-        let headers = get_headers(fetch.borrow());
-        let body = get_body(fetch.borrow());
-            Note {
-                mail_headers: NotesMetadata { header: headers, old_remote_id: None, subfolder: folder_name.clone(), locally_deleted: false, uid: fetch.uid, new: false },
-                body: body.clone().unwrap_or("".to_string()),
-                folder: folder_name.to_owned()
-            }
-    }).collect()
-}
-
-/**
-Returns empty vector if something fails
-*/
-pub fn get_headers(fetch: &Fetch) -> Vec<(String, String)> {
-    match mailparse::parse_headers(fetch.header().unwrap()) {
-        Ok((header, _)) => header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect(),
-        _ => Vec::new()
-    }
-}
-
-pub fn get_body(fetch: &Fetch) -> Option<String> {
-    match mailparse::parse_mail(fetch.body()?) {
-        Ok(body) => body.get_body().ok(),
-        _ => None
-    }
-}
-
-pub fn list_note_folders(imap: &mut Session<TlsStream<TcpStream>>) -> Vec<String> {
-    let folders_result = imap.list(None, Some("Notes*"));
-    let result: Vec<String> = match folders_result {
-        Ok(result) => {
-            let names: Vec<String> = result.iter().map(|name| name.name().to_string()).collect();
-            names
-        }
-        _ => Vec::new()
-    };
-
-    return result;
-}
-
-pub fn update_message(session: &mut Session<TlsStream<TcpStream>>, metadata: &NotesMetadata) -> Result<u32, Error> {
-    //TODO wenn erste Zeile != Subject: Subject = Erste Zeile
-    let uid = if metadata.uid.is_some() {
-        format!("{}", metadata.uid.unwrap())
-    } else {
-        format!("new")
-    };
-
-    let headers = metadata.header.iter().map( |(k,v)| {
-        //TODO make sure that updated message has new message-id
-        format!("{}: {}",k,v)
-    })
-        .collect::<Vec<String>>()
-        .join("\n");
-
-    let content = converter::convert_to_html(&metadata);
-
-    let message = format!("{}\n\n{}",headers, content);
-
-    session
-        //Write new message into the mailbox
-        .append(&metadata.subfolder, message.as_bytes())
-        //Select the appropriate mailbox, in which the updated message was saved
-        .and_then(|_| session.select(&metadata.subfolder))
-        // Set the old (overridden) message to "deleted", so that it can be expunged
-        .and_then(|_| {
-            if metadata.new {
+                self.delete_flagged()?;
                 Ok(())
-            } else {
-                session.uid_store(&uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string()).map(|_| ())
-            }
-        })
-        //Expunge them
-        .and_then(|_| {
-            if metadata.new {
-                Ok(())
-            } else {
-                session.uid_expunge(&uid).map(|_| ())
-            }
-        })
-        //Search for the new message, to get the new UID of the updated message
-        .and_then(|_| session.uid_search(format!("HEADER Message-ID {}", metadata.message_id())))
-        //Get the first UID
-        .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
-        //Save the new UID to the metadata file, also set seen flag so that mail clients dont get notified on updated message
-        .and_then(|new_uid| {
-            session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid)
-        })
+            })
+    }
+
+    fn delete_flagged(&mut self) -> imap::error::Result<Vec<u32>> {
+        self.session.session.expunge()
+    }
+
+    fn flag_as_deleted(&mut self, uid: String) -> imap::error::Result<()> {
+        // If note was new everything is ready
+        self.session.session.uid_store(uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string())?;
+        Ok(())
+    }
 }
 
+impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
 
-pub fn create_mailbox(session: &mut Session<TlsStream<TcpStream>>, note: &NotesMetadata) -> Result<(),Error> {
-    session.create(&note.subfolder).or(Ok(()))
+    fn fetch_headers(&mut self) -> Result<Vec<RemoteNoteMetaData>,Error> {
+        info!("Fetching Headers of Remote Notes...");
+        let folders = self.list_note_folders()?;
+        let header = folders.iter().map(|folder_name| {
+            self.fetch_headers_in_folder(folder_name.to_string())
+        })
+            .flatten()
+            .collect();
+        Ok(header)
+    }
+
+    fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error> {
+        self.session.session.create(&note.subfolder).or(Ok(()))
+    }
+
+    fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String, Error> {
+        if let Some(result) = self.session.session.select(&subfolder).err() {
+            warn!("Could not select folder {} [{}]", &subfolder, result)
+        }
+
+        let messages_result = self.session.session.uid_fetch(uid.to_string(), "(RFC822 UID)");
+        match messages_result {
+            Ok(message) => {
+                debug!("Message Loading for message with UID {} successful", uid);
+                let first_message = message.first().expect("Expected message");
+                Ok(self.get_body(first_message).expect("Expected note body, found none"))
+            },
+            Err(error) => {
+                warn!("Could not load notes from {}! {}", &subfolder, error);
+                Err(error)
+            }
+        }
+    }
+
+    fn get_session(&self) -> Session<TlsStream<TcpStream>> {
+        unimplemented!()
+    }
+
+    fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error> {
+        //Todo check >1
+
+        let headers = localnote.to_header_vector().iter().map( |(k,v)| {
+            format!("{}: {}",k,v)
+        })
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        // Updated message must be merged
+        //let _content = converter::convert_to_html(&localnote.body.first().unwrap());
+
+        let body = localnote.body.first().unwrap();
+        let message = format!("{}\n\n{}",headers, convert_to_html(body));
+
+        self.session.session
+            // Write new message into the mailbox
+            .append(&localnote.metadata.subfolder, message.as_bytes())
+            // Select the appropriate mailbox, in which the updated message was saved
+            .and_then(|_| self.session.session.select(&localnote.metadata.subfolder))
+            // Set the old (overridden) message to "deleted", so that it can be expunged
+            .and_then(|_| {
+                if localnote.metadata.new == false {
+                    self.flag_as_deleted(localnote.body.first().unwrap().uid.unwrap().to_string())
+                } else {
+                    Ok(())
+                }
+            })
+            // Expunge them //TODO might need check if note is new, skip if note is new
+            .and_then(|_| self.delete_flagged())
+            // Search for the new message, to get the new UID of the updated message
+            .and_then(|_| self.session.session.uid_search(format!("HEADER Message-ID {}", localnote.body[0].message_id)))
+            // Get the first UID
+            .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
+            // Save the new UID to the metadata file, also set seen flag so that mail clients dont get notified on updated message
+            .and_then(|new_uid| self.session.session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid))
+            // Delete dangling remote non merged notes
+            .and_then(|new_uid| self.delete_old_mergeable_notes(&localnote, new_uid).map(|_| new_uid))
+    }
+
+    fn select(&mut self, folder: &str) -> Result<Mailbox, Error> {
+        //todo wrap mailbox type?
+        self.session.session.select(folder)
+    }
 }
