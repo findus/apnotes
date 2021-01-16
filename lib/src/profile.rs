@@ -71,14 +71,14 @@ pub fn get_db_path() -> PathBuf {
 
 #[cfg(target_family = "windows")]
 pub fn get_db_path() -> PathBuf {
-    let config_file_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\db".to_string()));
-    if config_file_path.exists() {
-        config_file_path
+    let db_file_path = PathBuf::from(format!("{}\\{}", env!("APPDATA"), "rs-notes\\db".to_string()));
+    if db_file_path.exists() {
+        db_file_path
     } else {
         warn!("Could not detect database, gonna create empty one");
-        std::fs::create_dir(&config_file_path.parent().unwrap()).expect("Unable to create config folder");
-        File::create(&config_file_path).expect("Unable to create config file");
-        config_file_path
+        std::fs::create_dir(&db_file_path.parent().unwrap());
+        File::create(&db_file_path).expect("Unable to create config file");
+        db_file_path
     }
 }
 
