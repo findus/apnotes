@@ -14,9 +14,7 @@ use notes::localnote::LocalNote;
 #[cfg(test)]
 use self::regex::Regex;
 use std::sync::mpsc::{channel, RecvError};
-use notify::{raw_watcher, Watcher, RawEvent, watcher};
 use std::path::PathBuf;
-use notify::RecursiveMode::Recursive;
 use std::time::Duration;
 
 /// Edits the passed note and alters the metadata if successful
@@ -53,19 +51,6 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
         .map_err(|e| EditError(e.to_string()))
         .and_then(|_| read_edited_text(local_note, note, &file_path))
         .and_then(|localnote| remove_temp_file(&file_path).map(|_| localnote))
-}
-
-pub fn watch(path: String) {
-    let (tx,rx) = channel();
-    let mut watcher = watcher(tx, Duration::from_secs(10)).unwrap();
-    watcher.watch(path, Recursive).unwrap();
-
-    loop {
-        match rx.recv() {
-            Ok(event) => println!("{:?}", event),
-            Err(e) => println!("watch error: {:?}", e),
-        }
-    }
 }
 
 fn remove_temp_file(file_path: &String) -> Result<(), NoteError> {
