@@ -297,7 +297,7 @@ pub fn process_actions<'a, T, C>(
                 UpdateAction::DeleteRemote(_note) => { unimplemented!(); },
                 UpdateAction::DeleteLocally(local_note) => process_delete_locally(db_connection, action, local_note),
                 UpdateAction::UpdateLocally(new_note_bodies) => process_update_locally(imap_connection, db_connection, action,new_note_bodies),
-                UpdateAction::Merge(_, _) => { unimplemented!(); },
+                UpdateAction::Merge(_, _) => { (action,Err(UpdateError::SyncError("Unimplemented".to_string()).into())) },
                 UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, update_message_remotely(imap_connection, db_connection, &local_note)) }
                 UpdateAction::AddLocally(note_headers) => process_add_locally(imap_connection, db_connection, action, note_headers),
                 UpdateAction::DoNothing => { unimplemented!(); }

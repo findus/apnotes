@@ -81,7 +81,7 @@ impl SqLiteConnector {
         let database_url = env::var("NOTES_DATABASE_URL")
             .unwrap_or(::profile::get_db_path().into_os_string().to_string_lossy().to_string());
 
-        println!("Database Path: {}", database_url);
+        info!("Database Path: {}", database_url);
 
         let connection = SqliteConnection::establish(&database_url)
             .expect(&format!("Error connecting to {}", database_url));

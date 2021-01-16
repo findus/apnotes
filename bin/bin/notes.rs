@@ -25,7 +25,8 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 embed_migrations!("../migrations/");
 
 fn main() {
-    simple_logger::init_with_level(Level::Info).unwrap();
+    #[cfg(debug)]
+        simple_logger::init_with_level(Level::Info).unwrap();
 
     let connection = SqliteDBConnection::new();
 
