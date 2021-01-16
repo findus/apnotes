@@ -46,7 +46,13 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
 
     info!("Exec: {} {}", &profile.editor, &file_path);
 
-    subprocess::Exec::cmd(&profile.editor).args(&profile.editor_arguments).arg(&file_path)
+    let proc = if &profile.editor_arguments.len() > &0 {
+        subprocess::Exec::cmd(&profile.editor).args(&profile.editor_arguments).arg(&file_path)
+    } else {
+        subprocess::Exec::cmd(&profile.editor).arg(&file_path)
+    };
+
+    proc
         .join()
         .map_err(|e| EditError(e.to_string()))
         .and_then(|_| read_edited_text(local_note, note, &file_path))

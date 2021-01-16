@@ -104,7 +104,7 @@ pub fn load_profile() -> Profile {
     let imap_server = get_with_regex(imap_regex, &creds);
     let email = get_with_regex(email_regex, &creds);
     let editor = get_with_regex(editor_regex, &creds);
-    let args = get_with_regex(args_regex, &creds).split(" ").map(|s| s.to_string()).collect();
+    let args = get_with_regex(args_regex, &creds).split(" ").map(|s| s.to_string()).filter(|s| s.len() > 0).collect();
 
     Profile {
         username,
