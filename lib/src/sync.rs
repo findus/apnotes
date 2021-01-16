@@ -23,6 +23,9 @@ use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::header_parser::HeaderParser;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
 use util::filter_none;
+use std::fmt::Display;
+use serde::export::Formatter;
+use colored::Colorize;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -73,6 +76,22 @@ pub enum UpdateAction<'a> {
     ///     second arg: imap-uid
     AddLocally(&'a RemoteNoteHeaderCollection),
     DoNothing,
+}
+
+impl<'a> Display for UpdateAction<'a>
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeleteRemote(_) => write!(f, "DeleteRemote"),
+            DeleteLocally(_) => write!(f, "DeleteLocally"),
+            UpdateRemotely(_) => write!(f, "UpdateRemotely"),
+            UpdateLocally(_) => write!(f, "UpdateLocally"),
+            Merge(_, _) => write!(f, "Merge"),
+            AddRemotely(_) => write!(f, "AddRemotely"),
+            AddLocally(_) => write!(f, "AddLocally"),
+            DoNothing => write!(f, "DoNothing")
+        }
+    }
 }
 
 #[derive(Debug,PartialEq)]
@@ -260,8 +279,14 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
                 get_sync_actions(&grouped_not_headers, &fetches);
             let results = process_actions(imap_session, db_connection, &actions);
 
-            for r in results {
-                println!("{:?}", r);
+            for (action,result) in results {
+
+                let result = match result {
+                    Ok(_) => format!("{}", "Ok".green()),
+                    Err(e) => format!("{} {}", "Failed".red(), e.to_string())
+                };
+
+                println!("{:>padding$}...{}", action, result , padding=20 );
             }
             Ok(())
         }
@@ -269,7 +294,6 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
             panic!("mist {}", e);
         }
     }
-    //let actions =
 }
 
 pub fn process_actions<'a, T, C>(
