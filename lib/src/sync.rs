@@ -113,7 +113,15 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         .filter_map(|e| { filter_none(e) })
         .collect();
 
-    println!("{} Actions", acts.len());
+    println!("{:>padding$} Actions pending", acts.len(), padding=4);
+    println!("Delete {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::DeleteLocally(_))).count(), padding=4);
+    println!("Delete {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::DeleteRemote(_))).count(), padding=4);
+    println!("Add    {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::AddLocally(_))).count(), padding=4);
+    println!("Add    {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::AddRemotely(_))).count(), padding=4);
+    println!("Update {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::UpdateLocally(_))).count(), padding=4);
+    println!("Update {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::UpdateRemotely(_))).count(), padding=4);
+    println!("Merge  {:>padding$} notes", acts.iter().filter(|act| matches!(act, UpdateAction::Merge(_,_))).count(), padding=4);
+
     acts
 
 }
@@ -176,6 +184,7 @@ fn get_add_remotely_action<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCo
 
 fn get_update_remotely_action<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCollection>,
                                   local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
+
     if let (Some(rn), Some(ln)) = (remote_note_header, local_note) {
         if ln.body[0].old_remote_message_id == rn.get_message_id()
             && rn.get_message_id().is_some()
@@ -251,11 +260,6 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
                 get_sync_actions(&grouped_not_headers, &fetches);
             let results = process_actions(imap_session, db_connection, &actions);
 
-            println!("A: {}", &actions.len());
-            for a in actions {
-                println!("{:?}", a);
-            }
-
             for r in results {
                 println!("{:?}", r);
             }
@@ -271,93 +275,110 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
 pub fn process_actions<'a, T, C>(
     imap_connection: &mut dyn MailService<T>,
     db_connection: &dyn DatabaseService<C>,
-    actions: &Vec<UpdateAction<'a>>) -> Vec<std::result::Result<(), UpdateError>>
+    actions: &'a Vec<UpdateAction<'a>>) -> Vec<(&'a UpdateAction<'a>, Result<()>)>
     where C: 'static + DBConnector, T: 'static
 {
-    actions
+    let result = actions
         .iter()
         .map(|action| {
-            match action {
-                UpdateAction::DeleteRemote(_note) => {
-                    unimplemented!();
-                }
-                UpdateAction::DeleteLocally(b) => {
-                    //TODO what happens if remote umerged note gets deleted only delete this body
-                    // what happens if to be deleted note with message-id:x has merged un-updated
-                    //content on local side
-                    db_connection.delete(b)
-                        .map_err(|e| UpdateError::SyncError(e.to_string()))
+            let result = match action {
+                UpdateAction::DeleteRemote(_note) => { unimplemented!(); },
+                UpdateAction::DeleteLocally(local_note) => process_delete_locally(db_connection, action, local_note),
+                UpdateAction::UpdateLocally(new_note_bodies) => process_update_locally(imap_connection, db_connection, action,new_note_bodies),
+                UpdateAction::Merge(_, _) => { unimplemented!(); },
+                UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, update_message_remotely(imap_connection, db_connection, &local_note)) }
+                UpdateAction::AddLocally(note_headers) => process_add_locally(imap_connection, db_connection, action, note_headers),
+                UpdateAction::DoNothing => { unimplemented!(); }
+            };
+            return result;
+        }
+        ).collect();
 
-                    //   unimplemented!();
-                }
-                UpdateAction::UpdateLocally(new_note_bodies) => {
-                    let d: Vec<std::result::Result<Body,UpdateError>> =
-                        new_note_bodies.iter().map(|e| {
-                            let folder = &e.folder;
-                            imap_connection.select(folder)
-                                .map_err(|e| SyncError(e.to_string()))
-                                .and_then(|_| imap_connection.fetch_note_content(folder, e.uid)
-                                    .map_err(|e| UpdateError::SyncError(e.to_string()))
-                                    .map(|content| (e, content)))
-                                .and_then(|(headers, content)| {
-                                    Ok(
-                                        Body {
-                                            old_remote_message_id: None,
-                                            message_id: headers.headers.message_id(),
-                                            text: Some(convert2md(&content)),
-                                            uid: Some(headers.uid),
-                                            metadata_uuid: headers.headers.uuid(),
-                                        }
-                                    )
-                                })
-                        }).collect();
-
-                    if d.iter().filter(|c| c.is_err()).next() != None {
-                        return Err(UpdateError::SyncError("Could not fetch note bodies".to_string()));
-                    };
-
-                    let f: Vec<Body> = d.into_iter().map(|d| d.unwrap()).collect();
-
-                    db_connection.replace_notes(
-                        &f,
-                        new_note_bodies.iter().next().unwrap().headers.uuid()
-                    ).map_err(|e| UpdateError::IoError(e.to_string()))
-                }
-                UpdateAction::Merge(_,_) => {
-                    unimplemented!();
-                }
-                UpdateAction::AddRemotely(localnote) | UpdateAction::UpdateRemotely(localnote) => {
-                    update_message_remotely(imap_connection, db_connection, &localnote)
-                }
-                AddLocally(noteheaders) => {
-                    match localnote_from_remote_header(imap_connection, noteheaders) {
-                        Ok(note) => {
-                            db_connection.insert_into_db(&note)
-                                .and_then(|_| Ok(note.metadata.uuid))
-                                .map_err(|e| UpdateError::IoError(e.to_string()))
-                        }
-                        Err(e) => { Err(e) }
-                    }.map(|_| ())
-                }
-                UpdateAction::DoNothing => {
-                    unimplemented!();
-                }
-            }
-        }).collect()
+    return result;
 }
 
-fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>, localnote: &LocalNote)
-    -> std::result::Result<(), UpdateError>
+fn process_add_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
+                               db_connection: &dyn DatabaseService<C>,
+                               action: &'a UpdateAction,
+                               noteheaders: &&Vec<RemoteNoteMetaData>)
+    -> (&'a UpdateAction<'a>, Result<()>)
+    where C: 'static + DBConnector, T: 'static {
+
+    let result =
+        localnote_from_remote_header(imap_connection, noteheaders)
+            .and_then(|note| db_connection.insert_into_db(&note).map_err(|e| e.into()));
+
+    (action, result)
+}
+
+fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
+                                   db_connection: &dyn DatabaseService<C>,
+                                   action: &'a UpdateAction,
+                                   new_note_bodies: &Vec<RemoteNoteMetaData>)
+    -> (&'a UpdateAction<'a>, Result<()>)
+    where C: 'static + DBConnector, T: 'static {
+
+    let d: Vec<std::result::Result<Body, UpdateError>> =
+        new_note_bodies.iter().map(|e| {
+            let folder = &e.folder;
+            imap_connection.select(folder)
+                .map_err(|e| SyncError(e.to_string()))
+                .and_then(|_| imap_connection.fetch_note_content(folder, e.uid)
+                    .map_err(|e| UpdateError::SyncError(e.to_string()))
+                    .map(|content| (e, content)))
+                .and_then(|(headers, content)| {
+                    Ok(
+                        Body {
+                            old_remote_message_id: None,
+                            message_id: headers.headers.message_id(),
+                            text: Some(convert2md(&content)),
+                            uid: Some(headers.uid),
+                            metadata_uuid: headers.headers.uuid(),
+                        }
+                    )
+                })
+        }).collect();
+
+    if d.iter().filter(|c| c.is_err()).next() != None {
+        return (action,Err(UpdateError::SyncError("Could not fetch note bodies".to_string()).into()));
+    };
+
+    let f: Vec<Body> = d.into_iter().map(|d| d.unwrap()).collect();
+
+    let result = db_connection.replace_notes(
+        &f,
+        new_note_bodies.iter().next().unwrap().headers.uuid()
+    ).map_err(|e| e.into());
+
+    (action, result)
+}
+
+fn process_delete_locally<'a, C>(db_connection: &dyn DatabaseService<C>,
+                                 action: &'a UpdateAction, b: &LocalNote)
+    -> (&'a UpdateAction<'a>, Result<()>)
+    where C: 'static + DBConnector {
+    //TODO what happens if remote umerged note gets deleted only delete this body
+    // what happens if to be deleted note with message-id:x has merged un-updated
+    //content on local side
+    let result = db_connection.delete(b)
+        .map_err(|e| e.into());
+    (action, result)
+}
+
+fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
+                                     db_connection: &dyn DatabaseService<C>,
+                                     localnote: &LocalNote)
+    -> Result<()>
     where C: 'static + DBConnector, T: 'static
 {
     info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
     let metadata = &localnote.metadata;
     imap_connection.create_mailbox(metadata)
-        .map_err(|e| SyncError(e.to_string()))
+        .map_err(|e| e.into())
         .and_then(|_| imap_connection.select(&metadata.subfolder)
-            .map_err(|e| SyncError(e.to_string())))
+            .map_err(|e| e.into()))
         .and_then(|_| imap_connection.update_message(localnote)
-            .map_err(|e| UpdateError::SyncError(e.to_string()))
+            .map_err(|e| e.into())
         )
         .and_then(|uid| {
             let body = localnote.body.first().unwrap();
@@ -380,12 +401,12 @@ fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>, d
                             }
                         );
             db_connection.update(&note)
-                .map_err(|e| UpdateError::SyncError(e.to_string()))
+                .map_err(|e| e.into())
         })
 }
 
 fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>)
-    -> std::result::Result<LocalNote, UpdateError>
+    -> Result<LocalNote>
     where T: 'static
 {
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
@@ -415,7 +436,7 @@ fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, not
     }).collect();
 
     if bodies.iter().filter(|entry| entry.is_none()).collect::<Vec<_>>().len() > 0 {
-        return Err(SyncError(format!("{}: child note was nil", noteheaders.uuid())));
+        return Err(SyncError(format!("{}: child note was nil", noteheaders.uuid())).into());
     }
 
     Ok(LocalNote {

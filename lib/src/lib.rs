@@ -32,6 +32,7 @@ pub mod model;
 pub mod schema;
 pub mod builder;
 pub mod notes;
+mod merge;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -54,7 +55,7 @@ pub fn create_new_note<C>(db_connection: &dyn DatabaseService<C>, with_subject: 
         .map_err(|e| ::error::NoteError::InsertionError(e.to_string()))
 }
 
-///Queries the database and tries to find a note with the provided search string
+/// Queries the database and tries to find a note with the provided search string
 /// Auto-Detects if the user provides the title or a uuid.
 ///
 /// If multiple notes with the same title exist it returns the first one
@@ -69,7 +70,7 @@ pub fn find_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<Local
                     Err(NoteNotFound.into())
                 },
                 Err(e) => {
-                    eprint!("Error occured: {}", e.to_string());
+                    eprintln!("Error occured: {}", e.to_string());
                     Err(e.into())
                 }
             }
