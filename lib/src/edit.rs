@@ -28,7 +28,7 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     let note = local_note.body.first()
         .expect("Expected at least 1 note body");
 
-    let _env = std::env::var("RS_NOTES_EDITOR");
+    let environment_editor = std::env::var("RS_NOTES_EDITOR");
 
     let profile = ::profile::load_profile();
 
@@ -44,12 +44,18 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
         .expect("Could not write to file");
 
-    info!("Exec: {} {}", &profile.editor, &file_path);
-
-    let proc = if &profile.editor_arguments.len() > &0 {
-        subprocess::Exec::cmd(&profile.editor).args(&profile.editor_arguments).arg(&file_path)
+    let (editor, args) = if environment_editor.is_ok() {
+        (environment_editor.unwrap(),vec![])
     } else {
-        subprocess::Exec::cmd(&profile.editor).arg(&file_path)
+        (profile.editor.clone(),profile.editor_arguments.clone())
+    };
+
+    info!("Exec: {} {}", editor, &file_path);
+
+    let proc = if args.len() > 0 {
+        subprocess::Exec::cmd(&editor).args(&profile.editor_arguments).arg(&file_path)
+    } else {
+        subprocess::Exec::cmd(&editor).arg(&file_path)
     };
 
     proc
