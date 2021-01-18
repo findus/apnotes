@@ -116,7 +116,7 @@ fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
                 .unwrap();
 
             notes.iter().
-                sorted_by_key(|note| &note.metadata.subfolder)
+                sorted_by_key(|note| format!("{}_{}",&note.metadata.subfolder, &note.body[0].subject()))
                 .for_each(|ee| {
                     let titles = ee.body.iter()
                         .map(|body| body.subject())
