@@ -74,7 +74,7 @@ impl<'a> Display for UpdateAction<'a>
             DeleteLocally(_) => write!(f, "DeleteLocally"),
             UpdateRemotely(_) => write!(f, "UpdateRemotely"),
             UpdateLocally(_) => write!(f, "UpdateLocally"),
-            Merge(_, _) => write!(f, "Merge"),
+            Merge(_,_) => write!(f, "Merge"),
             AddRemotely(_) => write!(f, "AddRemotely"),
             AddLocally(_) => write!(f, "AddLocally"),
             DoNothing => write!(f, "DoNothing")
@@ -115,7 +115,7 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
             .or_else(|| get_update_locally_action(rn, ln))
             .or_else(|| get_delete_locally_action(rn,ln))
             .or_else(|| get_delete_remotely_action(rn,ln))
-            .or_else(|| get_needs_merge(rn,ln))
+            .or_else(|| get_needs_merge_basic(rn, ln))
     })
         .filter_map(|e| { filter_none(e) })
         .collect();
@@ -238,8 +238,8 @@ fn get_update_locally_action<'a>(remote_note_header: Option<&'a RemoteNoteHeader
 
 /// Checks if a basic merge needs to happen, both notes got changed on both ends
 /// but only one note body exist on both ends
-fn get_needs_merge<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCollection>,
-                       local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
+fn get_needs_merge_basic<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCollection>,
+                             local_note: Option<&'a LocalNote>) -> Option<UpdateAction<'a>> {
 
     match (local_note, remote_note_header) {
         (Some(ln), Some(rn))
@@ -297,10 +297,10 @@ pub fn process_actions<'a, T, C>(
                 UpdateAction::DeleteRemote(_note) => { unimplemented!(); },
                 UpdateAction::DeleteLocally(local_note) => process_delete_locally(db_connection, action, local_note),
                 UpdateAction::UpdateLocally(new_note_bodies) => process_update_locally(imap_connection, db_connection, action,new_note_bodies),
-                UpdateAction::Merge(_, _) => { (action,Err(UpdateError::SyncError("Unimplemented".to_string()).into())) },
+                UpdateAction::Merge(method,remote_note) => { process_merge(imap_connection, db_connection, action, remote_note) },
                 UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, update_message_remotely(imap_connection, db_connection, &local_note)) }
                 UpdateAction::AddLocally(note_headers) => process_add_locally(imap_connection, db_connection, action, note_headers),
-                UpdateAction::DoNothing => { unimplemented!(); }
+                UpdateAction::DoNothing => { (action,Ok(())) }
             };
             return result;
         }
@@ -312,7 +312,7 @@ pub fn process_actions<'a, T, C>(
 fn process_add_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
                                db_connection: &dyn DatabaseService<C>,
                                action: &'a UpdateAction,
-                               noteheaders: &&Vec<RemoteNoteMetaData>)
+                               noteheaders: &Vec<RemoteNoteMetaData>)
     -> (&'a UpdateAction<'a>, Result<()>)
     where C: 'static + DBConnector, T: 'static {
 
@@ -417,7 +417,61 @@ fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
         })
 }
 
-fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &&Vec<RemoteNoteMetaData>)
+fn process_merge<'a,T,C>(imap_connection: &mut dyn MailService<T>,
+                                  db_connection: &dyn DatabaseService<C>,
+                                  action: &'a UpdateAction,
+                                  new_notes: &Vec<RemoteNoteMetaData>)
+                                  -> (&'a UpdateAction<'a>, Result<()>)
+    where C: 'static + DBConnector, T: 'static {
+
+    match action {
+        UpdateAction::Merge(MergeMethod::AppendLocally, remote_note) => {
+
+            let mut append = || {
+                let note_bodies: Vec<Result<Body>> = new_notes.iter().map(|new_note| {
+
+                    println!("Merging Note: {} by appending notebody: {}",
+                             new_note.headers.uuid(),
+                             new_note.headers.subject()
+                    );
+
+                    let text =
+                        convert2md(&imap_connection.fetch_note_content(&new_note.folder, new_note.uid)?);
+
+                    Ok(Body {
+                        old_remote_message_id: None,
+                        message_id: new_note.headers.message_id().clone(),
+                        text: Some(text),
+                        uid: Some(new_note.uid as i64),
+                        metadata_uuid: new_note.headers.uuid(),
+                    })
+                }).collect();
+
+                for result in note_bodies {
+                    match result {
+                        Err(e) => {
+                            return (action,Err(e));
+                        },
+                        Ok(result) => {
+                            if let Err(e) = db_connection.append_note(&result).map_err(|e| e.into()) {
+                                return (action,Err(e));
+                            }
+                        }
+                    }
+
+                };
+
+                (action,Ok(()))
+
+            };
+
+            return append();
+        },
+        _ => { panic!("Unimplemented") }
+    }
+}
+
+fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &Vec<RemoteNoteMetaData>)
     -> Result<LocalNote>
     where T: 'static
 {
