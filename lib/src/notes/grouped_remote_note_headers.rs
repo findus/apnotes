@@ -15,4 +15,10 @@ impl IdentifyableNote for GroupedRemoteNoteHeaders {
         self.iter().map(|note| note.uuid()).last().unwrap()
     }
 
+    fn first_subject(&self) -> String {
+        match self.iter().next() {
+            None => "".to_string(),
+            Some(body) => body.first_subject()
+        }
+    }
 }

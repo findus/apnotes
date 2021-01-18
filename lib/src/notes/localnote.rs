@@ -84,6 +84,12 @@ impl IdentifyableNote for LocalNote {
         self.metadata.uuid()
     }
 
+    fn first_subject(&self) -> String {
+        match self.body.first() {
+            None => "".to_string(),
+            Some(body) => body.subject()
+        }
+    }
 }
 
 impl MergeableNoteBody for LocalNote {

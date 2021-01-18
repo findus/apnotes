@@ -31,6 +31,7 @@ impl MergeableNoteBody for RemoteNoteHeaderCollection {
             .map(|n| n.headers.message_id())
             .collect()
     }
+
 }
 
 impl IdentifyableNote for RemoteNoteHeaderCollection {
@@ -41,5 +42,12 @@ impl IdentifyableNote for RemoteNoteHeaderCollection {
 
     fn uuid(&self) -> String {
         self.iter().last().expect("At least one Element must be present").headers.uuid()
+    }
+
+    fn first_subject(&self) -> String {
+        match self.first() {
+            Some(e) => e.headers.subject(),
+            None => "".to_string()
+        }
     }
 }

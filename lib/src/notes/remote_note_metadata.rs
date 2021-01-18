@@ -11,9 +11,9 @@ use notes::traits::header_parser::HeaderParser;
 /// Data Structure that represents a remote note
 #[derive(Clone,Eq,Debug)]
 pub struct RemoteNoteMetaData {
-    pub(crate) headers: NoteHeaders,
-    pub(crate) folder: String,
-    pub(crate) uid: i64
+    pub headers: NoteHeaders,
+    pub folder: String,
+    pub uid: i64
 }
 
 impl RemoteNoteMetaData {

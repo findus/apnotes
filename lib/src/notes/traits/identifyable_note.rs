@@ -3,6 +3,7 @@ use std::hash::Hasher;
 pub trait IdentifyableNote {
     fn folder(&self) -> String;
     fn uuid(&self) -> String;
+    fn first_subject(&self) -> String;
 }
 
 impl std::hash::Hash for Box<dyn IdentifyableNote> {
