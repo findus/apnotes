@@ -92,6 +92,7 @@ pub fn sync_notes() -> Result<()> {
     let db_connection= ::db::SqliteDBConnection::new();
     sync(&mut imap_service, &db_connection)
         .map_err(|e| e.into())
+        .and_then(|_| imap_service.logout().map_err(|e| e.into()))
 }
 
 fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
@@ -282,6 +283,7 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
             panic!("mist {}", e);
         }
     }
+
 }
 
 pub fn process_actions<'a, T, C>(

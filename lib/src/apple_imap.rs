@@ -83,6 +83,7 @@ pub trait MailService<T: 'static> {
     fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error>;
     /// Selects a specific subfolder
     fn select(&mut self, folder: &str) -> Result<Mailbox, Error>;
+    fn logout(&mut self) -> Result<(), Error>;
 }
 
 pub struct MailServiceImpl {
@@ -269,5 +270,10 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
     fn select(&mut self, folder: &str) -> Result<Mailbox, Error> {
         //todo wrap mailbox type?
         self.session.session.select(folder)
+    }
+
+    fn logout(&mut self) -> Result<(), Error> {
+        println!("Imap logout");
+        self.session.session.logout()
     }
 }
