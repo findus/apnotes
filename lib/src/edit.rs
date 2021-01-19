@@ -13,8 +13,9 @@ use notes::localnote::LocalNote;
 
 #[cfg(test)]
 use self::regex::Regex;
-
-
+use model::NotesMetadata;
+use std::fs::metadata;
+use chrono::Utc;
 
 
 /// Edits the passed note and alters the metadata if successful
@@ -81,10 +82,19 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Res
         && local_note.metadata.new == false {
         return Err(ContentNotChanged);
     } else {
+        // Create new edited date that matches current date
+        let local_note_metadata = NotesMetadata {
+            subfolder: local_note.metadata.subfolder.clone(),
+            locally_deleted: local_note.metadata.locally_deleted,
+            locally_edited: local_note.metadata.locally_edited,
+            new: local_note.metadata.new,
+            date: Utc::now().to_rfc2822(),
+            uuid: local_note.metadata.uuid.clone(),
+            mime_version: local_note.metadata.mime_version.clone()
+        };
         Ok(
             note!(
-            // note: bodymetadatabuilder generates a new message-id here
-                  local_note.metadata.clone(),
+                  local_note_metadata,
                   BodyMetadataBuilder::new()
                   .with_old_remote_message_id(&note.message_id)
                   .with_uid(note.uid.expect("Expected UID").clone())

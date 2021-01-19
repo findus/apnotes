@@ -40,6 +40,7 @@ impl TlsImapSession {
         let profile = self::profile::load_profile();
 
         let domain = profile.imap_server.as_str();
+        println!("Imap login");
         info!("Connecting to {}", domain);
 
         let tls = native_tls::TlsConnector::builder().build().unwrap();
