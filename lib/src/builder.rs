@@ -20,7 +20,7 @@ impl BodyMetadataBuilder {
         BodyMetadataBuilder {
             body: Body {
                 old_remote_message_id: None,
-                message_id: format!("<{}@{}", generate_uuid(), profile.domain()),
+                message_id: format!("<{}@{}>", generate_uuid(), profile.domain()),
                 text: None,
                 uid: Some(-1),
                 metadata_uuid: "".to_string()

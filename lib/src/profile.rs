@@ -24,7 +24,8 @@ pub struct Profile {
 impl Profile {
     pub(crate) fn domain(&self) -> String {
         let uuid_regex = Regex::new(r".*@(.*)").unwrap();
-        get_with_regex(uuid_regex, &self.email)
+        let domain = get_with_regex(uuid_regex, &self.email);
+        domain
     }
 }
 
