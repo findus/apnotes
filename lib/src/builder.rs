@@ -166,7 +166,7 @@ impl HeaderBuilder {
         }
 
         if None == self.headers.get_header_value("Message-Id") {
-            self.headers.push(("Message-Id".to_string(), format!("<{}@{}", generate_uuid(), profile.domain())));
+            self.headers.push(("Message-Id".to_string(), format!("<{}@{}>", generate_uuid(), profile.domain())));
         }
 
         self.headers
