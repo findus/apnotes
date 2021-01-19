@@ -31,6 +31,7 @@ dotenv = "0.15.0"
 itertools = "0.10.0"
 colored = "2"
 notify = "4.0.15"
+diff = "0.1.12"
 
 [dev-dependencies]
 ctor = "0.1.17"

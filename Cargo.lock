@@ -46,6 +46,7 @@ dependencies = [
  "ctor",
  "curl",
  "diesel",
+ "diff",
  "dotenv",
  "glob",
  "html2runes",
@@ -75,7 +76,7 @@ version = "0.0.2"
 dependencies = [
  "apple_notes_rs_lib",
  "atk",
- "cairo-rs 0.7.1",
+ "cairo-rs 0.8.1",
  "gdk",
  "gdk-pixbuf",
  "gio",
@@ -84,7 +85,7 @@ dependencies = [
  "gobject-sys",
  "gtk",
  "once_cell 0.2.4",
- "pango 0.7.0",
+ "pango 0.8.0",
  "pangocairo",
 ]
 
@@ -402,6 +403,12 @@ dependencies = [
  "migrations_internals",
  "migrations_macros",
 ]
+
+[[package]]
+name = "diff"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e25ea47919b1560c4e3b7fe0aaab9becf5b84a10325ddf7db0f0ba5e1026499"
 
 [[package]]
 name = "difference"

@@ -2,6 +2,7 @@
 
 /// Small macro that sets the metadata_uuid foreign key
 /// for all provided bodies
+#[macro_export]
 macro_rules! note {
     ($metadata:expr $(, $body:expr)+) => {
         {

@@ -16,9 +16,10 @@ extern crate mailparse;
 extern crate mockall;
 extern crate colored;
 extern crate regex;
+extern crate diff;
 
 #[macro_use]
-mod macros;
+pub mod macros;
 pub mod apple_imap;
 pub mod converter;
 pub mod profile;
@@ -32,7 +33,7 @@ pub mod model;
 pub mod schema;
 pub mod builder;
 pub mod notes;
-mod merge;
+pub mod merge;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -89,4 +90,18 @@ pub fn find_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<Local
             }
         }
     }
+}
+
+pub fn merge(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<()> {
+    find_note(&uuid_or_name, &db)
+        .and_then(|note| {
+            let diff = merge::merge_two(&note.body[0].text.as_ref().unwrap(), &note.body[1].text.as_ref().unwrap());
+            let note = note![
+                note.metadata.clone(),
+                builder::BodyMetadataBuilder::new().with_text(&diff).build()
+            ];
+            Ok(note)
+        })
+        .and_then(|note| edit::edit_note(&note, false).map_err(|e| e.into()))
+        .and_then(|note| db.update(&note).map_err(|e| e.into()))
 }

@@ -1124,4 +1124,33 @@ mod sync_tests {
 
     }
 
+    // Both remote notes should get deleted and a new one should get added with new content
+    #[test]
+    pub fn update_remotely_merged() {
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").build(),
+                BodyMetadataBuilder::new().with_message_id("6").with_old_remote_message_id("4,5").build()
+            ]
+        ];
+
+        let remote_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").build(),
+                BodyMetadataBuilder::new().with_message_id("4").build(),
+                BodyMetadataBuilder::new().with_message_id("5").build()
+            ]
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let action = get_sync_actions(&remote_data, &local_notes);
+
+        assert_eq!(action.len(), 1);
+        assert!(matches!(action[0], UpdateAction::UpdateRemotely(_)));
+
+    }
+
 }

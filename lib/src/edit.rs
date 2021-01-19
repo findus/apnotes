@@ -37,9 +37,9 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
         let file_path = format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped());
 
     #[cfg(target_family = "windows")]
-        let file_path = format!("{}\\{}_{}",std::env::var_os("TEMP").unwrap().to_string_lossy().to_owned(), note.metadata_uuid , note.subject_escaped());
+        let file_path = format!("{}\\{}",std::env::var_os("TEMP").unwrap().to_string_lossy().to_owned(), note.metadata_uuid);
 
-    info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
+    println!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
 
     let mut file = std::fs::File::create(&file_path).expect("Could not create file");
     file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())

@@ -1,4 +1,5 @@
 extern crate clap;
+#[macro_use]
 extern crate apple_notes_rs_lib;
 extern crate log;
 extern crate diesel;
@@ -19,7 +20,8 @@ use itertools::*;
 use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
-
+use std::borrow::Borrow;
+use apple_notes_rs_lib::notes::localnote::LocalNote;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 embed_migrations!("../migrations/");
@@ -58,6 +60,14 @@ fn main() {
         .subcommand(App::new("sync")
             .about("Syncs local with remote notes and vice versa")
         )
+        .subcommand(App::new("merge")
+            .about("Merges unmerged Note")
+            .arg(Arg::with_name("path")
+                .required(true)
+                .takes_value(true)
+                .help("Subject or UUID of the note that should be merged")
+            )
+        )
         .subcommand(App::new("backup")
             .about("Duplicates current note tree on the imap server")
         )
@@ -83,6 +93,7 @@ fn main() {
         ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync::sync_notes(),
         ("list", Some(sub_matches)) => list_notes(sub_matches),
         ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
+        ("merge", Some(sub_matches)) => merge_note(sub_matches),
         (_, _) => unreachable!(),
     };
 
@@ -94,6 +105,12 @@ fn main() {
         },
     }
 
+}
+
+fn merge_note(sub_matches: &ArgMatches) -> Result<()> {
+    let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
+    let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
+    ::apple_notes_rs_lib::merge(&uuid_or_name, &db)
 }
 
 fn edit_passed_note(sub_matches: &ArgMatches) -> Result<()> {
