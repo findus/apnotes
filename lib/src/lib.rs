@@ -105,7 +105,7 @@ pub fn merge(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<()> {
             let diff = merge::merge_two(&note.body[0].text.as_ref().unwrap(), &note.body[1].text.as_ref().unwrap());
             let note = note![
                 note.metadata.clone(),
-                builder::BodyMetadataBuilder::new().with_text(&diff).build()
+                builder::BodyMetadataBuilder::new().with_text(&diff).with_message_id(format!("{},{}",&note.body[0].message_id, &note.body[1].message_id)).build()
             ];
             Ok(note)
         })
