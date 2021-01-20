@@ -203,9 +203,18 @@ fn get_update_remotely_action<'a>(remote_note_header: Option<&'a RemoteNoteHeade
         } else {
             // checks if old message_ids == unmerged remote note message ids
             if let (Some(ln_m_ids), rn_m_ids) =  (ln.all_old_message_ids(),rn.all_message_ids()) {
-                if ln_m_ids.len() > 0 && ln_m_ids.symmetric_difference(&rn_m_ids).count() == 0 {
+                /**
+                Checks if remote note has message id that is not present remotely, if
+                this is the case we know that something exists remotely that we do
+                not want to override.
+
+                From Local to remote we dont care, if a message id only exists locally
+                we expect that this content got merged and we can just override everything.
+                **/
+                if rn_m_ids.difference(&ln_m_ids).count() == 0 {
                     return Some(UpdateRemotely(ln));
-                } else {
+                }
+                else {
                     return None;
                 }
             } else {
@@ -1152,5 +1161,34 @@ mod sync_tests {
         assert!(matches!(action[0], UpdateAction::UpdateRemotely(_)));
 
     }
+
+    // Local note changed and remote note changed on another device
+    #[test]
+    pub fn update_remotely_merged_one_remote_one_local() {
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").build(),
+                BodyMetadataBuilder::new().with_message_id("6").with_old_remote_message_id("4,5").build()
+            ]
+        ];
+
+        let remote_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").build(),
+                BodyMetadataBuilder::new().with_message_id("4").build()
+            ]
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let action = get_sync_actions(&remote_data, &local_notes);
+
+        assert_eq!(action.len(), 1);
+        assert!(matches!(action[0], UpdateAction::UpdateRemotely(_)));
+
+    }
+
 
 }
