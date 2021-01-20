@@ -22,14 +22,14 @@ impl BodyMetadataBuilder {
                 old_remote_message_id: None,
                 message_id: format!("<{}@{}>", generate_uuid(), profile.domain()),
                 text: None,
-                uid: Some(-1),
+                uid: None,
                 metadata_uuid: "".to_string()
             }
         }
     }
 
-    pub fn with_uid(mut self, uid: i64) -> Self {
-        self.body.uid = Some(uid);
+    pub fn with_uid(mut self, uid: Option<i64>) -> Self {
+        self.body.uid = uid;
         self
     }
 

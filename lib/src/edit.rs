@@ -97,7 +97,7 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Res
                   local_note_metadata,
                   BodyMetadataBuilder::new()
                   .with_old_remote_message_id(&note.message_id)
-                  .with_uid(note.uid.expect("Expected UID").clone())
+                  .with_uid(note.uid.clone())
                   .with_text(&file_content)
                   .build()
             )

@@ -163,7 +163,7 @@ impl MailServiceImpl {
         self.session.session.
             select(&local_note.metadata.folder())
             .and_then(|_| self.session.session.uid_search(
-                format!("HEADER X-Universally-Unique-Identifier {}", local_note.body[0].message_id)))
+                format!("HEADER X-Universally-Unique-Identifier {}", local_note.metadata.uuid)))
             .and_then(|uids| {
                 let uids: Vec<String> = uids.into_iter()
                     .filter(|uid| uid != &uid_to_keep )
@@ -250,8 +250,8 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
             .and_then(|_| self.session.session.select(&localnote.metadata.subfolder))
             // Set the old (overridden) message to "deleted", so that it can be expunged
             .and_then(|_| {
-                if localnote.metadata.new == false || localnote.content_changed_locally() {
-                    self.flag_as_deleted(localnote.body.first().unwrap().uid.unwrap().to_string())
+                if localnote.metadata.new == false && localnote.body[0].uid.is_some() {
+                    self.flag_as_deleted(localnote.body[0].uid.unwrap().to_string())
                 } else {
                     Ok(())
                 }
