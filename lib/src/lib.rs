@@ -41,6 +41,7 @@ use db::{DatabaseService, DBConnector, SqliteDBConnection};
 use error::NoteError::NoteNotFound;
 use util::is_uuid;
 use notes::localnote::LocalNote;
+use error::UpdateError;
 
 pub fn create_new_note<C>(db_connection: &dyn DatabaseService<C>, with_subject: String, folder: String)
     -> std::result::Result<LocalNote,::error::NoteError> where C: 'static + DBConnector
@@ -95,6 +96,12 @@ pub fn find_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<Local
 pub fn merge(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<()> {
     find_note(&uuid_or_name, &db)
         .and_then(|note| {
+
+            //TODO currently only supports merging for 2 notes
+            if note.needs_merge() == false || note.body.len() > 2 {
+                return Err(UpdateError::SyncError("Note not mergeable".to_string()).into());
+            }
+
             let diff = merge::merge_two(&note.body[0].text.as_ref().unwrap(), &note.body[1].text.as_ref().unwrap());
             let note = note![
                 note.metadata.clone(),
