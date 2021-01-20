@@ -28,7 +28,7 @@ impl RemoteNoteMetaData {
             RemoteNoteMetaData {
                 headers,
                 folder: local_note.metadata.subfolder.clone(),
-                uid: body.uid.unwrap()
+                uid: body.uid.unwrap_or(-1)
             }
         }).collect()
 

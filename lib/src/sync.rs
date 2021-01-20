@@ -756,7 +756,7 @@ mod sync_tests {
         let note_to_be_added =
             NotesMetadataBuilder::new().build();
 
-        let remote_only_body = BodyMetadataBuilder::new().build();
+        let remote_only_body = BodyMetadataBuilder::new().with_uid(Some(1)).build();
 
         let remote_notes = set![
         note![

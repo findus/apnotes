@@ -41,7 +41,7 @@ impl LocalNote {
         RemoteNoteMetaData {
             headers: self.to_header_vector(),
             folder: self.folder(),
-            uid: self.body.first().unwrap().uid.unwrap()
+            uid: self.body.first().unwrap().uid.unwrap_or(-1)
         }
     }
 
