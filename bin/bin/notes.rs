@@ -1,5 +1,4 @@
 extern crate clap;
-#[macro_use]
 extern crate apple_notes_rs_lib;
 extern crate log;
 extern crate diesel;
