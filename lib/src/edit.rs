@@ -14,7 +14,7 @@ use notes::localnote::LocalNote;
 #[cfg(test)]
 use self::regex::Regex;
 use model::NotesMetadata;
-use std::fs::metadata;
+
 use chrono::Utc;
 
 

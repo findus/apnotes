@@ -9,7 +9,7 @@ extern crate colored;
 extern crate itertools;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
-use log::Level;
+
 use apple_notes_rs_lib::error::{NoteError};
 use apple_notes_rs_lib::create_new_note;
 use self::diesel_migrations::*;
@@ -20,8 +20,8 @@ use itertools::*;
 use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
-use std::borrow::Borrow;
-use apple_notes_rs_lib::notes::localnote::LocalNote;
+
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 embed_migrations!("../migrations/");

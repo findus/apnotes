@@ -203,14 +203,14 @@ fn get_update_remotely_action<'a>(remote_note_header: Option<&'a RemoteNoteHeade
         } else {
             // checks if old message_ids == unmerged remote note message ids
             if let (Some(ln_m_ids), rn_m_ids) =  (ln.all_old_message_ids(),rn.all_message_ids()) {
-                /**
+                /*
                 Checks if remote note has message id that is not present remotely, if
                 this is the case we know that something exists remotely that we do
                 not want to override.
 
                 From Local to remote we dont care, if a message id only exists locally
                 we expect that this content got merged and we can just override everything.
-                **/
+                */
                 if rn_m_ids.difference(&ln_m_ids).count() == 0 {
                     return Some(UpdateRemotely(ln));
                 }
@@ -308,7 +308,7 @@ pub fn process_actions<'a, T, C>(
                 UpdateAction::DeleteRemote(_note) => { unimplemented!(); },
                 UpdateAction::DeleteLocally(local_note) => process_delete_locally(db_connection, action, local_note),
                 UpdateAction::UpdateLocally(new_note_bodies) => process_update_locally(imap_connection, db_connection, action,new_note_bodies),
-                UpdateAction::Merge(method,remote_note) => { process_merge(imap_connection, db_connection, action, remote_note) },
+                UpdateAction::Merge(_method,remote_note) => { process_merge(imap_connection, db_connection, action, remote_note) },
                 UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, update_message_remotely(imap_connection, db_connection, &local_note)) }
                 UpdateAction::AddLocally(note_headers) => process_add_locally(imap_connection, db_connection, action, note_headers),
                 UpdateAction::DoNothing => { (action,Ok("".to_string())) }
@@ -438,7 +438,7 @@ fn process_merge<'a,T,C>(imap_connection: &mut dyn MailService<T>,
     where C: 'static + DBConnector, T: 'static {
 
     match action {
-        UpdateAction::Merge(MergeMethod::AppendLocally, remote_note) => {
+        UpdateAction::Merge(MergeMethod::AppendLocally, _remote_note) => {
 
             let mut append = || {
                 let note_bodies: Vec<Result<Body>> = new_notes.iter().map(|new_note| {

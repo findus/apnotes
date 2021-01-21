@@ -1,4 +1,4 @@
-use diff::*;
+
 
 pub fn merge_two(first: &str, second: &str) -> String {
     diff::lines(first, second).iter().map( { |diff|
