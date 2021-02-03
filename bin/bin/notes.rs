@@ -67,6 +67,14 @@ fn main() {
                 .help("Subject or UUID of the note that should be deleted")
             )
         )
+        .subcommand(App::new("undelete")
+            .about("Removes deletion flag")
+            .arg(Arg::with_name("path")
+                .required(true)
+                .takes_value(true)
+                .help("Subject or UUID of the note")
+            )
+        )
         .subcommand(App::new("merge")
             .about("Merges unmerged Note")
             .arg(Arg::with_name("path")
@@ -102,6 +110,7 @@ fn main() {
         ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
         ("merge", Some(sub_matches)) => merge_note(sub_matches),
         ("delete", Some(sub_matches)) => delete_note(sub_matches),
+        ("undelete", Some(sub_matches)) => undelete_note(sub_matches),
         (_, _) => unreachable!(),
     };
 
@@ -115,6 +124,16 @@ fn main() {
 
 }
 
+fn undelete_note(sub_matches: &ArgMatches) -> Result<()> {
+    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
+    let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
+
+    ::apple_notes_rs_lib::find_note(&uuid_or_name, &db_connection)
+        .map(|mut note| {note.metadata.locally_deleted = false; note})
+        .and_then(|note| db_connection.update(&note).map_err(|e| e.into()))
+
+}
+
 fn delete_note(sub_matches: &ArgMatches) -> Result<()> {
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
@@ -122,6 +141,7 @@ fn delete_note(sub_matches: &ArgMatches) -> Result<()> {
     ::apple_notes_rs_lib::find_note(&uuid_or_name, &db_connection)
         .map(|mut note| {note.metadata.locally_deleted = true; note})
         .and_then(|note| db_connection.update(&note).map_err(|e| e.into()))
+
 }
 
 fn merge_note(sub_matches: &ArgMatches) -> Result<()> {
