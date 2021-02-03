@@ -305,7 +305,7 @@ pub fn process_actions<'a, T, C>(
         .iter()
         .map(|action| {
             let result = match action {
-                UpdateAction::DeleteRemote(_note) => { unimplemented!(); },
+                UpdateAction::DeleteRemote(note) => { process_delete_remotely(imap_connection, db_connection, action, note) },
                 UpdateAction::DeleteLocally(local_note) => process_delete_locally(db_connection, action, local_note),
                 UpdateAction::UpdateLocally(new_note_bodies) => process_update_locally(imap_connection, db_connection, action,new_note_bodies),
                 UpdateAction::Merge(_method,remote_note) => { process_merge(imap_connection, db_connection, action, remote_note) },
@@ -385,7 +385,7 @@ fn process_delete_remotely<'a, C, T>(imap_connection: &mut dyn MailService<T>,
 {
     let result = imap_connection
         .delete_message(localnote)
-        .and_then(|subject| db_connection.fetch_single_note(&localnote.metadata.uuid)
+        .and_then(|_| db_connection.fetch_single_note(&localnote.metadata.uuid)
             .map_err(|e| e.into())
         )
         .map(|_| localnote.first_subject());
