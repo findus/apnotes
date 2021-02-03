@@ -2,5 +2,6 @@
 members = [
     "lib",
     "ui",
-    "bin"
+    "bin",
+    "cli-ui"
 ]
