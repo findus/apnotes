@@ -59,6 +59,14 @@ fn main() {
         .subcommand(App::new("sync")
             .about("Syncs local with remote notes and vice versa")
         )
+        .subcommand(App::new("delete")
+            .about("Flags a note as deleted")
+            .arg(Arg::with_name("path")
+                .required(true)
+                .takes_value(true)
+                .help("Subject or UUID of the note that should be deleted")
+            )
+        )
         .subcommand(App::new("merge")
             .about("Merges unmerged Note")
             .arg(Arg::with_name("path")
@@ -93,6 +101,7 @@ fn main() {
         ("list", Some(sub_matches)) => list_notes(sub_matches),
         ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
         ("merge", Some(sub_matches)) => merge_note(sub_matches),
+        ("delete", Some(sub_matches)) => delete_note(sub_matches),
         (_, _) => unreachable!(),
     };
 
@@ -104,6 +113,15 @@ fn main() {
         },
     }
 
+}
+
+fn delete_note(sub_matches: &ArgMatches) -> Result<()> {
+    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
+    let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
+
+    ::apple_notes_rs_lib::find_note(&uuid_or_name, &db_connection)
+        .map(|mut note| {note.metadata.locally_deleted = true; note})
+        .and_then(|note| db_connection.update(&note).map_err(|e| e.into()))
 }
 
 fn merge_note(sub_matches: &ArgMatches) -> Result<()> {
@@ -140,11 +158,20 @@ fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
 
                     let formatted_uuid_folder = format!("{} {}", ee.metadata.uuid, ee.metadata.folder());
 
-                    if ee.needs_merge() {
-                        println!("{:<width$}  [{}] {}", formatted_uuid_folder, titles.red(), "<<Needs Merge>>".red(), width = max_len);
+                    let formatted_string = if ee.needs_merge() {
+                        format!("{:<width$}  [{}] {}", formatted_uuid_folder, titles.red(), "<<Needs Merge>>".red(), width = max_len)
                     } else {
-                        println!("{:<width$}  [{}]", formatted_uuid_folder, titles, width = max_len);
-                    }
+                        format!("{:<width$}  [{}]", formatted_uuid_folder, titles, width = max_len)
+                    };
+
+                    let formatted_string = if ee.metadata.locally_deleted == true {
+                        format!("{} <<flagged for deletion>>", formatted_string).red().to_string()
+                    } else {
+                        formatted_string
+                    };
+
+                    println!("{}", formatted_string);
+
                 });
             Ok(())
         })

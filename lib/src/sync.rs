@@ -385,7 +385,7 @@ fn process_delete_remotely<'a, C, T>(imap_connection: &mut dyn MailService<T>,
 {
     let result = imap_connection
         .delete_message(localnote)
-        .and_then(|_| db_connection.fetch_single_note(&localnote.metadata.uuid)
+        .and_then(|_| db_connection.delete(&localnote)
             .map_err(|e| e.into())
         )
         .map(|_| localnote.first_subject());
