@@ -169,6 +169,10 @@ fn get_delete_locally_action<'a>(remote_note_headers: Option<&'a RemoteNoteHeade
         (None,Some(ln)) if ln.metadata.new == false && ln.needs_merge() == false => {
             Some(DeleteLocally(ln))
         },
+        // Local not got created and deleted instantly without syncing in between
+        (None,Some(ln)) if ln.metadata.new == true && ln.needs_merge() == false => {
+            Some(DeleteLocally(ln))
+        },
         _ => None,
     }
 }
@@ -1232,6 +1236,31 @@ mod sync_tests {
 
         assert_eq!(action.len(), 1);
         assert!(matches!(action[0], UpdateAction::DeleteRemote(_)));
+
+    }
+
+    // Local note got created and flagged for deletion instantly e.g. no remote note present
+    #[test]
+    pub fn delete_flagged_before_sync() {
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").is_new(true).is_flagged_for_deletion(true).build(),
+                BodyMetadataBuilder::new().with_message_id("4").build()
+            ]
+        ];
+
+        let remote_notes = set![
+
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let action = get_sync_actions(&remote_data, &local_notes);
+
+        assert_eq!(action.len(), 1);
+        assert!(matches!(action[0], UpdateAction::DeleteLocally(_)));
 
     }
 
