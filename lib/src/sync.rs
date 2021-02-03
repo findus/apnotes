@@ -1207,5 +1207,33 @@ mod sync_tests {
 
     }
 
+    // Local note is flagged as deleted
+    #[test]
+    pub fn delete_remotely() {
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").is_flagged_for_deletion(true).build(),
+                BodyMetadataBuilder::new().with_message_id("4").build()
+            ]
+        ];
+
+        let remote_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").build(),
+                BodyMetadataBuilder::new().with_message_id("4").build()
+            ]
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let action = get_sync_actions(&remote_data, &local_notes);
+
+        assert_eq!(action.len(), 1);
+        assert!(matches!(action[0], UpdateAction::DeleteRemote(_)));
+
+    }
+
 
 }
