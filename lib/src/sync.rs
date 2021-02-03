@@ -376,6 +376,23 @@ fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
     (action, result.map(|_| new_note_bodies.first_subject()))
 }
 
+fn process_delete_remotely<'a, C, T>(imap_connection: &mut dyn MailService<T>,
+                                     db_connection: &dyn DatabaseService<C>,
+                                     action: &'a UpdateAction,
+                                     localnote: &LocalNote)
+    -> (&'a UpdateAction<'a>, Result<String>)
+    where C: 'static + DBConnector, T: 'static
+{
+    let result = imap_connection
+        .delete_message(localnote)
+        .and_then(|subject| db_connection.fetch_single_note(&localnote.metadata.uuid)
+            .map_err(|e| e.into())
+        )
+        .map(|_| localnote.first_subject());
+
+    (action, result)
+}
+
 fn process_delete_locally<'a, C>(db_connection: &dyn DatabaseService<C>,
                                  action: &'a UpdateAction,
                                  b: &LocalNote)

@@ -82,6 +82,8 @@ pub trait MailService<T: 'static> {
     ///
     /// If the passed localnote has >1 bodies it will reject it.
     fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error>;
+    // Deletes the passed message
+    fn delete_message(&mut self, localnote: &LocalNote) -> std::result::Result<(), Box<dyn std::error::Error>>;
     /// Selects a specific subfolder
     fn select(&mut self, folder: &str) -> Result<Mailbox, Error>;
     fn logout(&mut self) -> Result<(), Error>;
@@ -266,6 +268,14 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
             .and_then(|new_uid| self.session.session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid))
             // Delete dangling remote non merged notes
             .and_then(|new_uid| self.delete_old_mergeable_notes(&localnote, new_uid).map(|_| new_uid))
+    }
+
+    fn delete_message(&mut self, localnote: &LocalNote) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        self.session.session
+            .select(&localnote.metadata.subfolder)
+            .and_then(|_| self.flag_as_deleted(localnote.body[0].uid.expect("expected uid").to_string()))
+            .and_then(|_| self.delete_flagged().map(|_| ()))
+            .map_err(|e| e.into())
     }
 
     fn select(&mut self, folder: &str) -> Result<Mailbox, Error> {
