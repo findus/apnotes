@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     terminal.clear();
 
     let (tx, rx) = mpsc::channel();
-    let tick_rate = Duration::from_millis(10000);
+    let tick_rate = Duration::from_millis(1000);
 
     thread::spawn(move || {
         let mut last_tick = Instant::now();
@@ -81,39 +81,82 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut note_list_state = ListState::default();
     note_list_state.select(Some(0));
 
+    let mut scroll_amount = 0;
+
     loop {
         terminal.draw(|f| {
-            let chunks = Layout::default()
+
+            let lay = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(0)
+                .constraints(
+                    [
+                        Constraint::Percentage(95),
+                        Constraint::Percentage(5),
+                    ].as_ref()
+                );
+
+            let chunks = lay.split(f.size());
+
+            let noteslayout = Layout::default()
                 .direction(Direction::Horizontal)
-                .margin(1)
+                .margin(0)
                 .constraints(
                     [
                         Constraint::Percentage(20),
                         Constraint::Percentage(80),
                     ].as_ref()
-                )
-                .split(f.size());
+                ).split(chunks[0]);
 
-            f.render_stateful_widget(list.clone(), chunks[0], &mut note_list_state);
+            f.render_stateful_widget(list.clone(), noteslayout[0], &mut note_list_state);
 
             let t  = Paragraph::new(text.clone())
-                .block(Block::default().title("Paragraph").borders(Borders::ALL))
+                .block(Block::default().title("Content").borders(Borders::ALL))
+                .style(Style::default().fg(Color::White))
+                .alignment(Alignment::Left)
+                .scroll((scroll_amount,scroll_amount))
+                .wrap(Wrap { trim: true });
+
+
+            let t2  = Paragraph::new("test")
+                .block(Block::default().title("Status").borders(Borders::ALL))
                 .style(Style::default().fg(Color::White))
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: true });
 
-            f.render_widget(t, chunks[1]);
+            f.render_widget(t, noteslayout[1]);
+            f.render_widget(t2, chunks[1]);
         });
 
         match rx.recv()? {
             Event::Input(event) => match event.code {
                 KeyCode::Char('j') => {
-                    note_list_state.select(Some(note_list_state.selected().unwrap_or(0) + 1));
-                    text = entries.get(note_list_state.selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                    if note_list_state.selected().unwrap_or(0) < entries.len() -1 {
+                        note_list_state.select(Some(note_list_state.selected().unwrap_or(0) + 1));
+                        text = entries.get(note_list_state.selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                    }
                 },
                 KeyCode::Char('k') => {
-                    note_list_state.select(Some(note_list_state.selected().unwrap_or(0) - 1));
-                    text = entries.get(note_list_state.selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                    if note_list_state.selected().unwrap_or(0) > 0 {
+                        note_list_state.select(Some(note_list_state.selected().unwrap_or(0) - 1));
+                        text = entries.get(note_list_state.selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                    }
+                },
+                KeyCode::Char('J') => {
+                    scroll_amount += 4;
+                },
+                KeyCode::Char('K') => {
+                    if scroll_amount >= 4 {
+                        scroll_amount -= 4;
+                    } else {
+                        scroll_amount = 0;
+                    }
+                },
+                KeyCode::Char('e') => {
+                    let note = entries.get(note_list_state.selected().unwrap()).unwrap();
+                    let result: Result<LocalNote,Box<dyn std::error::Error>> = apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into());
+                    result.and_then(|note| db.update(&note).map_err(|e| e.into()))
+                        .unwrap();
                 },
                 KeyCode::Char('q') => {
                     terminal.clear();
