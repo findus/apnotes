@@ -18,7 +18,6 @@ pub struct NotesMetadata {
     /// the note is saved
     pub subfolder: String,
     pub locally_deleted: bool,
-    pub locally_edited: bool,
     /// Indicator for newly created notes, so that they
     /// dont get deleted while syncing
     pub new: bool,
@@ -41,7 +40,6 @@ impl NotesMetadata {
         NotesMetadata {
             subfolder,
             locally_deleted: false,
-            locally_edited: false,
             new: false,
             date: header.date(),
             uuid: header.uuid(),
@@ -53,7 +51,6 @@ impl NotesMetadata {
         NotesMetadata {
             subfolder: remote_metadata.folder.clone(),
             locally_deleted: false,
-            locally_edited: false,
             new: false,
             date: remote_metadata.headers.date(),
             uuid: remote_metadata.headers.uuid(),

@@ -86,20 +86,26 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Res
         let local_note_metadata = NotesMetadata {
             subfolder: local_note.metadata.subfolder.clone(),
             locally_deleted: local_note.metadata.locally_deleted,
-            locally_edited: local_note.metadata.locally_edited,
             new: local_note.metadata.new,
             date: Utc::now().to_rfc2822(),
             uuid: local_note.metadata.uuid.clone(),
             mime_version: local_note.metadata.mime_version.clone()
         };
+
+        let mut body = BodyMetadataBuilder::new()
+            .with_uid(note.uid.clone())
+            .with_text(&file_content);
+
+        if local_note.metadata.new == false {
+            body = body.with_old_remote_message_id(&note.message_id);
+        }
+
+        let body = body.build();
+
         Ok(
             note!(
                   local_note_metadata,
-                  BodyMetadataBuilder::new()
-                  .with_old_remote_message_id(&note.message_id)
-                  .with_uid(note.uid.clone())
-                  .with_text(&file_content)
-                  .build()
+                  body
             )
         )
     }

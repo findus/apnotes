@@ -287,6 +287,7 @@ name = "cli-ui"
 version = "0.1.0"
 dependencies = [
  "apple_notes_rs_lib",
+ "colored 2.0.0",
  "crossterm 0.19.0",
  "itertools",
  "tui",

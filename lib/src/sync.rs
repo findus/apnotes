@@ -431,7 +431,6 @@ fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
                             NotesMetadata {
                                 subfolder: localnote.metadata.subfolder.clone(),
                                 locally_deleted: localnote.metadata.locally_deleted,
-                                locally_edited: localnote.metadata.locally_edited,
                                 new: false,
                                 date: localnote.metadata.date.clone(),
                                 uuid:localnote.metadata.uuid.clone(),

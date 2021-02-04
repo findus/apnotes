@@ -3,7 +3,6 @@
 CREATE TABLE metadata (
     subfolder VARCHAR NOT NULL,
     locally_deleted BOOLEAN NOT NULL,
-    locally_edited BOOLEAN NOT NULL,
     new BOOLEAN NOT NULL,
     date TIMESTAMP NOT NULL,
     uuid VARCHAR PRIMARY KEY NOT NULL,

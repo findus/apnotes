@@ -74,7 +74,6 @@ impl NotesMetadataBuilder {
             notes_metadata:  NotesMetadata {
                 subfolder: "".to_string(),
                 locally_deleted: false,
-                locally_edited: false,
                 new: false,
                 date,
                 uuid: generate_uuid(),

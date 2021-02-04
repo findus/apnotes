@@ -12,7 +12,6 @@ table! {
     metadata (uuid) {
         subfolder -> Text,
         locally_deleted -> Bool,
-        locally_edited -> Bool,
         new -> Bool,
         date -> Timestamp,
         uuid -> Text,

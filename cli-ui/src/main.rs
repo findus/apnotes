@@ -68,7 +68,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
 
-    let items: Vec<ListItem> = entries.iter().map(|e| ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()))).collect();
+    let items: Vec<ListItem> = entries.iter().map(|e| {
+        if e.content_changed_locally() {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
+        } else if e.metadata.locally_deleted {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
+        } else if e.metadata.new {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
+        } else {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string())
+        }
+    }).collect();
 
     let list = List::new(items.clone())
         .block(Block::default().title("List").borders(Borders::ALL))
