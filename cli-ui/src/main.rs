@@ -158,6 +158,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     list = gen_list(&mut items);
 
                 },
+                KeyCode::Char('s') => {
+                    //TODO block multiple invocations
+                    apple_notes_rs_lib::sync::sync_notes().unwrap();
+                    let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
+                    entries = refetch_notes(&db_connection);
+                    items = generate_list_items(&entries);
+                    list = gen_list(&mut items);
+                },
                 KeyCode::Char('q') => {
                     terminal.clear();
                     break;
