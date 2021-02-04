@@ -15,7 +15,7 @@ use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use apple_notes_rs_lib::db::DatabaseService;
+use apple_notes_rs_lib::db::{DatabaseService, SqliteDBConnection};
 use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use crossterm::event::KeyEvent;
 use tui::layout::Alignment;
@@ -61,30 +61,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let db =  apple_notes_rs_lib::db::SqliteDBConnection::new();
 
+    let mut entries = refetch_notes(&db);
+    let mut items: Vec<ListItem> = generate_list_items(&entries);
 
-    let entries: Vec<LocalNote> = db.fetch_all_notes().unwrap()
-        .into_iter()
-        .sorted_by_key(|note| format!("{}_{}",&note.metadata.subfolder, &note.body[0].subject()))
-        .collect();
-
-
-    let items: Vec<ListItem> = entries.iter().map(|e| {
-        if e.content_changed_locally() {
-            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
-        } else if e.metadata.locally_deleted {
-            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
-        } else if e.metadata.new {
-            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
-        } else {
-            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string())
-        }
-    }).collect();
-
-    let list = List::new(items.clone())
-        .block(Block::default().title("List").borders(Borders::ALL))
-        .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-        .highlight_symbol(">>");
+    let mut list = gen_list(&mut items);
 
     let mut text: String = "".to_string();
 
@@ -168,6 +148,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     result.and_then(|note| db.update(&note).map_err(|e| e.into()))
                         .unwrap();
                 },
+                KeyCode::Char('d') => {
+                    let mut note = entries.get(note_list_state.selected().unwrap()).unwrap().clone();
+                    note.metadata.locally_deleted = !note.metadata.locally_deleted ;
+                    let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
+                    db_connection.update(&note).unwrap();
+                    entries = refetch_notes(&db_connection);
+                    items = generate_list_items(&entries);
+                    list = gen_list(&mut items);
+
+                },
                 KeyCode::Char('q') => {
                     terminal.clear();
                     break;
@@ -178,9 +168,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-
-
-
+    disable_raw_mode().unwrap();
 
     Ok(())
+}
+
+fn gen_list(mut items: &mut Vec<ListItem<'static>>) -> List<'static> {
+    List::new(items.clone())
+        .block(Block::default().title("List").borders(Borders::ALL))
+        .style(Style::default().fg(Color::White))
+        .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
+        .highlight_symbol(">>")
+}
+
+fn refetch_notes(db: &SqliteDBConnection) -> Vec<LocalNote> {
+    db.fetch_all_notes().unwrap()
+        .into_iter()
+        .sorted_by_key(|note| format!("{}_{}", &note.metadata.subfolder, &note.body[0].subject()))
+        .collect()
+}
+
+fn generate_list_items(entries: &Vec<LocalNote>) -> Vec<ListItem<'static>> {
+    entries.iter().map(|e| {
+        if e.content_changed_locally() {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
+        } else if e.metadata.locally_deleted {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
+        } else if e.metadata.new {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
+        } else {
+            ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string())
+        }
+    }).collect()
 }
