@@ -1,5 +1,6 @@
 extern crate clap;
 extern crate apple_notes_rs_lib;
+#[macro_use]
 extern crate log;
 extern crate diesel;
 #[macro_use]
@@ -19,6 +20,7 @@ use itertools::*;
 use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
+use log::Level;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -26,8 +28,8 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 embed_migrations!("../migrations/");
 
 fn main() {
-    #[cfg(debug)]
-        simple_logger::init_with_level(Level::Info).unwrap();
+
+    simple_logger::init_with_level(Level::Info).unwrap();
 
     let connection = SqliteDBConnection::new();
 
@@ -115,9 +117,9 @@ fn main() {
     };
 
     match result {
-        Ok(_) => {println!("Done")}
+        Ok(_) => {info!("Done")}
         Err(e) => {
-            eprint!("Error: {}", e.to_string());
+            error!("Error: {}", e.to_string());
             std::process::exit(-1);
         },
     }
@@ -190,7 +192,7 @@ fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
                         formatted_string
                     };
 
-                    println!("{}", formatted_string);
+                    info!("{}", formatted_string);
 
                 });
             Ok(())

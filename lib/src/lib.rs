@@ -17,6 +17,8 @@ extern crate mockall;
 extern crate colored;
 extern crate regex;
 extern crate diff;
+#[macro_use]
+extern crate log;
 
 #[macro_use]
 pub mod macros;
@@ -68,11 +70,11 @@ pub fn find_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<Local
             match db.fetch_single_note(&uuid_or_name) {
                 Ok(Some(note)) => Ok(note),
                 Ok(None) => {
-                    eprintln!("Note does not exist");
+                    error!("Note does not exist");
                     Err(NoteNotFound.into())
                 },
                 Err(e) => {
-                    eprintln!("Error occured: {}", e.to_string());
+                    error!("Error occured: {}", e.to_string());
                     Err(e.into())
                 }
             }
@@ -81,11 +83,11 @@ pub fn find_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<Local
             match db.fetch_single_note_with_name(&uuid_or_name) {
                 Ok(Some(note)) => Ok(note),
                 Ok(None) => {
-                    eprintln!("Note does not exist");
+                    error!("Note does not exist");
                     Err(NoteNotFound.into())
                 },
                 Err(e) => {
-                    eprint!("Error occured: {}", e.to_string());
+                    error!("Error occured: {}", e.to_string());
                     Err(e.into())
                 }
             }

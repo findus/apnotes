@@ -40,7 +40,7 @@ impl TlsImapSession {
         let profile = self::profile::load_profile();
 
         let domain = profile.imap_server.as_str();
-        println!("Imap login");
+        info!("Imap login");
         info!("Connecting to {}", domain);
 
         let tls = native_tls::TlsConnector::builder().build().unwrap();
@@ -284,7 +284,7 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
     }
 
     fn logout(&mut self) -> Result<(), Error> {
-        println!("Imap logout");
+        info!("Imap logout");
         self.session.session.logout()
     }
 }

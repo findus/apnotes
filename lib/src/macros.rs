@@ -55,7 +55,7 @@ mod macro_test {
             BodyMetadataBuilder::new().build()
     );
 
-        println!("{}", note2.metadata.uuid);
+        info!("{}", note2.metadata.uuid);
         assert_eq!(note.metadata.uuid, note.body.first().unwrap().metadata_uuid);
     }
 }

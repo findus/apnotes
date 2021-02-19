@@ -36,12 +36,12 @@ fn main() {
 
         let button = Button::new_with_label("Click me!");
         button.connect_clicked(|_| {
-            println!("Clicked!");
+            info!("Clicked!");
         });
 
         let _button2 = Button::new_with_label("Click me!");
         button.connect_clicked(|_| {
-            println!("Clicked!");
+            info!("Clicked!");
         });
 
         let list_box =
@@ -57,7 +57,7 @@ fn main() {
         list_box.add(&label);
 
         let mut session = login();
-        println!("MEEEEEM");
+        info!("MEEEEEM");
         let folders = list_note_folders(&mut session);
         let foldername = folders.iter().last().unwrap().to_string();
         let _messages = get_messages_from_foldersession(&mut session, foldername);

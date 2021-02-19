@@ -80,7 +80,7 @@ pub fn get_db_path() -> PathBuf {
     } else {
         warn!("Could not detect database, gonna create empty one");
         if std::fs::create_dir(&db_file_path.parent().unwrap()).is_err() {
-            eprintln!("Folder does already exist")
+            error!("Folder does already exist")
         }
         File::create(&db_file_path).expect("Unable to create config file");
         db_file_path

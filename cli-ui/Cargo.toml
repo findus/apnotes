@@ -12,3 +12,4 @@ crossterm = { version = "0.19", features = [ "serde" ] }
 tui = { version = "0.14", default-features = false, features = ['crossterm'] }
 itertools = "0.10.0"
 colored = "2"
+log = "0.4.14"

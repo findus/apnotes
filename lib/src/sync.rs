@@ -121,14 +121,14 @@ fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
         .filter_map(|e| { filter_none(e) })
         .collect();
 
-    println!("{:>padding$} Actions pending", acts.len(), padding=4);
-    println!("Delete {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::DeleteLocally(_))).count(), padding=4);
-    println!("Delete {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::DeleteRemote(_))).count(), padding=4);
-    println!("Add    {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::AddLocally(_))).count(), padding=4);
-    println!("Add    {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::AddRemotely(_))).count(), padding=4);
-    println!("Update {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::UpdateLocally(_))).count(), padding=4);
-    println!("Update {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::UpdateRemotely(_))).count(), padding=4);
-    println!("Merge  {:>padding$} notes", acts.iter().filter(|act| matches!(act, UpdateAction::Merge(_,_))).count(), padding=4);
+    info!("{:>padding$} Actions pending", acts.len(), padding=4);
+    info!("Delete {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::DeleteLocally(_))).count(), padding=4);
+    info!("Delete {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::DeleteRemote(_))).count(), padding=4);
+    info!("Add    {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::AddLocally(_))).count(), padding=4);
+    info!("Add    {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::AddRemotely(_))).count(), padding=4);
+    info!("Update {:>padding$} notes locally",  acts.iter().filter(|act| matches!(act, UpdateAction::UpdateLocally(_))).count(), padding=4);
+    info!("Update {:>padding$} notes remotely", acts.iter().filter(|act| matches!(act, UpdateAction::UpdateRemotely(_))).count(), padding=4);
+    info!("Merge  {:>padding$} notes", acts.iter().filter(|act| matches!(act, UpdateAction::Merge(_,_))).count(), padding=4);
 
     acts
 
@@ -288,7 +288,7 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
                     Err(e) => format!("{} {}", "Failed".red(), e.to_string())
                 };
 
-                println!("{:>padding$}...{}", action, result , padding=20 );
+                info!("{:>padding$}...{}", action, result , padding=20 );
             }
             Ok(())
         }
@@ -463,7 +463,7 @@ fn process_merge<'a,T,C>(imap_connection: &mut dyn MailService<T>,
             let mut append = || {
                 let note_bodies: Vec<Result<Body>> = new_notes.iter().map(|new_note| {
 
-                    println!("Merging Note: {} by appending notebody: {}",
+                    info!("Merging Note: {} by appending notebody: {}",
                              new_note.headers.uuid(),
                              new_note.headers.subject()
                     );

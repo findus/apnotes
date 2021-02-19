@@ -39,7 +39,7 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     #[cfg(target_family = "windows")]
         let file_path = format!("{}\\{}",std::env::var_os("TEMP").unwrap().to_string_lossy().to_owned(), note.metadata_uuid);
 
-    println!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
+    info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
 
     let mut file = std::fs::File::create(&file_path).expect("Could not create file");
     file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
@@ -67,7 +67,7 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
 }
 
 fn remove_temp_file(file_path: &String) -> Result<(), NoteError> {
-    println!("Removing temp file {}", &file_path);
+    info!("Removing temp file {}", &file_path);
     std::fs::remove_file(&file_path)
         .map_err(|e| NoteError::EditError(e.to_string()))
 }
