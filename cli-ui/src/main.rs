@@ -22,27 +22,33 @@ use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use tui::layout::Alignment;
 use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
+use crate::Outcome::Success;
 
 enum Event<I> {
     Input(I),
     Tick,
+    OutCome(Outcome)
 }
 
-enum Tasks {
-    Sync
+enum Task {
+    Sync,
+    End
+}
+
+enum Outcome {
+    Success(String),
+    Failure(String)
 }
 
 struct App {
-     status: Arc<Mutex<String>>,
-     color: Arc<Mutex<Color>>
+
 }
 
 impl App {
 
     pub fn new() -> App {
         App {
-            status: Arc::new(Mutex::new("Started".to_string())),
-            color: Arc::new(Mutex::new(Color::White))
+
         }
     }
 
@@ -56,12 +62,15 @@ impl App {
         terminal.clear().unwrap();
 
         let (tx, rx) = mpsc::channel();
+        let tx_2 = tx.clone();
 
         let tick_rate = Duration::from_millis(1000);
 
-        let color_2 = Arc::new(Mutex::new(Color::White));
-        let color_3 = color_2.clone();
+        let color = Arc::new(Mutex::new(Color::White));
+        let color_2 = color.clone();
 
+        let status = Arc::new(Mutex::new("Started".to_string()));
+        let status_2 = status.clone();
 
         thread::spawn(move || {
             let mut last_tick = Instant::now();
@@ -84,12 +93,34 @@ impl App {
             }
         });
 
+        let (action_tx, action_rx) = mpsc::channel::<Task>();
+
+        let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
+
+        let mut note_list_state = Arc::new(Mutex::new(ListState::default()));
+        let mut note_list_state_2 = note_list_state.clone();
+        note_list_state.lock().unwrap().select(Some(0));
+
         thread::spawn( move || {
+
+            loop {
+                match action_rx.recv().unwrap() {
+                    Task::Sync => {
+                        let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
+                        let entries = refetch_notes(&db_connection);
+                        let note = entries.get(note_list_state_2.lock().unwrap().selected().unwrap()).unwrap();
+                        apple_notes_rs_lib::sync::sync_notes().unwrap();
+                        tx_2.send(Event::OutCome(Success("Synced!".to_string())));
+
+                    }
+                    Task::End => {}
+                }
+
+            }
 
             let ten_millis = time::Duration::from_millis(3000);
             thread::sleep(ten_millis);
 
-            *color_2.lock().unwrap() = Color::Red;
 
             //apple_notes_rs_lib::sync::sync_notes().unwrap();
 
@@ -99,15 +130,12 @@ impl App {
 
         let db =  apple_notes_rs_lib::db::SqliteDBConnection::new();
 
-        let mut entries = self.refetch_notes(&db);
+        let mut entries = refetch_notes(&db);
         let mut items: Vec<ListItem> = self.generate_list_items(&entries);
 
         let mut list = self.gen_list(&mut items);
 
         let mut text: String = "".to_string();
-
-        let mut note_list_state = ListState::default();
-        note_list_state.select(Some(0));
 
         let mut scroll_amount = 0;
 
@@ -115,8 +143,8 @@ impl App {
 
             terminal.draw(|f| {
 
-                let value = self.status.lock().unwrap();
-                let t2 = self.set_status(value.as_ref(), *color_3.lock().unwrap());
+                let value = status.lock().unwrap();
+                let t2 = self.set_status(value.as_ref(), *color.lock().unwrap());
 
                 let lay = Layout::default()
                     .direction(Direction::Vertical)
@@ -140,7 +168,7 @@ impl App {
                         ].as_ref()
                     ).split(chunks[0]);
 
-                f.render_stateful_widget(list.clone(), noteslayout[0], &mut note_list_state);
+                f.render_stateful_widget(list.clone(), noteslayout[0], &mut note_list_state.lock().unwrap());
 
                 let t  = Paragraph::new(text.clone())
                     .block(Block::default().title("Content").borders(Borders::ALL))
@@ -157,15 +185,17 @@ impl App {
             match rx.recv()? {
                 Event::Input(event) => match event.code {
                     KeyCode::Char('j') => {
-                        if note_list_state.selected().unwrap_or(0) < entries.len() -1 {
-                            note_list_state.select(Some(note_list_state.selected().unwrap_or(0) + 1));
-                            text = entries.get(note_list_state.selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                        let selected = note_list_state.lock().unwrap().selected();
+                        if selected.unwrap_or(0) < entries.len() -1 {
+                            note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) + 1));
+                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
                     },
                     KeyCode::Char('k') => {
-                        if note_list_state.selected().unwrap_or(0) > 0 {
-                            note_list_state.select(Some(note_list_state.selected().unwrap_or(0) - 1));
-                            text = entries.get(note_list_state.selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                        let selected = note_list_state.lock().unwrap().selected();
+                        if selected.unwrap_or(0) > 0 {
+                            note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) - 1));
+                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
                     },
                     KeyCode::Char('J') => {
@@ -179,36 +209,31 @@ impl App {
                         }
                     },
                     KeyCode::Char('e') => {
-                        let note = entries.get(note_list_state.selected().unwrap()).unwrap();
+                        let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
                         let result: Result<LocalNote,Box<dyn std::error::Error>> = apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into());
                         result.and_then(|note| db.update(&note).map_err(|e| e.into()))
                             .unwrap();
-                        let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
-                        entries = self.refetch_notes(&db_connection);
+                        entries = refetch_notes(&db_connection);
                         items = self.generate_list_items(&entries);
                         list = self.gen_list(&mut items);
                     },
                     KeyCode::Char('d') => {
-                        let mut note = entries.get(note_list_state.selected().unwrap()).unwrap().clone();
+                        let mut note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().clone();
                         note.metadata.locally_deleted = !note.metadata.locally_deleted ;
                         let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
                         db_connection.update(&note).unwrap();
-                        entries = self.refetch_notes(&db_connection);
+                        entries = refetch_notes(&db_connection);
                         items = self.generate_list_items(&entries);
                         list = self.gen_list(&mut items);
 
                     },
                     KeyCode::Char('s') => {
                         //TODO block multiple invocations
-                        *self.status.lock().unwrap() = "Syncing".to_string();
-                        *self.color.lock().unwrap() = Color::Yellow;
+                        *status.lock().unwrap() = "Syncing".to_string();
+                        *color.lock().unwrap() = Color::Yellow;
 
+                        action_tx.send(Task::Sync);
 
-
-                        let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
-                        entries = self.refetch_notes(&db_connection);
-                        items = self.generate_list_items(&entries);
-                        list = self.gen_list(&mut items);
                     },
                     KeyCode::Char('q') => {
                         terminal.clear().unwrap();
@@ -217,6 +242,22 @@ impl App {
                     _ => {}
                 }
                 Event::Tick => {}
+                Event::OutCome(outcome) => match outcome {
+                    Outcome::Success(s) => {
+                        *color.lock().unwrap() = Color::Green;
+                        *status.lock().unwrap() = s;
+                        entries = refetch_notes(&db_connection);
+                        items = self.generate_list_items(&entries);
+                        list = self.gen_list(&mut items);
+                    }
+                    Outcome::Failure(s) => {
+                        *color.lock().unwrap() = Color::Red;
+                        *status.lock().unwrap() = s;
+                        entries = refetch_notes(&db_connection);
+                        items = self.generate_list_items(&entries);
+                        list = self.gen_list(&mut items);
+                    }
+                }
             }
         }
 
@@ -241,13 +282,6 @@ impl App {
             .highlight_symbol(">>")
     }
 
-    fn refetch_notes(&self, db: &SqliteDBConnection) -> Vec<LocalNote> {
-        db.fetch_all_notes().unwrap()
-            .into_iter()
-            .sorted_by_key(|note| format!("{}_{}", &note.metadata.subfolder, &note.body[0].subject()))
-            .collect()
-    }
-
     fn generate_list_items<'a>(&self, entries: &Vec<LocalNote>) -> Vec<ListItem<'a>> {
         entries.iter().map(|e| {
             if e.content_changed_locally() {
@@ -261,6 +295,13 @@ impl App {
             }
         }).collect()
     }
+}
+
+fn refetch_notes(db: &SqliteDBConnection) -> Vec<LocalNote> {
+    db.fetch_all_notes().unwrap()
+        .into_iter()
+        .sorted_by_key(|note| format!("{}_{}", &note.metadata.subfolder, &note.body[0].subject()))
+        .collect()
 }
 
 fn main() {
