@@ -23,6 +23,7 @@ use tui::layout::Alignment;
 use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
 use crate::Outcome::{Success, Failure};
+use std::ops::Deref;
 
 enum Event<I> {
     Input(I),
@@ -73,6 +74,9 @@ impl App {
         let status = Arc::new(Mutex::new("Started".to_string()));
         let status_2 = status.clone();
 
+        let mut in_search_mode = false;
+        let mut keyword = "".to_string();
+
         thread::spawn(move || {
             let mut last_tick = Instant::now();
             loop {
@@ -103,6 +107,7 @@ impl App {
         let mut counter = Arc::new(Mutex::new(0));
 
         let note_list_state_2 = note_list_state.clone();
+        let keyword_2 = keyword.clone();
 
         thread::spawn( move || {
 
@@ -116,11 +121,12 @@ impl App {
                     let active_2 = active.clone();
                     let tx_3 = tx_2.clone();
                     let counter_2 = counter.clone();
+                    let keyword_3 = keyword_2.clone();
                     thread::spawn( move || {
                         match next {
                             Task::Sync => {
                                 let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
-                                let entries = refetch_notes(&db_connection);
+                                let entries = refetch_notes(&db_connection, &keyword_3);
                                 let note = entries.get(note_list_state_3.lock().unwrap().selected().unwrap()).unwrap();
                                 apple_notes_rs_lib::sync::sync_notes().unwrap();
                                 tx_3.send(Event::OutCome(Success("Synced!".to_string())));
@@ -154,8 +160,9 @@ impl App {
 
         let db =  apple_notes_rs_lib::db::SqliteDBConnection::new();
 
-        let mut entries = refetch_notes(&db);
-        let mut items: Vec<ListItem> = self.generate_list_items(&entries);
+        let mut entries: Vec<LocalNote> = refetch_notes(&db, &keyword);
+
+        let mut items: Vec<ListItem> = self.generate_list_items(&entries, &keyword);
 
         let mut list = self.gen_list(&mut items);
 
@@ -206,91 +213,145 @@ impl App {
                 f.render_widget(t2.clone(), chunks[1]);
             }).unwrap();
 
-            match rx.recv()? {
-                Event::Input(event) => match event.code {
-                    KeyCode::Char('j') => {
-                        let selected = note_list_state.lock().unwrap().selected();
-                        if selected.unwrap_or(0) < entries.len() -1 {
-                            note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) + 1));
-                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+            let received_keystroke = rx.recv()?;
+
+            if in_search_mode {
+                match received_keystroke {
+                    Event::Input(event) => match event.code {
+                        KeyCode::Esc => {
+                            *status.lock().unwrap() = "".to_string();
+                            *color.lock().unwrap() = Color::White;
+                            in_search_mode = false;
+
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
+
                         }
-                    },
-                    KeyCode::Char('k') => {
-                        let selected = note_list_state.lock().unwrap().selected();
-                        if selected.unwrap_or(0) > 0 {
-                            note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) - 1));
-                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                        KeyCode::Backspace => {
+                            let len = keyword.len();
+                            if len > 0 {
+                                keyword = keyword[..len-1].to_string();
+                                *status.lock().unwrap() = keyword.clone();
+                            }
+
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
+
+                            note_list_state.lock().unwrap().select(Some(0));
                         }
-                    },
-                    KeyCode::Char('J') => {
-                        scroll_amount += 4;
-                    },
-                    KeyCode::Char('K') => {
-                        if scroll_amount >= 4 {
-                            scroll_amount -= 4;
-                        } else {
-                            scroll_amount = 0;
+                        KeyCode::Char(c) => {
+                            let ed = c;
+                            keyword = format!("{}{}", keyword, ed);
+                             *status.lock().unwrap() = keyword.clone();
+
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
                         }
-                    },
-                    KeyCode::Char('e') => {
-                        let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
-                        let result: Result<LocalNote,Box<dyn std::error::Error>> = apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into());
-                        result.and_then(|note| db.update(&note).map_err(|e| e.into()))
-                            .unwrap();
-                        entries = refetch_notes(&db_connection);
-                        items = self.generate_list_items(&entries);
-                        list = self.gen_list(&mut items);
-                    },
-                    KeyCode::Char('d') => {
-                        let mut note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().clone();
-                        note.metadata.locally_deleted = !note.metadata.locally_deleted ;
-                        let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
-                        db_connection.update(&note).unwrap();
-                        entries = refetch_notes(&db_connection);
-                        items = self.generate_list_items(&entries);
-                        list = self.gen_list(&mut items);
-
-                    },
-                    KeyCode::Char('s') => {
-                        //TODO block multiple invocations
-                        *status.lock().unwrap() = "Syncing".to_string();
-                        *color.lock().unwrap() = Color::Yellow;
-
-                        action_tx.send(Task::Sync);
-
-                    },
-                    KeyCode::Char('x') => {
-                        //TODO block multiple invocations
-                        *status.lock().unwrap() = "Syncing".to_string();
-                        *color.lock().unwrap() = Color::Yellow;
-
-                        action_tx.send(Task::Test);
-
-                    },
-                    KeyCode::Char('q') => {
-                        terminal.clear().unwrap();
-                        break;
+                        _ => {}
                     }
                     _ => {}
                 }
-                Event::Tick => {}
-                Event::OutCome(outcome) => match outcome {
-                    Outcome::Success(s) => {
-                        *color.lock().unwrap() = Color::Green;
-                        *status.lock().unwrap() = s;
-                        entries = refetch_notes(&db_connection);
-                        items = self.generate_list_items(&entries);
-                        list = self.gen_list(&mut items);
+            } else {
+                match received_keystroke {
+                    Event::Input(event) => match event.code {
+                        KeyCode::Char('j') => {
+                            let selected = note_list_state.lock().unwrap().selected();
+                            if selected.unwrap_or(0) < entries.len() -1 {
+                                note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) + 1));
+                                text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                            }
+                        },
+                        KeyCode::Char('k') => {
+                            let selected = note_list_state.lock().unwrap().selected();
+                            if selected.unwrap_or(0) > 0 {
+                                note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) - 1));
+                                text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                            }
+                        },
+                        KeyCode::Char('J') => {
+                            scroll_amount += 4;
+                        },
+                        KeyCode::Char('K') => {
+                            if scroll_amount >= 4 {
+                                scroll_amount -= 4;
+                            } else {
+                                scroll_amount = 0;
+                            }
+                        },
+                        KeyCode::Char('e') => {
+                            let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
+                            let result: Result<LocalNote,Box<dyn std::error::Error>> = apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into());
+                            result.and_then(|note| db.update(&note).map_err(|e| e.into()))
+                                .unwrap();
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
+                        },
+                        KeyCode::Char('d') => {
+                            let mut note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().clone();
+                            note.metadata.locally_deleted = !note.metadata.locally_deleted ;
+                            let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
+                            db_connection.update(&note).unwrap();
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
+
+                        },
+                        KeyCode::Char('s') => {
+                            //TODO block multiple invocations
+                            *status.lock().unwrap() = "Syncing".to_string();
+                            *color.lock().unwrap() = Color::Yellow;
+
+                            action_tx.send(Task::Sync);
+
+                        },
+                        KeyCode::Char('x') => {
+                            //TODO block multiple invocations
+                            *status.lock().unwrap() = "Syncing".to_string();
+                            *color.lock().unwrap() = Color::Yellow;
+
+                            action_tx.send(Task::Test);
+
+                        },
+                        KeyCode::Char('q') => {
+                            terminal.clear().unwrap();
+                            break;
+                        },
+                        KeyCode::Char('/') => {
+                            *status.lock().unwrap() = format!("Search mode: {}", keyword);
+                            *color.lock().unwrap() = Color::Cyan;
+                            in_search_mode = true;
+                        },
+                        KeyCode::Esc => {
+                            *status.lock().unwrap() = "".to_string();
+                            in_search_mode = false;
+                        }
+                        _ => {}
                     }
-                    Outcome::Failure(s) => {
-                        *color.lock().unwrap() = Color::Red;
-                        *status.lock().unwrap() = s;
-                        entries = refetch_notes(&db_connection);
-                        items = self.generate_list_items(&entries);
-                        list = self.gen_list(&mut items);
+                    Event::Tick => {}
+                    Event::OutCome(outcome) => match outcome {
+                        Outcome::Success(s) => {
+                            *color.lock().unwrap() = Color::Green;
+                            *status.lock().unwrap() = s;
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
+                        }
+                        Outcome::Failure(s) => {
+                            *color.lock().unwrap() = Color::Red;
+                            *status.lock().unwrap() = s;
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
+                        }
                     }
                 }
             }
+
+
         }
 
         disable_raw_mode().unwrap();
@@ -314,8 +375,16 @@ impl App {
             .highlight_symbol(">>")
     }
 
-    fn generate_list_items<'a>(&self, entries: &Vec<LocalNote>) -> Vec<ListItem<'a>> {
-        entries.iter().map(|e| {
+    fn generate_list_items<'a>(&self, entries: &Vec<LocalNote>, filter_word: &String) -> Vec<ListItem<'a>> {
+        entries.iter()
+            .filter(|entry| {
+                if filter_word.len() > 0 {
+                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.to_lowercase())
+                } else {
+                    return true
+                }
+            })
+            .map(|e| {
             if e.content_changed_locally() {
                 ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
             } else if e.metadata.locally_deleted {
@@ -329,9 +398,16 @@ impl App {
     }
 }
 
-fn refetch_notes(db: &SqliteDBConnection) -> Vec<LocalNote> {
+fn refetch_notes(db: &SqliteDBConnection, filter_word: &String) -> Vec<LocalNote> {
     db.fetch_all_notes().unwrap()
         .into_iter()
+        .filter(|entry| {
+            if filter_word.len() > 0 {
+                entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.to_lowercase())
+            } else {
+                return true
+            }
+        })
         .sorted_by_key(|note| format!("{}_{}", &note.metadata.subfolder, &note.body[0].subject()))
         .collect()
 }
