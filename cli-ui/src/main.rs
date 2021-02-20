@@ -22,7 +22,7 @@ use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use tui::layout::Alignment;
 use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
-use crate::Outcome::Success;
+use crate::Outcome::{Success, Failure};
 
 enum Event<I> {
     Input(I),
@@ -32,7 +32,8 @@ enum Event<I> {
 
 enum Task {
     Sync,
-    End
+    End,
+    Test
 }
 
 enum Outcome {
@@ -98,23 +99,46 @@ impl App {
         let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
 
         let mut note_list_state = Arc::new(Mutex::new(ListState::default()));
-        let mut note_list_state_2 = note_list_state.clone();
         note_list_state.lock().unwrap().select(Some(0));
+        let mut counter = Arc::new(Mutex::new(0));
+
+        let note_list_state_2 = note_list_state.clone();
 
         thread::spawn( move || {
 
-            loop {
-                match action_rx.recv().unwrap() {
-                    Task::Sync => {
-                        let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
-                        let entries = refetch_notes(&db_connection);
-                        let note = entries.get(note_list_state_2.lock().unwrap().selected().unwrap()).unwrap();
-                        apple_notes_rs_lib::sync::sync_notes().unwrap();
-                        tx_2.send(Event::OutCome(Success("Synced!".to_string())));
+            let active = Arc::new(Mutex::new(false));
 
-                    }
-                    Task::End => {}
-                }
+            loop {
+                let mut note_list_state_3 = note_list_state_2.clone();
+                let next = action_rx.recv().unwrap();
+                if *active.lock().unwrap() == false {
+                    *active.lock().unwrap() = true;
+                    let active_2 = active.clone();
+                    let tx_3 = tx_2.clone();
+                    let counter_2 = counter.clone();
+                    thread::spawn( move || {
+                        match next {
+                            Task::Sync => {
+                                let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
+                                let entries = refetch_notes(&db_connection);
+                                let note = entries.get(note_list_state_3.lock().unwrap().selected().unwrap()).unwrap();
+                                apple_notes_rs_lib::sync::sync_notes().unwrap();
+                                tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+
+                            }
+                            Task::End => {},
+                            Task::Test => {
+                                sleep(Duration::new(2,0));
+                                *counter_2.lock().unwrap() += 1;
+                                tx_3.send(Event::OutCome(Success(format!("Test! {}", *counter_2.lock().unwrap()))));
+                            }
+                        }
+
+                        *active_2.lock().unwrap() = false;
+                    });
+                } else {
+                    tx_2.send(Event::OutCome(Failure("Currently busy".to_string())));
+                };
 
             }
 
@@ -233,6 +257,14 @@ impl App {
                         *color.lock().unwrap() = Color::Yellow;
 
                         action_tx.send(Task::Sync);
+
+                    },
+                    KeyCode::Char('x') => {
+                        //TODO block multiple invocations
+                        *status.lock().unwrap() = "Syncing".to_string();
+                        *color.lock().unwrap() = Color::Yellow;
+
+                        action_tx.send(Task::Test);
 
                     },
                     KeyCode::Char('q') => {
