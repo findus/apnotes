@@ -226,6 +226,8 @@ impl App {
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items);
+                            note_list_state.lock().unwrap().select(Some(0));
+                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
 
                         }
                         KeyCode::Backspace => {
