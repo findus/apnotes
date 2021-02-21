@@ -54,6 +54,7 @@ impl App {
         }
     }
 
+    //TODO entries nil check
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         enable_raw_mode().expect("can run in raw mode");
 
@@ -169,6 +170,9 @@ impl App {
         let mut text: String = "".to_string();
 
         let mut scroll_amount = 0;
+
+        text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+
 
         loop {
 
@@ -316,7 +320,6 @@ impl App {
                             *color.lock().unwrap() = Color::Yellow;
 
                             action_tx.send(Task::Test);
-
                         },
                         KeyCode::Char('q') => {
                             terminal.clear().unwrap();
@@ -326,6 +329,25 @@ impl App {
                             *status.lock().unwrap() = format!("Search mode: {}", keyword);
                             *color.lock().unwrap() = Color::Cyan;
                             in_search_mode = true;
+                        },
+                        KeyCode::Char('c') => {
+                            *status.lock().unwrap() = format!("Filter Cleared");
+                            *color.lock().unwrap() = Color::White;
+
+                            keyword = "".to_string();
+
+                            let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
+
+                            entries = refetch_notes(&db_connection, &keyword);
+                            items = self.generate_list_items(&entries, &keyword);
+                            list = self.gen_list(&mut items);
+
+                            let old_note_idx = entries.iter().enumerate().filter(|(idx,note)| {
+                                note.metadata.uuid == old_uuid
+                            }).last().unwrap().0;
+
+                            note_list_state.lock().unwrap().select(Some(old_note_idx));
+
                         },
                         KeyCode::Esc => {
                             *status.lock().unwrap() = "".to_string();
