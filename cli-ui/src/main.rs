@@ -133,7 +133,9 @@ impl App {
                                 tx_3.send(Event::OutCome(Success("Synced!".to_string())));
 
                             }
-                            Task::End => {},
+                            Task::End => {
+
+                            },
                             Task::Test => {
                                 sleep(Duration::new(2,0));
                                 *counter_2.lock().unwrap() += 1;
@@ -363,6 +365,7 @@ impl App {
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items);
+                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
                         Outcome::Failure(s) => {
                             *color.lock().unwrap() = Color::Red;
