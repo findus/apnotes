@@ -24,6 +24,7 @@ use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
 use crate::Outcome::{Success, Failure, End};
 use std::ops::Deref;
+use std::error::Error;
 
 enum Event<I> {
     Input(I),
@@ -139,11 +140,14 @@ impl App {
                         thread::spawn( move || {
                             match next {
                                 Task::Sync => {
-                                    if apple_notes_rs_lib::sync_notes().is_err() {
-                                        tx_3.send(Event::OutCome(Failure("Sync error".to_string())));
-                                    } else {
-                                        tx_3.send(Event::OutCome(Success("Synced!".to_string())));
-öö                                    }
+                                    match apple_notes_rs_lib::sync_notes() {
+                                        Ok(_) => {
+                                            tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+                                        }
+                                        Err(e) => {
+                                            tx_3.send(Event::OutCome(Failure(format!("Sync error: {}",e))));
+                                        }
+                                    }
                                 }
                                 Task::End => {
 
