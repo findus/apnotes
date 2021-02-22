@@ -11,13 +11,12 @@ extern crate itertools;
 use clap::{Arg, App, ArgMatches, AppSettings};
 
 use apple_notes_rs_lib::error::{NoteError};
-use apple_notes_rs_lib::create_new_note;
+use apple_notes_rs_lib::{create_new_note, edit_note};
 use self::diesel_migrations::*;
 
 use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
 use colored::Colorize;
 use itertools::*;
-use apple_notes_rs_lib::edit::edit_note;
 use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
 use log::Level;
@@ -107,7 +106,7 @@ fn main() {
 
     let result = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync::sync_notes(),
+        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync_notes(),
         ("list", Some(sub_matches)) => list_notes(sub_matches),
         ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
         ("merge", Some(sub_matches)) => merge_note(sub_matches),
@@ -156,7 +155,7 @@ fn edit_passed_note(sub_matches: &ArgMatches) -> Result<()> {
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
     let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
     ::apple_notes_rs_lib::find_note(&uuid_or_name, &db)
-        .and_then(|note| apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into()))
+        .and_then(|note| apple_notes_rs_lib::edit_note(&note, false).map_err(|e| e.into()))
         .and_then(|note| db.update(&note).map_err(|e| e.into()))
 }
 

@@ -129,7 +129,7 @@ impl App {
                                 let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
                                 let entries = refetch_notes(&db_connection, &keyword_3);
                                 let note = entries.get(note_list_state_3.lock().unwrap().selected().unwrap()).unwrap();
-                                apple_notes_rs_lib::sync::sync_notes().unwrap();
+                                apple_notes_rs_lib::sync_notes().unwrap();
                                 tx_3.send(Event::OutCome(Success("Synced!".to_string())));
                             }
                             Task::End => {
@@ -292,7 +292,7 @@ impl App {
                         },
                         KeyCode::Char('e') => {
                             let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
-                            let result: Result<LocalNote,Box<dyn std::error::Error>> = apple_notes_rs_lib::edit::edit_note(&note, false).map_err(|e| e.into());
+                            let result: Result<LocalNote,Box<dyn std::error::Error>> = apple_notes_rs_lib::edit_note(&note, false).map_err(|e| e.into());
                             result.and_then(|note| db.update(&note).map_err(|e| e.into()))
                                 .unwrap();
                             entries = refetch_notes(&db_connection, &keyword);
@@ -311,7 +311,6 @@ impl App {
 
                         },
                         KeyCode::Char('s') => {
-                            //TODO block multiple invocations
                             *status.lock().unwrap() = "Syncing".to_string();
                             *color.lock().unwrap() = Color::Yellow;
 
@@ -319,7 +318,6 @@ impl App {
 
                         },
                         KeyCode::Char('x') => {
-                            //TODO block multiple invocations
                             *status.lock().unwrap() = "Syncing".to_string();
                             *color.lock().unwrap() = Color::Yellow;
 

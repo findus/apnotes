@@ -21,30 +21,41 @@ extern crate diff;
 extern crate log;
 
 #[macro_use]
-pub mod macros;
-pub mod apple_imap;
-pub mod converter;
-pub mod profile;
-pub mod sync;
+mod macros;
+mod apple_imap;
+mod converter;
+mod profile;
+mod sync;
 #[macro_use]
 mod util;
 pub mod error;
-pub mod edit;
+mod edit;
 pub mod db;
-pub mod model;
-pub mod schema;
-pub mod builder;
+mod model;
+mod schema;
+mod builder;
 pub mod notes;
-pub mod merge;
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+mod merge;
 
 use db::{DatabaseService, DBConnector, SqliteDBConnection};
 use error::NoteError::NoteNotFound;
 use util::is_uuid;
 use notes::localnote::LocalNote;
-use error::UpdateError;
+use error::{UpdateError, NoteError};
 
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+/// Syncs with the imap server
+pub fn sync_notes() -> Result<()> {
+    sync::sync_notes()
+}
+
+/// Opens a text editor with the content of the specified note
+pub fn edit_note(local_note: &LocalNote, new: bool ) -> std::result::Result<LocalNote,NoteError>{
+    edit::edit_note(local_note, new)
+}
+
+/// Creates a new note, with the specified name inside the specified folder
 pub fn create_new_note<C>(db_connection: &dyn DatabaseService<C>, with_subject: String, folder: String)
     -> std::result::Result<LocalNote,::error::NoteError> where C: 'static + DBConnector
 {
@@ -95,13 +106,16 @@ pub fn find_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<Local
     }
 }
 
+/// Merges notes that have > 1 bodies (right now only 2 bodies supported)
+/// After merging it the default text editor gets opened so that the user
+/// can resolve all conflicts, after saving the note is marked as merged
 pub fn merge(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<()> {
     find_note(&uuid_or_name, &db)
         .and_then(|note| {
 
             //TODO currently only supports merging for 2 notes
             if note.needs_merge() == false || note.body.len() > 2 {
-                return Err(UpdateError::SyncError("Note not mergeable".to_string()).into());
+                return Err(UpdateError::SyncError("Note not mergeable, right now only notes with 2 bodies are mergeable".to_string()).into());
             }
 
             let diff = merge::merge_two(&note.body[0].text.as_ref().unwrap(), &note.body[1].text.as_ref().unwrap());
