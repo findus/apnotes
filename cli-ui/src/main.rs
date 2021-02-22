@@ -22,7 +22,7 @@ use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use tui::layout::Alignment;
 use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
-use crate::Outcome::{Success, Failure};
+use crate::Outcome::{Success, Failure, End};
 use std::ops::Deref;
 
 enum Event<I> {
@@ -39,7 +39,8 @@ enum Task {
 
 enum Outcome {
     Success(String),
-    Failure(String)
+    Failure(String),
+    End()
 }
 
 struct App {
@@ -110,49 +111,60 @@ impl App {
         let note_list_state_2 = note_list_state.clone();
         let keyword_2 = keyword.clone();
 
-        thread::spawn( move || {
+        let end = Arc::new(Mutex::new(false));
+        let end_3 = end.clone();
+
+
+        let worker_tread = thread::spawn( move || {
 
             let active = Arc::new(Mutex::new(false));
 
             loop {
                 let mut note_list_state_3 = note_list_state_2.clone();
                 let next = action_rx.recv().unwrap();
+
                 if *active.lock().unwrap() == false {
                     *active.lock().unwrap() = true;
                     let active_2 = active.clone();
+                    let end_2 = end.clone();
                     let tx_3 = tx_2.clone();
                     let counter_2 = counter.clone();
                     let keyword_3 = keyword_2.clone();
-                    thread::spawn( move || {
-                        match next {
-                            Task::Sync => {
-                                let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
-                                let entries = refetch_notes(&db_connection, &keyword_3);
-                                let note = entries.get(note_list_state_3.lock().unwrap().selected().unwrap()).unwrap();
-                                apple_notes_rs_lib::sync_notes().unwrap();
-                                tx_3.send(Event::OutCome(Success("Synced!".to_string())));
-                            }
-                            Task::End => {
 
-                            },
-                            Task::Test => {
-                                sleep(Duration::new(2,0));
-                                *counter_2.lock().unwrap() += 1;
-                                tx_3.send(Event::OutCome(Success(format!("Test! {}", *counter_2.lock().unwrap()))));
-                            }
-                        }
-
+                    if matches!(next,Task::End) {
+                        *end_2.lock().unwrap() = true;
                         *active_2.lock().unwrap() = false;
-                    });
+                    } else {
+
+                        thread::spawn( move || {
+                            match next {
+                                Task::Sync => {
+                                    apple_notes_rs_lib::sync_notes().unwrap();
+                                    tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+                                }
+                                Task::End => {
+
+                                },
+                                Task::Test => {
+                                    sleep(Duration::new(2,0));
+                                    *counter_2.lock().unwrap() += 1;
+                                    tx_3.send(Event::OutCome(Success(format!("Test! {}", *counter_2.lock().unwrap()))));
+                                }
+                            }
+
+                            *active_2.lock().unwrap() = false;
+                        });
+                    }
                 } else {
                     tx_2.send(Event::OutCome(Failure("Currently busy".to_string())));
                 };
 
+                if *active.lock().unwrap() == false && *end.lock().unwrap() {
+                    tx_2.send(Event::OutCome(End()));
+                    break;
+                }
+
             }
-
-            let ten_millis = time::Duration::from_millis(3000);
-            thread::sleep(ten_millis);
-
 
             //apple_notes_rs_lib::sync::sync_notes().unwrap();
 
@@ -324,8 +336,8 @@ impl App {
                             action_tx.send(Task::Test);
                         },
                         KeyCode::Char('q') => {
-                            terminal.clear().unwrap();
-                            break;
+                            *end_3.lock().unwrap() = true;
+                            action_tx.send(Task::End);
                         },
                         KeyCode::Char('/') => {
                             *status.lock().unwrap() = format!("Search mode: {}", keyword);
@@ -382,6 +394,9 @@ impl App {
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items);
                         }
+                        Outcome::End() => {
+                            break;
+                        }
                     }
                 }
             }
@@ -389,6 +404,9 @@ impl App {
 
         }
 
+
+        worker_tread.join();
+        terminal.clear().unwrap();
         disable_raw_mode().unwrap();
 
         Ok(())
