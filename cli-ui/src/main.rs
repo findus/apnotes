@@ -131,7 +131,6 @@ impl App {
                                 let note = entries.get(note_list_state_3.lock().unwrap().selected().unwrap()).unwrap();
                                 apple_notes_rs_lib::sync::sync_notes().unwrap();
                                 tx_3.send(Event::OutCome(Success("Synced!".to_string())));
-
                             }
                             Task::End => {
 
@@ -297,6 +296,7 @@ impl App {
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items);
+                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
                         },
                         KeyCode::Char('d') => {
                             let mut note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().clone();
@@ -365,7 +365,14 @@ impl App {
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items);
-                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                            let mut index = note_list_state.lock().unwrap().selected().unwrap();
+
+                            if index > items.len() - 1 {
+                                index = items.len() - 1;
+                                note_list_state.lock().unwrap().select(Some(index));
+                            }
+
+                            text = entries.get(index).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
                         Outcome::Failure(s) => {
                             *color.lock().unwrap() = Color::Red;
