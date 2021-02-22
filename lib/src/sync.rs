@@ -87,12 +87,30 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
+#[derive(Debug,PartialEq)]
+pub enum ImapError {
+    SessionNotAvaiable
+}
+
+impl std::error::Error for ImapError {}
+
+impl std::fmt::Display for ImapError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 pub fn sync_notes() -> Result<()> {
-    let mut imap_service = ::apple_imap::MailServiceImpl::new_with_login();
-    let db_connection= ::db::SqliteDBConnection::new();
-    sync(&mut imap_service, &db_connection)
-        .map_err(|e| e.into())
-        .and_then(|_| imap_service.logout().map_err(|e| e.into()))
+    if let Some(mut imap_service) = ::apple_imap::MailServiceImpl::new_with_login() {
+
+        let db_connection= ::db::SqliteDBConnection::new();
+        sync(&mut imap_service, &db_connection)
+            .map_err(|e| e.into())
+            .and_then(|_| imap_service.logout().map_err(|e| e.into()))
+    } else {
+        std::result::Result::Err(ImapError::SessionNotAvaiable.into())
+    }
+
 }
 
 fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,

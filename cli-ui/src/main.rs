@@ -139,8 +139,11 @@ impl App {
                         thread::spawn( move || {
                             match next {
                                 Task::Sync => {
-                                    apple_notes_rs_lib::sync_notes().unwrap();
-                                    tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+                                    if apple_notes_rs_lib::sync_notes().is_err() {
+                                        tx_3.send(Event::OutCome(Failure("Sync error".to_string())));
+                                    } else {
+                                        tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+öö                                    }
                                 }
                                 Task::End => {
 

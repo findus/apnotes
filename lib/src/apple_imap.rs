@@ -27,6 +27,8 @@ use notes::localnote::LocalNote;
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::identifyable_note::IdentifyableNote;
 
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 pub trait ImapSession<S> {
 
 }
@@ -36,7 +38,8 @@ pub struct TlsImapSession {
 }
 
 impl TlsImapSession {
-    fn login() -> Session<TlsStream<TcpStream>> {
+
+    fn login() -> Result<Session<TlsStream<TcpStream>>> {
         let profile = self::profile::load_profile();
 
         let domain = profile.imap_server.as_str();
@@ -47,15 +50,9 @@ impl TlsImapSession {
 
         // we pass in the domain twice to check that the server's TLS
         // certificate is valid for the domain we're connecting to.
-        let client = imap::connect((domain, 993), domain, &tls).unwrap();
-
-        // the client we have here is unauthenticated.
-        // to do anything useful with the e-mails, we need to log in
-        let imap_session = client
-            .login(profile.username, profile.password)
-            .map_err(|e| e.0);
-
-        return imap_session.unwrap();
+        imap::connect((domain, 993), domain, &tls)
+            .map_err(|e| e.into())
+            .and_then(|client| client.login(profile.username, profile.password).map_err(|e| e.0.into()))
     }
 }
 
@@ -70,23 +67,23 @@ pub trait MailService<T: 'static> {
     ///
     /// The generated dataset can be used to check for duplicated notes that needs
     /// to be merged
-    fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection,Error>;
+    fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection>;
     /// Creates a new Subfolder for storing notes
-    fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error>;
+    fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<()>;
     /// Fetches the actual content from a note
-    fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String, Error>;
+    fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String>;
     /// Exposes the active imap connection
     fn get_session(&self) -> T;
     /// Updates a local message, either if it got updated or if it is a new localnote
     /// This App should only support "merged" notes, notes that only have one body.
     ///
     /// If the passed localnote has >1 bodies it will reject it.
-    fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error>;
+    fn update_message(&mut self, localnote: &LocalNote) -> Result<u32>;
     // Deletes the passed message
     fn delete_message(&mut self, localnote: &LocalNote) -> std::result::Result<(), Box<dyn std::error::Error>>;
     /// Selects a specific subfolder
-    fn select(&mut self, folder: &str) -> Result<Mailbox, Error>;
-    fn logout(&mut self) -> Result<(), Error>;
+    fn select(&mut self, folder: &str) -> Result<Mailbox>;
+    fn logout(&mut self) -> Result<()>;
 }
 
 pub struct MailServiceImpl {
@@ -94,12 +91,22 @@ pub struct MailServiceImpl {
 }
 
 impl MailServiceImpl {
-    pub fn new_with_login() -> MailServiceImpl {
-        MailServiceImpl {
-            session: TlsImapSession {
-                session: TlsImapSession::login()
+    pub fn new_with_login() -> Option<MailServiceImpl> {
+        match TlsImapSession::login() {
+            Ok(session) => {
+                Some(
+                    MailServiceImpl {
+                        session: TlsImapSession {
+                            session: session
+                        }
+                    }
+                )
+            }
+            Err(_) => {
+                None
             }
         }
+
     }
 
     pub fn fetch_headers_in_folder(&mut self, folder_name: String) -> Vec<RemoteNoteMetaData> {
@@ -145,14 +152,14 @@ impl MailServiceImpl {
         }
     }
 
-    pub fn list_note_folders(&mut self) -> Result<Vec<String>,imap::error::Error> {
+    pub fn list_note_folders(&mut self) -> Result<Vec<String>> {
         let folders_result = self.session.session.list(None, Some("Notes*"));
         match folders_result {
             Ok(result) => {
                 let names: Vec<String> = result.iter().map(|name| name.name().to_string()).collect();
                 Ok(names)
             }
-            Err(e) => Err(e)
+            Err(e) => Err(e.into())
         }
     }
 
@@ -160,12 +167,13 @@ impl MailServiceImpl {
     /// the note with uid_to_keep
     fn delete_old_mergeable_notes(&mut self,
                                   local_note: &LocalNote,
-                                  uid_to_keep: u32) -> Result<(),Error>
+                                  uid_to_keep: u32) -> Result<()>
     {
         self.session.session.
-            select(&local_note.metadata.folder())
+            select(&local_note.metadata.folder()).map_err(|e| e.into())
             .and_then(|_| self.session.session.uid_search(
                 format!("HEADER X-Universally-Unique-Identifier {}", local_note.metadata.uuid)))
+            .map_err(|e| e.into())
             .and_then(|uids| {
                 let uids: Vec<String> = uids.into_iter()
                     .filter(|uid| uid != &uid_to_keep )
@@ -179,11 +187,11 @@ impl MailServiceImpl {
             })
     }
 
-    fn delete_flagged(&mut self) -> imap::error::Result<Vec<u32>> {
-        self.session.session.expunge()
+    fn delete_flagged(&mut self) -> Result<Vec<u32>> {
+        self.session.session.expunge().map_err(|e| e.into())
     }
 
-    fn flag_as_deleted(&mut self, uid: String) -> imap::error::Result<()> {
+    fn flag_as_deleted(&mut self, uid: String) -> Result<()> {
         // If note was new everything is ready
         self.session.session.uid_store(uid, "+FLAGS.SILENT (\\Seen \\Deleted)".to_string())?;
         Ok(())
@@ -192,7 +200,7 @@ impl MailServiceImpl {
 
 impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
 
-    fn fetch_headers(&mut self) -> Result<Vec<RemoteNoteMetaData>,Error> {
+    fn fetch_headers(&mut self) -> Result<Vec<RemoteNoteMetaData>> {
         info!("Fetching Headers of Remote Notes...");
         let folders = self.list_note_folders()?;
         let header = folders.iter().map(|folder_name| {
@@ -203,11 +211,11 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
         Ok(header)
     }
 
-    fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<(), Error> {
+    fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<()> {
         self.session.session.create(&note.subfolder).or(Ok(()))
     }
 
-    fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String, Error> {
+    fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String> {
         if let Some(result) = self.session.session.select(&subfolder).err() {
             warn!("Could not select folder {} [{}]", &subfolder, result)
         }
@@ -221,7 +229,7 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
             },
             Err(error) => {
                 warn!("Could not load notes from {}! {}", &subfolder, error);
-                Err(error)
+                Err(error.into())
             }
         }
     }
@@ -230,7 +238,7 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
         unimplemented!()
     }
 
-    fn update_message(&mut self, localnote: &LocalNote) -> Result<u32, Error> {
+    fn update_message(&mut self, localnote: &LocalNote) -> Result<u32> {
         //Todo check >1
 
         let headers = localnote.to_header_vector().iter().map( |(k,v)| {
@@ -247,44 +255,43 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
 
         self.session.session
             // Write new message into the mailbox
-            .append(&localnote.metadata.subfolder, message.as_bytes())
+            .append(&localnote.metadata.subfolder, message.as_bytes()).map_err(|e| e.into())
             // Select the appropriate mailbox, in which the updated message was saved
-            .and_then(|_| self.session.session.select(&localnote.metadata.subfolder))
+            .and_then(|_| self.session.session.select(&localnote.metadata.subfolder).map_err(|e| e.into()))
             // Set the old (overridden) message to "deleted", so that it can be expunged
             .and_then(|_| {
                 if localnote.metadata.new == false && localnote.body[0].uid.is_some() {
-                    self.flag_as_deleted(localnote.body[0].uid.unwrap().to_string())
+                    self.flag_as_deleted(localnote.body[0].uid.unwrap().to_string()).map_err(|e| e.into())
                 } else {
                     Ok(())
                 }
             })
             // Expunge them //TODO might need check if note is new, skip if note is new
-            .and_then(|_| self.delete_flagged())
+            .and_then(|_| self.delete_flagged().map_err(|e| e.into()))
             // Search for the new message, to get the new UID of the updated message
-            .and_then(|_| self.session.session.uid_search(format!("HEADER Message-ID {}", localnote.body[0].message_id)))
+            .and_then(|_| self.session.session.uid_search(format!("HEADER Message-ID {}", localnote.body[0].message_id)).map_err(|e| e.into()))
             // Get the first UID
-            .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string())))
+            .and_then(|id| id.into_iter().collect::<Vec<u32>>().first().cloned().ok_or(imap::error::Error::Bad("no uid found".to_string()).into()))
             // Save the new UID to the metadata file, also set seen flag so that mail clients dont get notified on updated message
-            .and_then(|new_uid| self.session.session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid))
+            .and_then(|new_uid| self.session.session.uid_store(format!("{}", &new_uid), "+FLAGS.SILENT (\\Seen)".to_string()).map(|_| new_uid).map_err(|e| e.into()))
             // Delete dangling remote non merged notes
             .and_then(|new_uid| self.delete_old_mergeable_notes(&localnote, new_uid).map(|_| new_uid))
     }
 
-    fn delete_message(&mut self, localnote: &LocalNote) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn delete_message(&mut self, localnote: &LocalNote) -> Result<()> {
         self.session.session
-            .select(&localnote.metadata.subfolder)
-            .and_then(|_| self.flag_as_deleted(localnote.body[0].uid.expect("expected uid").to_string()))
-            .and_then(|_| self.delete_flagged().map(|_| ()))
-            .map_err(|e| e.into())
+            .select(&localnote.metadata.subfolder).map_err(|e| e.into())
+            .and_then(|_| self.flag_as_deleted(localnote.body[0].uid.expect("expected uid").to_string()).map_err(|e| e.into()))
+            .and_then(|_| self.delete_flagged().map(|_| ()).map_err(|e| e.into()))
     }
 
-    fn select(&mut self, folder: &str) -> Result<Mailbox, Error> {
+    fn select(&mut self, folder: &str) -> Result<Mailbox> {
         //todo wrap mailbox type?
-        self.session.session.select(folder)
+        self.session.session.select(folder).map_err(|e| e.into())
     }
 
-    fn logout(&mut self) -> Result<(), Error> {
+    fn logout(&mut self) -> Result<()> {
         info!("Imap logout");
-        self.session.session.logout()
+        self.session.session.logout().map_err(|e| e.into())
     }
 }
