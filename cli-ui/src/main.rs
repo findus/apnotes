@@ -367,6 +367,7 @@ impl App {
                             list = self.gen_list(&mut items);
                             let mut index = note_list_state.lock().unwrap().selected().unwrap();
 
+                            //TODO old_uuid if present selection
                             if index > items.len() - 1 {
                                 index = items.len() - 1;
                                 note_list_state.lock().unwrap().select(Some(index));
