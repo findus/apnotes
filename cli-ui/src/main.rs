@@ -311,13 +311,23 @@ impl App {
                         },
                         KeyCode::Char('e') => {
                             let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
-                            let result: Result<LocalNote,Box<dyn std::error::Error>> = apple_notes_rs_lib::edit_note(&note, false).map_err(|e| e.into());
-                            result.and_then(|note| db.update(&note).map_err(|e| e.into()))
-                                .unwrap();
-                            entries = refetch_notes(&db_connection, &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
-                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                            let result: Result<LocalNote,Box<dyn std::error::Error>> =
+                                apple_notes_rs_lib::edit_note(&note, false)
+                                .map_err(|e| e.into())
+                                .and_then(|note| db.update(&note).map(|n| note).map_err(|e| e.into()));
+                            match result {
+                                Ok(note) => {
+                                    entries = refetch_notes(&db_connection, &keyword);
+                                    items = self.generate_list_items(&entries, &keyword);
+                                    list = self.gen_list(&mut items);
+                                    text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                                }
+                                Err(e) => {
+                                    *color.lock().unwrap() = Color::Red;
+                                    *status.lock().unwrap() = e.to_string();
+                                }
+                            }
+
                         },
                         KeyCode::Char('d') => {
                             let mut note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().clone();
