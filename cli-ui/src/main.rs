@@ -269,6 +269,7 @@ impl App {
                             if selected.unwrap_or(0) < entries.len() -1 {
                                 note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) + 1));
                                 text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                                scroll_amount = 0;
                             }
                         },
                         KeyCode::Char('k') => {
@@ -276,6 +277,7 @@ impl App {
                             if selected.unwrap_or(0) > 0 {
                                 note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) - 1));
                                 text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+                                scroll_amount = 0;
                             }
                         },
                         KeyCode::Char('J') => {
