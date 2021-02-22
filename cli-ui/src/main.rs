@@ -230,7 +230,7 @@ impl App {
                     .style(Style::default().fg(Color::White))
                     .alignment(Alignment::Left)
                     .scroll((scroll_amount,scroll_amount))
-                    .wrap(Wrap { trim: true });
+                    .wrap(Wrap { trim: false });
 
 
                 f.render_widget(t, noteslayout[1]);
