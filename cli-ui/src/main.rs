@@ -509,7 +509,7 @@ impl App {
                 format!("List")
             }
             Some(word) => {
-                format!("List [{}]", word)
+                format!("List Filter:[{}]", word)
 
             }
         };
