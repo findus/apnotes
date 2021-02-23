@@ -19,6 +19,7 @@ extern crate regex;
 extern crate diff;
 #[macro_use]
 extern crate log;
+extern crate quoted_printable;
 
 #[macro_use]
 mod macros;

@@ -59,6 +59,7 @@ dependencies = [
  "native-tls",
  "notify",
  "pulldown-cmark",
+ "quoted_printable",
  "regex",
  "serde 1.0.114",
  "serde_derive",

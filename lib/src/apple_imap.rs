@@ -212,7 +212,7 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
     }
 
     fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<()> {
-        self.session.session.create(&note.subfolder).or(Ok(()))
+        self.session.session.create(&note.folder()).or(Ok(()))
     }
 
     fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String> {
@@ -255,9 +255,9 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
 
         self.session.session
             // Write new message into the mailbox
-            .append(&localnote.metadata.subfolder, message.as_bytes()).map_err(|e| e.into())
+            .append(&localnote.metadata.folder(), message.as_bytes()).map_err(|e| e.into())
             // Select the appropriate mailbox, in which the updated message was saved
-            .and_then(|_| self.session.session.select(&localnote.metadata.subfolder).map_err(|e| e.into()))
+            .and_then(|_| self.session.session.select(&localnote.metadata.folder()).map_err(|e| e.into()))
             // Set the old (overridden) message to "deleted", so that it can be expunged
             .and_then(|_| {
                 if localnote.metadata.new == false && localnote.body[0].uid.is_some() {
@@ -280,7 +280,7 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
 
     fn delete_message(&mut self, localnote: &LocalNote) -> Result<()> {
         self.session.session
-            .select(&localnote.metadata.subfolder).map_err(|e| e.into())
+            .select(&localnote.metadata.folder()).map_err(|e| e.into())
             .and_then(|_| self.flag_as_deleted(localnote.body[0].uid.expect("expected uid").to_string()).map_err(|e| e.into()))
             .and_then(|_| self.delete_flagged().map(|_| ()).map_err(|e| e.into()))
     }

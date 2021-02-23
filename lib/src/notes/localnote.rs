@@ -9,6 +9,7 @@ use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
 use notes::traits::header_parser::HeaderParser;
 use std::collections::HashSet;
+use quoted_printable::ParseMode;
 
 #[derive(Eq,Clone,Debug)]
 pub struct LocalNote {
@@ -77,7 +78,8 @@ impl LocalNote {
 impl IdentifyableNote for LocalNote {
 
     fn folder(&self) -> String {
-        self.metadata.folder()
+        let decoded = quoted_printable::decode(&self.metadata.subfolder, ParseMode::Robust).unwrap();
+        String::from_utf8(decoded).unwrap()
     }
 
     fn uuid(&self) -> String {

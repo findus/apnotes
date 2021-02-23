@@ -424,7 +424,7 @@ fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
     let metadata = &localnote.metadata;
     imap_connection.create_mailbox(metadata)
         .map_err(|e| e.into())
-        .and_then(|_| imap_connection.select(&metadata.subfolder)
+        .and_then(|_| imap_connection.select(&metadata.folder())
             .map_err(|e| e.into()))
         .and_then(|_| imap_connection.update_message(localnote)
             .map_err(|e| e.into())
