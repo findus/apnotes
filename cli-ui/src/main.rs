@@ -290,7 +290,9 @@ impl App {
                             if keyword.is_some() {
                                 let len = keyword.as_ref().unwrap().len();
                                 if len > 0 {
-                                    keyword = Some(keyword.as_ref().unwrap()[..len-1].to_string());
+                                    let mut d = keyword.as_ref().unwrap().clone();
+                                    d.pop();
+                                    keyword = Some(d);
                                     *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
                                 }
 
