@@ -128,11 +128,7 @@ fn main() {
 fn undelete_note(sub_matches: &ArgMatches) -> Result<()> {
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
-
-    ::apple_notes_rs_lib::find_note(&uuid_or_name, &db_connection)
-        .map(|mut note| {note.metadata.locally_deleted = false; note})
-        .and_then(|note| db_connection.update(&note).map_err(|e| e.into()))
-
+    apple_notes_rs_lib::undelete_note(&uuid_or_name, &db_connection)
 }
 
 fn delete_note(sub_matches: &ArgMatches) -> Result<()> {

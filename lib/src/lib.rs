@@ -44,6 +44,7 @@ use util::is_uuid;
 use notes::localnote::LocalNote;
 use error::{UpdateError, NoteError};
 use sync::UpdateAction;
+use std::error::Error;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -138,5 +139,12 @@ pub fn merge(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<()> {
             Ok(note)
         })
         .and_then(|note| edit::edit_note(&note, false).map_err(|e| e.into()))
+        .and_then(|note| db.update(&note).map_err(|e| e.into()))
+}
+
+/// Unflags a note, so that in will not get deleted within the next sync
+pub fn undelete_note(uuid_or_name: &String, db: &SqliteDBConnection) -> Result<()> {
+    ::find_note(&uuid_or_name, &db)
+        .map(|mut note| {note.metadata.locally_deleted = false; note})
         .and_then(|note| db.update(&note).map_err(|e| e.into()))
 }
