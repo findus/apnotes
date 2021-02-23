@@ -88,7 +88,7 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes() -> Result<Vec<Result<(String,String)>>> {
+pub fn sync_notes() -> Result<Vec<(String,String,Result<()>)>> {
 
     let db_connection= ::db::SqliteDBConnection::new();
     ::apple_imap::MailServiceImpl::new_with_login()
@@ -276,7 +276,7 @@ fn get_needs_merge_basic<'a>(remote_note_header: Option<&'a RemoteNoteHeaderColl
 }
 
 pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>)
-    -> Result<Vec<Result<(String,String)>>>
+    -> Result<Vec<(String,String, Result<()>)>>
     where C: 'static + DBConnector, T: 'static
 {
     let headers = imap_session.fetch_headers()?;
@@ -287,11 +287,11 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
         get_sync_actions(&grouped_not_headers, &fetches);
     let results = process_actions(imap_session, db_connection, &actions);
 
-    for (action,result) in &results {
+    for (action, subject, result) in &results {
 
         let result = match result {
-            Ok(subject) => format!("{} [{}]", "Ok".green(), subject),
-            Err(e) => format!("{} {}", "Failed".red(), e.to_string())
+            Ok(_) => format!("{} [{}]", "Ok".green(), subject),
+            Err(e) => format!("{} {} {}", "Failed".red(), subject , e.to_string())
         };
 
         info!("{:>padding$}...{}", action, result , padding=20 );
@@ -299,16 +299,8 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
 
     let results= results
         .into_iter()
-        .map(|(action,result)| {
-            match result {
-                Ok(e) => {
-                    Ok((action.to_string(),e))
-                }
-                Err(e) => {
-                    Err(e)
-                }
-            }
-    }).collect();
+        .map(|(action,subject,result)| (action.to_string(),subject, result) )
+        .collect();
 
     Ok(results)
 }
@@ -316,7 +308,7 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
 pub fn process_actions<'a, T, C>(
     imap_connection: &mut dyn MailService<T>,
     db_connection: &dyn DatabaseService<C>,
-    actions: &'a Vec<UpdateAction<'a>>) -> Vec<(&'a UpdateAction<'a>, Result<String>)>
+    actions: &'a Vec<UpdateAction<'a>>) -> Vec<(&'a UpdateAction<'a>,String, Result<()>)>
     where C: 'static + DBConnector, T: 'static
 {
     let result = actions
@@ -327,9 +319,9 @@ pub fn process_actions<'a, T, C>(
                 UpdateAction::DeleteLocally(local_note) => process_delete_locally(db_connection, action, local_note),
                 UpdateAction::UpdateLocally(new_note_bodies) => process_update_locally(imap_connection, db_connection, action,new_note_bodies),
                 UpdateAction::Merge(_method,remote_note) => { process_merge(imap_connection, db_connection, action, remote_note) },
-                UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, update_message_remotely(imap_connection, db_connection, &local_note)) }
+                UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, local_note.metadata.first_subject(), update_message_remotely(imap_connection, db_connection, &local_note)) }
                 UpdateAction::AddLocally(note_headers) => process_add_locally(imap_connection, db_connection, action, note_headers),
-                UpdateAction::DoNothing => { (action,Ok("".to_string())) }
+                UpdateAction::DoNothing => { (action,"".to_string() ,Ok(())) }
             };
             return result;
         }
@@ -342,21 +334,21 @@ fn process_add_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
                                db_connection: &dyn DatabaseService<C>,
                                action: &'a UpdateAction,
                                noteheaders: &RemoteNoteHeaderCollection)
-    -> (&'a UpdateAction<'a>, Result<String>)
+    -> (&'a UpdateAction<'a>, String, Result<()>)
     where C: 'static + DBConnector, T: 'static {
 
     let result =
         localnote_from_remote_header(imap_connection, noteheaders)
             .and_then(|note| db_connection.insert_into_db(&note).map_err(|e| e.into()));
 
-    (action, result.map(|_| noteheaders.first_subject() ))
+    (action, noteheaders.first_subject(), result)
 }
 
 fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
                                    db_connection: &dyn DatabaseService<C>,
                                    action: &'a UpdateAction,
                                    new_note_bodies: &RemoteNoteHeaderCollection)
-    -> (&'a UpdateAction<'a>, Result<String>)
+    -> (&'a UpdateAction<'a>, String, Result<()>)
     where C: 'static + DBConnector, T: 'static {
 
     let d: Vec<std::result::Result<Body, UpdateError>> =
@@ -381,7 +373,7 @@ fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
         }).collect();
 
     if d.iter().filter(|c| c.is_err()).next() != None {
-        return (action,Err(UpdateError::SyncError("Could not fetch note bodies".to_string()).into()));
+        return (action, "".to_string() ,Err(UpdateError::SyncError("Could not fetch note bodies".to_string()).into()));
     };
 
     let f: Vec<Body> = d.into_iter().map(|d| d.unwrap()).collect();
@@ -391,43 +383,41 @@ fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
         new_note_bodies.iter().next().unwrap().headers.uuid()
     ).map_err(|e| e.into());
 
-    (action, result.map(|_| new_note_bodies.first_subject()))
+    (action, new_note_bodies.first_subject(), result)
 }
 
 fn process_delete_remotely<'a, C, T>(imap_connection: &mut dyn MailService<T>,
                                      db_connection: &dyn DatabaseService<C>,
                                      action: &'a UpdateAction,
                                      localnote: &LocalNote)
-    -> (&'a UpdateAction<'a>, Result<String>)
+    -> (&'a UpdateAction<'a>,String , Result<()>)
     where C: 'static + DBConnector, T: 'static
 {
     let result = imap_connection
         .delete_message(localnote)
         .and_then(|_| db_connection.delete(&localnote)
             .map_err(|e| e.into())
-        )
-        .map(|_| localnote.first_subject());
-
-    (action, result)
+        );
+    (action,localnote.first_subject(), result)
 }
 
 fn process_delete_locally<'a, C>(db_connection: &dyn DatabaseService<C>,
                                  action: &'a UpdateAction,
                                  b: &LocalNote)
-    -> (&'a UpdateAction<'a>, Result<String>)
+    -> (&'a UpdateAction<'a>, String, Result<()>)
     where C: 'static + DBConnector {
     //TODO what happens if remote umerged note gets deleted only delete this body
     // what happens if to be deleted note with message-id:x has merged un-updated
     //content on local side
     let result = db_connection.delete(b)
         .map_err(|e| e.into());
-    (action, result.map(|_| b.first_subject()))
+    (action,b.metadata.first_subject(), result)
 }
 
 fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
                                      db_connection: &dyn DatabaseService<C>,
                                      localnote: &LocalNote)
-    -> Result<String>
+    -> Result<()>
     where C: 'static + DBConnector, T: 'static
 {
     info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
@@ -461,14 +451,13 @@ fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
             db_connection.update(&note)
                 .map_err(|e| e.into())
         })
-        .map(|_| localnote.first_subject())
 }
 
 fn process_merge<'a,T,C>(imap_connection: &mut dyn MailService<T>,
                                   db_connection: &dyn DatabaseService<C>,
                                   action: &'a UpdateAction,
                                   new_notes: &Vec<RemoteNoteMetaData>)
-                                  -> (&'a UpdateAction<'a>, Result<String>)
+                                  -> (&'a UpdateAction<'a>,String, Result<()>)
     where C: 'static + DBConnector, T: 'static {
 
     match action {
@@ -497,18 +486,18 @@ fn process_merge<'a,T,C>(imap_connection: &mut dyn MailService<T>,
                 for result in note_bodies {
                     match result {
                         Err(e) => {
-                            return (action,Err(e));
+                            return (action,new_notes.first_subject(),Err(e));
                         },
                         Ok(result) => {
                             if let Err(e) = db_connection.append_note(&result).map_err(|e| e.into()) {
-                                return (action,Err(e));
+                                return (action,new_notes.first_subject(),Err(e));
                             }
                         }
                     }
 
                 };
 
-                (action,Ok(new_notes.first_subject()))
+                (action, new_notes.first_subject(), Ok(()))
 
             };
 

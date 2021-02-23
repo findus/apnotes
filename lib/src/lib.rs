@@ -47,7 +47,17 @@ use sync::UpdateAction;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// Syncs with the imap server
-pub fn sync_notes() -> Result<Vec<Result<(String,String)>>> {
+///
+/// Returns a Result with an Array of Results.
+/// The outer Result indicates if the app could establish
+/// a connection to the mail server or could query the db
+/// successfully
+///
+/// The inner list of arrays is housing the process results
+/// of every individual note that got processes
+///
+/// Tuple content:  (Upd)
+pub fn sync_notes() -> Result<Vec<(String,String,Result<()>)>> {
     sync::sync_notes()
 }
 
