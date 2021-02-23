@@ -91,7 +91,7 @@ impl App {
         let status_2 = status.clone();
 
         let mut in_search_mode = false;
-        let mut keyword = "".to_string();
+        let mut keyword: Option<String> = None;
 
         thread::spawn(move || {
             let mut last_tick = Instant::now();
@@ -202,7 +202,7 @@ impl App {
 
         let mut items: Vec<ListItem> = self.generate_list_items(&entries, &keyword);
 
-        let mut list = self.gen_list(&mut items);
+        let mut list = self.gen_list(&mut items, &keyword);
 
         let mut text: String = "".to_string();
 
@@ -273,7 +273,7 @@ impl App {
 
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
+                            list = self.gen_list(&mut items, &keyword);
                             note_list_state.lock().unwrap().select(Some(0));
 
                             match note_list_state.lock().unwrap().selected() {
@@ -287,26 +287,28 @@ impl App {
                             }
                         }
                         KeyCode::Backspace => {
-                            let len = keyword.len();
-                            if len > 0 {
-                                keyword = keyword[..len-1].to_string();
-                                *status.lock().unwrap() = keyword.clone();
+                            if keyword.is_some() {
+                                let len = keyword.as_ref().unwrap().len();
+                                if len > 0 {
+                                    keyword = Some(keyword.as_ref().unwrap()[..len-1].to_string());
+                                    *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
+                                }
+
+                                entries = refetch_notes(&db_connection, &keyword);
+                                items = self.generate_list_items(&entries, &keyword);
+                                list = self.gen_list(&mut items, &keyword);
+
+                                note_list_state.lock().unwrap().select(Some(0));
                             }
-
-                            entries = refetch_notes(&db_connection, &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
-
-                            note_list_state.lock().unwrap().select(Some(0));
                         }
                         KeyCode::Char(c) => {
                             let ed = c;
-                            keyword = format!("{}{}", keyword, ed);
-                             *status.lock().unwrap() = keyword.clone();
+                            keyword = Some(format!("{}{}", keyword.unwrap(), ed));
+                             *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
 
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
+                            list = self.gen_list(&mut items, &keyword);
                         }
                         _ => {}
                     }
@@ -371,7 +373,7 @@ impl App {
                                 Ok(note) => {
                                     entries = refetch_notes(&db_connection, &keyword);
                                     items = self.generate_list_items(&entries, &keyword);
-                                    list = self.gen_list(&mut items);
+                                    list = self.gen_list(&mut items, &keyword);
 
                                     match note_list_state.lock().unwrap().selected() {
                                         Some(index) if matches!(entries.get(index), Some(_)) => {
@@ -398,7 +400,7 @@ impl App {
                             db_connection.update(&note).unwrap();
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
+                            list = self.gen_list(&mut items, &keyword);
 
                         },
                         KeyCode::Char('s') => {
@@ -419,7 +421,8 @@ impl App {
                             action_tx.send(Task::End);
                         },
                         KeyCode::Char('/') => {
-                            *status.lock().unwrap() = format!("Search mode: {}", keyword);
+                            keyword = Some("".to_string());
+                            *status.lock().unwrap() = format!("Search mode: {}", keyword.as_ref().unwrap());
                             *color.lock().unwrap() = Color::Cyan;
                             in_search_mode = true;
                         },
@@ -427,13 +430,13 @@ impl App {
                             *status.lock().unwrap() = format!("Filter Cleared");
                             *color.lock().unwrap() = Color::White;
 
-                            keyword = "".to_string();
+                            keyword = None;
 
                             let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
 
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
+                            list = self.gen_list(&mut items, &keyword);
 
                             let old_note_idx = entries.iter().enumerate().filter(|(idx,note)| {
                                 note.metadata.uuid == old_uuid
@@ -455,7 +458,7 @@ impl App {
                             *status.lock().unwrap() = s;
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
+                            list = self.gen_list(&mut items, &keyword);
                             let mut index = note_list_state.lock().unwrap().selected().unwrap();
 
                             //TODO old_uuid if present selection
@@ -471,7 +474,7 @@ impl App {
                             *status.lock().unwrap() = s;
                             entries = refetch_notes(&db_connection, &keyword);
                             items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items);
+                            list = self.gen_list(&mut items, &keyword);
                         }
                         Outcome::End() => {
                             break;
@@ -499,19 +502,30 @@ impl App {
             .wrap(Wrap { trim: true })
     }
 
-    fn gen_list<'a>(&self, items: &mut Vec<ListItem<'a>>) -> List<'a> {
+    fn gen_list<'a>(&self, items: &mut Vec<ListItem<'a>>, filtered_word: &Option<String>) -> List<'a> {
+
+        let title = match filtered_word {
+            None => {
+                format!("List")
+            }
+            Some(word) => {
+                format!("List [{}]", word)
+
+            }
+        };
+
         List::new(items.clone())
-            .block(Block::default().title("List").borders(Borders::ALL))
+            .block(Block::default().title(title).borders(Borders::ALL))
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol(">>")
     }
 
-    fn generate_list_items<'a>(&self, entries: &Vec<LocalNote>, filter_word: &String) -> Vec<ListItem<'a>> {
+    fn generate_list_items<'a>(&self, entries: &Vec<LocalNote>, filter_word: &Option<String>) -> Vec<ListItem<'a>> {
         entries.iter()
             .filter(|entry| {
-                if filter_word.len() > 0 {
-                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.to_lowercase())
+                if filter_word.is_some() {
+                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.as_ref().unwrap().to_lowercase())
                 } else {
                     return true
                 }
@@ -530,13 +544,13 @@ impl App {
     }
 }
 
-fn refetch_notes(db: &SqliteDBConnection, filter_word: &String) -> Vec<LocalNote> {
+fn refetch_notes(db: &SqliteDBConnection, filter_word: &Option<String>) -> Vec<LocalNote> {
     apple_notes_rs_lib::profile::get_db_path();
     db.fetch_all_notes().unwrap()
         .into_iter()
         .filter(|entry| {
-            if filter_word.len() > 0 {
-                entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.to_lowercase())
+            if filter_word.is_some() {
+                entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.as_ref().unwrap().to_lowercase())
             } else {
                 return true
             }
