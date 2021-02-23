@@ -8,7 +8,7 @@ extern crate ctor;
 use self::itertools::Itertools;
 use self::log::*;
 use std::collections::HashSet;
-use sync::UpdateAction::{AddLocally, UpdateRemotely, UpdateLocally, AddRemotely, DeleteLocally, DeleteRemote, Merge, DoNothing};
+use sync::UpdateAction::{AddLocally, UpdateRemotely, UpdateLocally, AddRemotely, DeleteLocally, DeleteRemote, Merge};
 use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
@@ -30,9 +30,6 @@ use colored::Colorize;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-pub enum UpdateResult {
-    Success()
-}
 
 /// Defines the Action that has to be done to the
 /// message with the corresponding uuid
@@ -64,7 +61,6 @@ pub enum UpdateAction<'a> {
     /// Apply to all notes that:
     ///     their uuid is not present locally
     AddLocally(&'a RemoteNoteHeaderCollection),
-    DoNothing,
 }
 
 impl<'a> Display for UpdateAction<'a>
@@ -78,7 +74,6 @@ impl<'a> Display for UpdateAction<'a>
             Merge(_,_) => write!(f, "Merge"),
             AddRemotely(_) => write!(f, "AddRemotely"),
             AddLocally(_) => write!(f, "AddLocally"),
-            DoNothing => write!(f, "DoNothing")
         }
     }
 }
@@ -88,12 +83,11 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes() -> Result<Vec<(String,String,Result<()>)>> {
-
-    let db_connection= ::db::SqliteDBConnection::new();
+pub fn sync_notes<C>(db_connection: &dyn DatabaseService<C>)
+    -> Result<Vec<(String,String,Result<()>)>>  where C: 'static + DBConnector {
     ::apple_imap::MailServiceImpl::new_with_login()
         .and_then(|mut imap_service| {
-            sync(&mut imap_service, &db_connection).map(|result| (result,imap_service))
+            sync(&mut imap_service, db_connection).map(|result| (result,imap_service))
         })
         .and_then(|(result, mut imap_service)| {
             imap_service.logout().map(|_| result).map_err(|e| e.into())
@@ -321,7 +315,6 @@ pub fn process_actions<'a, T, C>(
                 UpdateAction::Merge(_method,remote_note) => { process_merge(imap_connection, db_connection, action, remote_note) },
                 UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, local_note.metadata.first_subject(), update_message_remotely(imap_connection, db_connection, &local_note)) }
                 UpdateAction::AddLocally(note_headers) => process_add_locally(imap_connection, db_connection, action, note_headers),
-                UpdateAction::DoNothing => { (action,"".to_string() ,Ok(())) }
             };
             return result;
         }

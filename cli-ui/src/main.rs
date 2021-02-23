@@ -66,10 +66,11 @@ impl App {
     //TODO entries nil check
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
 
-        let connection = SqliteDBConnection::new();
+        let db_connection = Arc::new(Mutex::new(SqliteDBConnection::new()));
+        let db_connection_2 = db_connection.clone();
 
         // This will run the necessary migrations.
-        embedded_migrations::run(connection.connection()).unwrap();
+        embedded_migrations::run(db_connection.lock().unwrap().connection()).unwrap();
 
         enable_raw_mode().expect("can run in raw mode");
 
@@ -116,8 +117,6 @@ impl App {
 
         let (action_tx, action_rx) = mpsc::channel::<Task>();
 
-        let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
-
         let note_list_state = Arc::new(Mutex::new(ListState::default()));
         note_list_state.lock().unwrap().select(Some(0));
         let counter = Arc::new(Mutex::new(0));
@@ -144,6 +143,7 @@ impl App {
                     let tx_3 = tx_2.clone();
                     let counter_2 = counter.clone();
                     let _keyword_3 = keyword_2.clone();
+                    let db_connection_3 = db_connection_2.clone();
 
                     if matches!(next,Task::End) {
                         *end_2.lock().unwrap() = true;
@@ -153,16 +153,16 @@ impl App {
                         thread::spawn( move || {
                             match next {
                                 Task::Sync => {
-                                    match apple_notes_rs_lib::sync_notes() {
+                                    match apple_notes_rs_lib::sync_notes(&*db_connection_3.lock().unwrap()) {
                                         Ok(result) => {
                                             if result.iter().find(|r| r.2.is_err()).is_some() {
-                                                tx_3.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note"))));
+                                                tx_3.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note")))).unwrap();
                                             } else {
-                                                tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+                                                tx_3.send(Event::OutCome(Success("Synced!".to_string()))).unwrap();
                                             }
                                         }
                                         Err(e) => {
-                                            tx_3.send(Event::OutCome(Failure(format!("Sync error: {}",e))));
+                                            tx_3.send(Event::OutCome(Failure(format!("Sync error: {}",e)))).unwrap();
                                         }
                                     }
                                 }
@@ -172,7 +172,7 @@ impl App {
                                 Task::Test => {
                                     sleep(Duration::new(2,0));
                                     *counter_2.lock().unwrap() += 1;
-                                    tx_3.send(Event::OutCome(Success(format!("Test! {}", *counter_2.lock().unwrap()))));
+                                    tx_3.send(Event::OutCome(Success(format!("Test! {}", *counter_2.lock().unwrap())))).unwrap();
                                 }
                             }
 
@@ -180,11 +180,11 @@ impl App {
                         });
                     }
                 } else {
-                    tx_2.send(Event::OutCome(Failure("Currently busy".to_string())));
+                    tx_2.send(Event::OutCome(Failure("Currently busy".to_string()))).unwrap();
                 };
 
                 if *active.lock().unwrap() == false && *end.lock().unwrap() {
-                    tx_2.send(Event::OutCome(End()));
+                    tx_2.send(Event::OutCome(End())).unwrap();
                     break;
                 }
 
@@ -271,7 +271,7 @@ impl App {
                             *color.lock().unwrap() = Color::White;
                             in_search_mode = false;
 
-                            entries = refetch_notes(&db_connection, &keyword);
+                            entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                             note_list_state.lock().unwrap().select(Some(0));
@@ -296,7 +296,7 @@ impl App {
                                     *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
                                 }
 
-                                entries = refetch_notes(&db_connection, &keyword);
+                                entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                                 items = self.generate_list_items(&entries, &keyword);
                                 list = self.gen_list(&mut items, &keyword);
 
@@ -308,7 +308,7 @@ impl App {
                             keyword = Some(format!("{}{}", keyword.unwrap(), ed));
                              *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
 
-                            entries = refetch_notes(&db_connection, &keyword);
+                            entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                         }
@@ -373,7 +373,7 @@ impl App {
                                 .and_then(|note| db.update(&note).map(|_n| note).map_err(|e| e.into()));
                             match result {
                                 Ok(_note) => {
-                                    entries = refetch_notes(&db_connection, &keyword);
+                                    entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                                     items = self.generate_list_items(&entries, &keyword);
                                     list = self.gen_list(&mut items, &keyword);
 
@@ -409,18 +409,18 @@ impl App {
                             *status.lock().unwrap() = "Syncing".to_string();
                             *color.lock().unwrap() = Color::Yellow;
 
-                            action_tx.send(Task::Sync);
+                            action_tx.send(Task::Sync).unwrap();
 
                         },
                         KeyCode::Char('x') => {
                             *status.lock().unwrap() = "Syncing".to_string();
                             *color.lock().unwrap() = Color::Yellow;
 
-                            action_tx.send(Task::Test);
+                            action_tx.send(Task::Test).unwrap();
                         },
                         KeyCode::Char('q') => {
                             *end_3.lock().unwrap() = true;
-                            action_tx.send(Task::End);
+                            action_tx.send(Task::End).unwrap();
                         },
                         KeyCode::Char('/') => {
                             keyword = Some("".to_string());
@@ -436,7 +436,7 @@ impl App {
 
                             let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
 
-                            entries = refetch_notes(&db_connection, &keyword);
+                            entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
 
@@ -458,7 +458,7 @@ impl App {
                         Outcome::Success(s) => {
                             *color.lock().unwrap() = Color::Green;
                             *status.lock().unwrap() = s;
-                            entries = refetch_notes(&db_connection, &keyword);
+                            entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                             let mut index = note_list_state.lock().unwrap().selected().unwrap();
@@ -474,7 +474,7 @@ impl App {
                         Outcome::Failure(s) => {
                             *color.lock().unwrap() = Color::Red;
                             *status.lock().unwrap() = s;
-                            entries = refetch_notes(&db_connection, &keyword);
+                            entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                         }
@@ -489,7 +489,7 @@ impl App {
         }
 
 
-        worker_tread.join();
+        worker_tread.join().unwrap();
         terminal.clear().unwrap();
         disable_raw_mode().unwrap();
 
@@ -563,5 +563,5 @@ fn refetch_notes(db: &SqliteDBConnection, filter_word: &Option<String>) -> Vec<L
 
 fn main() {
     let app = App::new();
-    app.run();
+    app.run().unwrap();
 }

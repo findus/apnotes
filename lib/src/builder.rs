@@ -2,7 +2,6 @@ use model::{Body, NotesMetadata};
 use util::generate_uuid;
 use chrono::Utc;
 use profile;
-use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::note_headers::NoteHeaders;
 use notes::traits::header_parser::HeaderParser;
 
@@ -33,6 +32,7 @@ impl BodyMetadataBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_metadata_uuid(mut self, uuid: &str) -> Self {
         self.body.metadata_uuid = uuid.to_string();
         self
@@ -83,6 +83,7 @@ impl NotesMetadataBuilder {
 
     }
 
+    #[allow(dead_code)]
     pub fn with_uuid(mut self, uuid: &str) -> Self {
         self.notes_metadata.uuid = uuid.to_string();
         self
@@ -93,6 +94,7 @@ impl NotesMetadataBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn is_flagged_for_deletion(mut self, del: bool) -> Self {
         self.notes_metadata.locally_deleted = del;
         self
@@ -106,14 +108,7 @@ impl NotesMetadataBuilder {
     pub fn build(self) -> NotesMetadata {
         self.notes_metadata
     }
-    
-    pub fn build_as_remote_data(self) -> RemoteNoteMetaData {
-        RemoteNoteMetaData {
-            headers: vec![],
-            folder: "".to_string(),
-            uid: 0
-        }
-    }
+
 }
 
 pub struct HeaderBuilder {

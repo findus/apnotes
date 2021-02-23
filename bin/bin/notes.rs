@@ -10,7 +10,6 @@ extern crate itertools;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 
-use apple_notes_rs_lib::error::{NoteError};
 use apple_notes_rs_lib::{create_new_note, edit_note};
 use self::diesel_migrations::*;
 
@@ -106,7 +105,7 @@ fn main() {
 
     let result = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync_notes().map(|_| ()),
+        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync_notes(&::apple_notes_rs_lib::db::SqliteDBConnection::new()).map(|_| ()),
         ("list", Some(sub_matches)) => list_notes(sub_matches),
         ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
         ("merge", Some(sub_matches)) => merge_note(sub_matches),
@@ -134,11 +133,7 @@ fn undelete_note(sub_matches: &ArgMatches) -> Result<()> {
 fn delete_note(sub_matches: &ArgMatches) -> Result<()> {
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
-
-    ::apple_notes_rs_lib::find_note(&uuid_or_name, &db_connection)
-        .map(|mut note| {note.metadata.locally_deleted = true; note})
-        .and_then(|note| db_connection.update(&note).map_err(|e| e.into()))
-
+    apple_notes_rs_lib::delete_note(&uuid_or_name, &db_connection)
 }
 
 fn merge_note(sub_matches: &ArgMatches) -> Result<()> {
@@ -158,8 +153,7 @@ fn edit_passed_note(sub_matches: &ArgMatches) -> Result<()> {
 fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
     let _show_uuid = sub_matches.is_present("uuid");
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
-    db_connection
-        .fetch_all_notes()
+    ::apple_notes_rs_lib::get_notes(&db_connection)
         .and_then(|notes| {
             let max_len = notes.iter()
                 .map(|note| format!("{} {}", note.metadata.uuid, note.metadata.folder()).len())
@@ -201,11 +195,11 @@ fn new(sub_matches: &ArgMatches) -> Result<()> {
 
     let db_connection = ::apple_notes_rs_lib::db::SqliteDBConnection::new();
 
-    create_new_note(&db_connection,subject,folder)
+    create_new_note(&db_connection,&subject,&folder)
         .and_then(|metadata| edit_note(&metadata, true))
         .and_then(|local_note| db_connection.update(&local_note)
             .map(|_| ())
-            .map_err(|e| NoteError::InsertionError(e.to_string()))
+            .map_err(|e| e.into())
         )
         .map_err(|e| e.into())
 }
