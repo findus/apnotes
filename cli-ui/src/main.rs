@@ -141,8 +141,12 @@ impl App {
                             match next {
                                 Task::Sync => {
                                     match apple_notes_rs_lib::sync_notes() {
-                                        Ok(_) => {
-                                            tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+                                        Ok(result) => {
+                                            if result.iter().find(|r| r.2.is_err()).is_some() {
+                                                tx_3.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note"))));
+                                            } else {
+                                                tx_3.send(Event::OutCome(Success("Synced!".to_string())));
+                                            }
                                         }
                                         Err(e) => {
                                             tx_3.send(Event::OutCome(Failure(format!("Sync error: {}",e))));
