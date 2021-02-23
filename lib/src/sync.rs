@@ -26,6 +26,7 @@ use util::filter_none;
 use std::fmt::Display;
 use serde::export::Formatter;
 use colored::Colorize;
+use std::error::Error;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -87,19 +88,21 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes() -> Result<()> {
+pub fn sync_notes() -> Result<Vec<Result<(String,String)>>> {
 
     let db_connection= ::db::SqliteDBConnection::new();
     ::apple_imap::MailServiceImpl::new_with_login()
-        .and_then(|mut imap_service|
-            sync(&mut imap_service, &db_connection)
-                .map(|_| imap_service)
-                .map_err(|e| e.into()))
-        .and_then(|mut imap_service| imap_service.logout().map_err(|e| e.into()))
+        .and_then(|mut imap_service| {
+            sync(&mut imap_service, &db_connection).map(|result| (result,imap_service))
+        })
+        .and_then(|(result, mut imap_service)| {
+            imap_service.logout().map(|_| result).map_err(|e| e.into())
+        })
 }
 
 fn get_sync_actions<'a>(remote_note_headers: &'a GroupedRemoteNoteHeaders,
                         local_notes: &'a HashSet<LocalNote>) -> Vec<UpdateAction<'a>> {
+
     info!("Found {} local Notes", local_notes.len());
     info!("Found {} remote notes", remote_note_headers.len());
 
@@ -273,33 +276,41 @@ fn get_needs_merge_basic<'a>(remote_note_header: Option<&'a RemoteNoteHeaderColl
 }
 
 pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>)
-    -> std::result::Result<(), ::error::UpdateError>
+    -> Result<Vec<Result<(String,String)>>>
     where C: 'static + DBConnector, T: 'static
 {
-    let headers = imap_session.fetch_headers().map_err(|e| SyncError(e.to_string()))?;
+    let headers = imap_session.fetch_headers()?;
     let grouped_not_headers = collect_mergeable_notes(headers);
-    match db_connection.fetch_all_notes().map_err(|e| SyncError(e.to_string())) {
-        Ok(fetches) => {
-            let actions =
-                get_sync_actions(&grouped_not_headers, &fetches);
-            let results = process_actions(imap_session, db_connection, &actions);
+    let fetches = db_connection.fetch_all_notes()?;
 
-            for (action,result) in results {
+    let actions =
+        get_sync_actions(&grouped_not_headers, &fetches);
+    let results = process_actions(imap_session, db_connection, &actions);
 
-                let result = match result {
-                    Ok(subject) => format!("{} [{}]", "Ok".green(), subject),
-                    Err(e) => format!("{} {}", "Failed".red(), e.to_string())
-                };
+    for (action,result) in &results {
 
-                info!("{:>padding$}...{}", action, result , padding=20 );
-            }
-            Ok(())
-        }
-        Err(e) => {
-            panic!("mist {}", e);
-        }
+        let result = match result {
+            Ok(subject) => format!("{} [{}]", "Ok".green(), subject),
+            Err(e) => format!("{} {}", "Failed".red(), e.to_string())
+        };
+
+        info!("{:>padding$}...{}", action, result , padding=20 );
     }
 
+    let results= results
+        .into_iter()
+        .map(|(action,result)| {
+            match result {
+                Ok(e) => {
+                    Ok((action.to_string(),e))
+                }
+                Err(e) => {
+                    Err(e)
+                }
+            }
+    }).collect();
+
+    Ok(results)
 }
 
 pub fn process_actions<'a, T, C>(

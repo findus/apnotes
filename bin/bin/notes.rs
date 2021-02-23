@@ -106,7 +106,7 @@ fn main() {
 
     let result = match app.get_matches().subcommand() {
         ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync_notes(),
+        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync_notes().map(|_| ()),
         ("list", Some(sub_matches)) => list_notes(sub_matches),
         ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
         ("merge", Some(sub_matches)) => merge_note(sub_matches),
