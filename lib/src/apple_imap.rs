@@ -91,10 +91,10 @@ pub struct MailServiceImpl {
 }
 
 impl MailServiceImpl {
-    pub fn new_with_login() -> Option<MailServiceImpl> {
+    pub fn new_with_login() -> Result<MailServiceImpl> {
         match TlsImapSession::login() {
             Ok(session) => {
-                Some(
+                Ok(
                     MailServiceImpl {
                         session: TlsImapSession {
                             session: session
@@ -102,8 +102,8 @@ impl MailServiceImpl {
                     }
                 )
             }
-            Err(_) => {
-                None
+            Err(e) => {
+                Err(e)
             }
         }
 
