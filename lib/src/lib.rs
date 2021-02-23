@@ -24,7 +24,7 @@ extern crate log;
 mod macros;
 mod apple_imap;
 mod converter;
-mod profile;
+pub mod profile;
 mod sync;
 #[macro_use]
 mod util;

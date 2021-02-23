@@ -13,3 +13,5 @@ tui = { version = "0.14", default-features = false, features = ['crossterm'] }
 itertools = "0.10.0"
 colored = "2"
 log = "0.4.14"
+diesel = { features = ["sqlite"], version =  "1.4.5"}
+diesel_migrations = "1.4.0"

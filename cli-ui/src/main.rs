@@ -1,6 +1,9 @@
 extern crate apple_notes_rs_lib;
 extern crate itertools;
 extern crate log;
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 
 use std::{io};
 use tui::Terminal;
@@ -26,6 +29,8 @@ use crate::Outcome::{Success, Failure, End};
 use std::ops::Deref;
 use std::error::Error;
 
+use self::diesel_migrations::*;
+
 enum Event<I> {
     Input(I),
     Tick,
@@ -44,6 +49,8 @@ enum Outcome {
     End()
 }
 
+embed_migrations!("../migrations/");
+
 struct App {
 
 }
@@ -58,6 +65,12 @@ impl App {
 
     //TODO entries nil check
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
+
+        let connection = SqliteDBConnection::new();
+
+        // This will run the necessary migrations.
+        embedded_migrations::run(connection.connection()).unwrap();
+
         enable_raw_mode().expect("can run in raw mode");
 
         let stdout = io::stdout();
@@ -195,8 +208,15 @@ impl App {
 
         let mut scroll_amount = 0;
 
-        text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+        match note_list_state.lock().unwrap().selected() {
+            Some(index) if matches!(entries.get(index), Some(_)) => {
+                let entry = entries.get(index).unwrap();
+                text = entry.body[0].text.as_ref().unwrap().clone();
+            }
+            _ => {
 
+            }
+        }
 
         loop {
 
@@ -255,8 +275,16 @@ impl App {
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items);
                             note_list_state.lock().unwrap().select(Some(0));
-                            text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
 
+                            match note_list_state.lock().unwrap().selected() {
+                                Some(index) if matches!(entries.get(index), Some(_)) => {
+                                    let entry = entries.get(index).unwrap();
+                                    text = entry.body[0].text.as_ref().unwrap().clone();
+                                }
+                                _ => {
+
+                                }
+                            }
                         }
                         KeyCode::Backspace => {
                             let len = keyword.len();
@@ -289,9 +317,19 @@ impl App {
                     Event::Input(event) => match event.code {
                         KeyCode::Char('j') => {
                             let selected = note_list_state.lock().unwrap().selected();
-                            if selected.unwrap_or(0) < entries.len() -1 {
+                            if entries.len() > 0 && selected.unwrap_or(0) < entries.len() -1 {
                                 note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) + 1));
-                                text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+
+                                match note_list_state.lock().unwrap().selected() {
+                                    Some(index) if matches!(entries.get(index), Some(_)) => {
+                                        let entry = entries.get(index).unwrap();
+                                        text = entry.body[0].text.as_ref().unwrap().clone();
+                                    }
+                                    _ => {
+
+                                    }
+                                }
+
                                 scroll_amount = 0;
                             }
                         },
@@ -299,7 +337,17 @@ impl App {
                             let selected = note_list_state.lock().unwrap().selected();
                             if selected.unwrap_or(0) > 0 {
                                 note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) - 1));
-                                text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+
+                                match note_list_state.lock().unwrap().selected() {
+                                    Some(index) if matches!(entries.get(index), Some(_)) => {
+                                        let entry = entries.get(index).unwrap();
+                                        text = entry.body[0].text.as_ref().unwrap().clone();
+                                    }
+                                    _ => {
+
+                                    }
+                                }
+
                                 scroll_amount = 0;
                             }
                         },
@@ -324,7 +372,17 @@ impl App {
                                     entries = refetch_notes(&db_connection, &keyword);
                                     items = self.generate_list_items(&entries, &keyword);
                                     list = self.gen_list(&mut items);
-                                    text = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().body[0].text.as_ref().unwrap().clone();
+
+                                    match note_list_state.lock().unwrap().selected() {
+                                        Some(index) if matches!(entries.get(index), Some(_)) => {
+                                            let entry = entries.get(index).unwrap();
+                                            text = entry.body[0].text.as_ref().unwrap().clone();
+                                        }
+                                        _ => {
+
+                                        }
+                                    }
+
                                 }
                                 Err(e) => {
                                     *color.lock().unwrap() = Color::Red;
@@ -473,6 +531,7 @@ impl App {
 }
 
 fn refetch_notes(db: &SqliteDBConnection, filter_word: &String) -> Vec<LocalNote> {
+    apple_notes_rs_lib::profile::get_db_path();
     db.fetch_all_notes().unwrap()
         .into_iter()
         .filter(|entry| {

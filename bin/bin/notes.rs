@@ -168,7 +168,7 @@ fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
             let max_len = notes.iter()
                 .map(|note| format!("{} {}", note.metadata.uuid, note.metadata.folder()).len())
                 .max()
-                .unwrap();
+                .unwrap_or(0);
 
             notes.iter().
                 sorted_by_key(|note| format!("{}_{}",&note.metadata.subfolder, &note.body[0].subject()))
