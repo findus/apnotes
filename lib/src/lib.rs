@@ -43,8 +43,8 @@ use error::NoteError::NoteNotFound;
 use util::is_uuid;
 use notes::localnote::LocalNote;
 use error::{UpdateError, NoteError};
-use sync::UpdateAction;
-use std::error::Error;
+
+
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

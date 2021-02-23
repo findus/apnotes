@@ -14,7 +14,7 @@ use tui::style::{Modifier, Style, Color};
 use std::sync::{mpsc, Mutex, Arc};
 use std::time::{Instant, Duration};
 use itertools::*;
-use std::{thread, time};
+use std::{thread};
 
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
@@ -26,8 +26,8 @@ use tui::layout::Alignment;
 use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
 use crate::Outcome::{Success, Failure, End};
-use std::ops::Deref;
-use std::error::Error;
+
+
 
 use self::diesel_migrations::*;
 
@@ -85,10 +85,10 @@ impl App {
         let tick_rate = Duration::from_millis(1000);
 
         let color = Arc::new(Mutex::new(Color::White));
-        let color_2 = color.clone();
+        let _color_2 = color.clone();
 
         let status = Arc::new(Mutex::new("Started".to_string()));
-        let status_2 = status.clone();
+        let _status_2 = status.clone();
 
         let mut in_search_mode = false;
         let mut keyword: Option<String> = None;
@@ -118,9 +118,9 @@ impl App {
 
         let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
 
-        let mut note_list_state = Arc::new(Mutex::new(ListState::default()));
+        let note_list_state = Arc::new(Mutex::new(ListState::default()));
         note_list_state.lock().unwrap().select(Some(0));
-        let mut counter = Arc::new(Mutex::new(0));
+        let counter = Arc::new(Mutex::new(0));
 
         let note_list_state_2 = note_list_state.clone();
         let keyword_2 = keyword.clone();
@@ -134,7 +134,7 @@ impl App {
             let active = Arc::new(Mutex::new(false));
 
             loop {
-                let mut note_list_state_3 = note_list_state_2.clone();
+                let _note_list_state_3 = note_list_state_2.clone();
                 let next = action_rx.recv().unwrap();
 
                 if *active.lock().unwrap() == false {
@@ -143,7 +143,7 @@ impl App {
                     let end_2 = end.clone();
                     let tx_3 = tx_2.clone();
                     let counter_2 = counter.clone();
-                    let keyword_3 = keyword_2.clone();
+                    let _keyword_3 = keyword_2.clone();
 
                     if matches!(next,Task::End) {
                         *end_2.lock().unwrap() = true;
@@ -370,9 +370,9 @@ impl App {
                             let result: Result<LocalNote,Box<dyn std::error::Error>> =
                                 apple_notes_rs_lib::edit_note(&note, false)
                                 .map_err(|e| e.into())
-                                .and_then(|note| db.update(&note).map(|n| note).map_err(|e| e.into()));
+                                .and_then(|note| db.update(&note).map(|_n| note).map_err(|e| e.into()));
                             match result {
-                                Ok(note) => {
+                                Ok(_note) => {
                                     entries = refetch_notes(&db_connection, &keyword);
                                     items = self.generate_list_items(&entries, &keyword);
                                     list = self.gen_list(&mut items, &keyword);
@@ -440,7 +440,7 @@ impl App {
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
 
-                            let old_note_idx = entries.iter().enumerate().filter(|(idx,note)| {
+                            let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
                                 note.metadata.uuid == old_uuid
                             }).last().unwrap().0;
 
