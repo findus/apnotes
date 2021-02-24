@@ -92,10 +92,15 @@ impl App {
         let status = Arc::new(Mutex::new("Started".to_string()));
         let _status_2 = status.clone();
 
+        let (action_tx, action_rx) = mpsc::channel::<Task>();
+
+        *status.lock().unwrap() = "Syncing".to_string();
+        *color.lock().unwrap() = Color::Yellow;
+        action_tx.send(Task::Sync).unwrap();
+
+
         let mut in_search_mode = false;
         let mut keyword: Option<String> = None;
-
-        let mut first_start = true;
 
         thread::spawn(move || {
             let mut last_tick = Instant::now();
@@ -117,8 +122,6 @@ impl App {
                 }
             }
         });
-
-        let (action_tx, action_rx) = mpsc::channel::<Task>();
 
         let note_list_state = Arc::new(Mutex::new(ListState::default()));
         note_list_state.lock().unwrap().select(Some(0));
@@ -263,13 +266,6 @@ impl App {
                 f.render_widget(t, noteslayout[1]);
                 f.render_widget(t2.clone(), chunks[1]);
             }).unwrap();
-
-            if first_start {
-                first_start = false;
-                *status.lock().unwrap() = "Syncing".to_string();
-                *color.lock().unwrap() = Color::Yellow;
-                action_tx.send(Task::Sync).unwrap();
-            }
 
             let received_keystroke = rx.recv()?;
 
