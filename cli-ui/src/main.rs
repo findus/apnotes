@@ -25,7 +25,7 @@ use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use tui::layout::Alignment;
 use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
-use crate::Outcome::{Success, Failure, End};
+use crate::Outcome::{Success, Failure, End, Busy};
 
 
 
@@ -46,6 +46,7 @@ enum Task {
 enum Outcome {
     Success(String),
     Failure(String),
+    Busy(),
     End()
 }
 
@@ -180,7 +181,7 @@ impl App {
                         });
                     }
                 } else {
-                    tx_2.send(Event::OutCome(Failure("Currently busy".to_string()))).unwrap();
+                    tx_2.send(Event::OutCome(Busy())).unwrap();
                 };
 
                 if *active.lock().unwrap() == false && *end.lock().unwrap() {
@@ -455,6 +456,10 @@ impl App {
                     }
                     Event::Tick => {}
                     Event::OutCome(outcome) => match outcome {
+                        Outcome::Busy() => {
+                            *color.lock().unwrap() = Color::Red;
+                            *status.lock().unwrap() = "Currently Busy".to_string();
+                        }
                         Outcome::Success(s) => {
                             *color.lock().unwrap() = Color::Green;
                             *status.lock().unwrap() = s;
