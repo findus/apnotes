@@ -562,7 +562,8 @@ fn refetch_notes(db: &SqliteDBConnection, filter_word: &Option<String>) -> Vec<L
                 return true
             }
         })
-        .sorted_by_key(|note| format!("{}_{}", &note.metadata.subfolder, &note.body[0].subject()))
+        .sorted_by_key(|note| note.metadata.timestamp())
+        .rev()
         .collect()
 }
 

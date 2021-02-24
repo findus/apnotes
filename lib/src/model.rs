@@ -8,6 +8,7 @@ use notes::note_headers::NoteHeaders;
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::header_parser::HeaderParser;
+use chrono::{DateTime, FixedOffset};
 
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
@@ -56,6 +57,10 @@ impl NotesMetadata {
             uuid: remote_metadata.headers.uuid(),
             mime_version: remote_metadata.headers.mime_version()
         }
+    }
+
+    pub fn timestamp(&self) -> i64 {
+        DateTime::parse_from_rfc2822(self.date.as_ref()).unwrap().timestamp()
     }
 }
 
