@@ -30,6 +30,8 @@ use crate::Outcome::{Success, Failure, End, Busy};
 
 
 use self::diesel_migrations::*;
+use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
+use std::error::Error;
 
 enum Event<I> {
     Input(I),
@@ -200,11 +202,7 @@ impl App {
 
         });
 
-
-
-        let db =  apple_notes_rs_lib::db::SqliteDBConnection::new();
-
-        let mut entries: Vec<LocalNote> = refetch_notes(&db, &keyword);
+        let mut entries: Vec<LocalNote> = refetch_notes(&*db_connection.lock().unwrap(), &keyword);
 
         let mut items: Vec<ListItem> = self.generate_list_items(&entries, &keyword);
 
@@ -371,12 +369,44 @@ impl App {
                                 scroll_amount = 0;
                             }
                         },
+                        KeyCode::Char('m') => {
+                            let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
+                            let connection = &*db_connection.lock().unwrap();
+                            match apple_notes_rs_lib::merge(&note.metadata.uuid, connection) {
+                                Ok(_) => {
+                                    let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
+                                    entries = refetch_notes(connection, &keyword);
+                                    items = self.generate_list_items(&entries, &keyword);
+                                    list = self.gen_list(&mut items, &keyword);
+
+                                    let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                        note.metadata.uuid == old_uuid
+                                    }).last().unwrap().0;
+
+                                    note_list_state.lock().unwrap().select(Some(old_note_idx));
+
+                                    match note_list_state.lock().unwrap().selected() {
+                                        Some(index) if matches!(entries.get(index), Some(_)) => {
+                                            let entry = entries.get(index).unwrap();
+                                            text = entry.body[0].text.as_ref().unwrap().clone();
+                                        }
+                                        _ => {
+
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    *color.lock().unwrap() = Color::Red;
+                                    *status.lock().unwrap() = e.to_string();
+                                }
+                            }
+                        }
                         KeyCode::Char('e') => {
                             let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
                             let result: Result<LocalNote,Box<dyn std::error::Error>> =
                                 apple_notes_rs_lib::edit_note(&note, false)
                                 .map_err(|e| e.into())
-                                .and_then(|note| db.update(&note).map(|_n| note).map_err(|e| e.into()));
+                                .and_then(|note| (&*db_connection).lock().unwrap().update(&note).map(|_n| note).map_err(|e| e.into()));
                             match result {
                                 Ok(_note) => {
                                     let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
@@ -558,15 +588,17 @@ impl App {
                 }
             })
             .map(|e| {
-            if e.content_changed_locally() {
-                ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
-            } else if e.metadata.locally_deleted {
-                ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
-            } else if e.metadata.new {
-                ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
-            } else {
-                ListItem::new(format!("{} {}",e.metadata.folder(),e.first_subject()).to_string())
-            }
+                if e.needs_merge() {
+                    ListItem::new(format!("[M] {} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
+                } else if e.content_changed_locally() {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
+                } else if e.metadata.locally_deleted {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
+                } else if e.metadata.new {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
+                } else {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
+                }
         }).collect()
     }
 }

@@ -77,7 +77,6 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Res
     let file_content = std::fs::read_to_string(&file_path)
         .map_err(|e| NoteError::EditError(e.to_string()))?;
 
-
     if &file_content == note.text.as_ref().unwrap_or(&"".to_string())
         && local_note.metadata.new == false {
         return Err(ContentNotChanged);
