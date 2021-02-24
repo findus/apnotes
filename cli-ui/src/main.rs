@@ -95,6 +95,8 @@ impl App {
         let mut in_search_mode = false;
         let mut keyword: Option<String> = None;
 
+        let mut first_start = true;
+
         thread::spawn(move || {
             let mut last_tick = Instant::now();
             loop {
@@ -261,6 +263,13 @@ impl App {
                 f.render_widget(t, noteslayout[1]);
                 f.render_widget(t2.clone(), chunks[1]);
             }).unwrap();
+
+            if first_start {
+                first_start = false;
+                *status.lock().unwrap() = "Syncing".to_string();
+                *color.lock().unwrap() = Color::Yellow;
+                action_tx.send(Task::Sync).unwrap();
+            }
 
             let received_keystroke = rx.recv()?;
 
