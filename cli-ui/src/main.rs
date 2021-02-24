@@ -374,9 +374,17 @@ impl App {
                                 .and_then(|note| db.update(&note).map(|_n| note).map_err(|e| e.into()));
                             match result {
                                 Ok(_note) => {
+                                    let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
+
                                     entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                                     items = self.generate_list_items(&entries, &keyword);
                                     list = self.gen_list(&mut items, &keyword);
+
+                                    let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                        note.metadata.uuid == old_uuid
+                                    }).last().unwrap().0;
+
+                                    note_list_state.lock().unwrap().select(Some(old_note_idx));
 
                                     match note_list_state.lock().unwrap().selected() {
                                         Some(index) if matches!(entries.get(index), Some(_)) => {
@@ -461,6 +469,7 @@ impl App {
                             *status.lock().unwrap() = "Currently Busy".to_string();
                         }
                         Outcome::Success(s) => {
+                            let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
                             *color.lock().unwrap() = Color::Green;
                             *status.lock().unwrap() = s;
                             entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
@@ -473,6 +482,12 @@ impl App {
                                 index = items.len() - 1;
                                 note_list_state.lock().unwrap().select(Some(index));
                             }
+
+                            let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                note.metadata.uuid == old_uuid
+                            }).last().unwrap().0;
+
+                            note_list_state.lock().unwrap().select(Some(old_note_idx));
 
                             text = entries.get(index).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
