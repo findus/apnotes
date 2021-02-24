@@ -8,7 +8,7 @@ use notes::note_headers::NoteHeaders;
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::header_parser::HeaderParser;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime};
 
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
