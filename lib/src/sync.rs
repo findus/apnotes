@@ -26,6 +26,7 @@ use util::filter_none;
 use std::fmt::Display;
 use serde::export::Formatter;
 use colored::Colorize;
+use chrono::DateTime;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -344,13 +345,13 @@ fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
     -> (&'a UpdateAction<'a>, String, Result<()>)
     where C: 'static + DBConnector, T: 'static {
 
-    let d: Vec<std::result::Result<Body, UpdateError>> =
+    let uuid = &new_note_bodies.last().unwrap().headers.uuid();
+
+    let bodies: Vec<std::result::Result<Body, _>> =
         new_note_bodies.iter().map(|e| {
             let folder = &e.folder;
             imap_connection.select(folder)
-                .map_err(|e| SyncError(e.to_string()))
                 .and_then(|_| imap_connection.fetch_note_content(folder, e.uid)
-                    .map_err(|e| UpdateError::SyncError(e.to_string()))
                     .map(|content| (e, content)))
                 .and_then(|(headers, content)| {
                     Ok(
@@ -365,16 +366,26 @@ fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
                 })
         }).collect();
 
-    if d.iter().filter(|c| c.is_err()).next() != None {
+    if bodies.iter().filter(|c| c.is_err()).next().is_some() {
         return (action, "".to_string() ,Err(UpdateError::SyncError("Could not fetch note bodies".to_string()).into()));
     };
 
-    let f: Vec<Body> = d.into_iter().map(|d| d.unwrap()).collect();
+    let f: Vec<Body> = bodies.into_iter().map(|d| d.unwrap()).collect();
+
 
     let result = db_connection.replace_notes(
         &f,
         new_note_bodies.iter().next().unwrap().headers.uuid()
     ).map_err(|e| e.into());
+
+    // Update the modification date in metadata object
+    let date = new_note_bodies
+        .iter()
+        .max_by_key(|k| DateTime::parse_from_rfc2822(&k.headers.date()).unwrap().timestamp());
+
+    let mut note = db_connection.fetch_single_note(uuid).unwrap().unwrap();
+    note.metadata.date = date.unwrap().headers.date();
+    db_connection.update(&note).unwrap();
 
     (action, new_note_bodies.first_subject(), result)
 }

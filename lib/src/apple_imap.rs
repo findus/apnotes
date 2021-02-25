@@ -70,6 +70,8 @@ pub trait MailService<T: 'static> {
     fn fetch_headers(&mut self) -> Result<RemoteNoteHeaderCollection>;
     /// Creates a new Subfolder for storing notes
     fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<()>;
+    /// Fetches mail headers for passed uuid
+    fn fetch_header(&mut self, subfolder: &str, uid: i64) -> Result<RemoteNoteMetaData>;
     /// Fetches the actual content from a note
     fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String>;
     /// Exposes the active imap connection
@@ -118,7 +120,7 @@ impl MailServiceImpl {
             Ok(messages) => {
                 debug!("Message Loading for {} successful", &folder_name.to_string());
                 messages.iter().map( |fetch|{
-                    self.get_headers(fetch, folder_name.clone())
+                    self.get_headers(fetch, &folder_name)
                 }).collect()
             },
             Err(error) => {
@@ -131,7 +133,7 @@ impl MailServiceImpl {
     /**
     Returns empty vector if something fails
     */
-    fn get_headers(&mut self,fetch: &Fetch, foldername: String) -> RemoteNoteMetaData {
+    fn get_headers(&mut self,fetch: &Fetch, foldername: &str) -> RemoteNoteMetaData {
         match mailparse::parse_headers(fetch.header().unwrap()) {
             Ok((header, _)) => {
                 let  headers = header.into_iter().map(|h| (h.get_key().unwrap(), h.get_value().unwrap())).collect();
@@ -213,6 +215,26 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
 
     fn create_mailbox(&mut self, note: &NotesMetadata) -> Result<()> {
         self.session.session.create(&note.folder()).or(Ok(()))
+    }
+
+    fn fetch_header(&mut self, subfolder: &str, uid: i64) -> Result<RemoteNoteMetaData> {
+        info!("Fetching single header of not with UID {}", uid);
+        if let Some(result) = self.session.session.select(&subfolder).err() {
+            warn!("Could not select folder {} [{}]", &subfolder, result)
+        }
+
+        let messages_result = self.session.session.uid_fetch(uid.to_string(), "(RFC822 UID)");
+        match messages_result {
+            Ok(message) => {
+                debug!("Message Loading for message with UID {} successful", uid);
+                let first_message = message.first().expect("Expected message");
+                Ok(self.get_headers(first_message, subfolder))
+            },
+            Err(error) => {
+                warn!("Could not load notes from {}! {}", &subfolder, error);
+                Err(error.into())
+            }
+        }
     }
 
     fn fetch_note_content(&mut self, subfolder: &str, uid: i64) -> Result<String> {

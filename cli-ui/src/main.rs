@@ -31,7 +31,6 @@ use crate::Outcome::{Success, Failure, End, Busy};
 
 use self::diesel_migrations::*;
 use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
-use std::error::Error;
 
 enum Event<I> {
     Input(I),
@@ -504,13 +503,18 @@ impl App {
                             *status.lock().unwrap() = "Currently Busy".to_string();
                         }
                         Outcome::Success(s) => {
-                            let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
+                            let mut old_uuid = None;
+
+                            if let Some(old_selected_entry) = entries.get(note_list_state.lock().unwrap().selected().unwrap_or(0)) {
+                                old_uuid = Some(old_selected_entry.metadata.uuid.clone());
+                            }
+
                             *color.lock().unwrap() = Color::Green;
                             *status.lock().unwrap() = s;
                             entries = refetch_notes(&db_connection.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
-                            let mut index = note_list_state.lock().unwrap().selected().unwrap();
+                            let mut index = note_list_state.lock().unwrap().selected().unwrap_or(0);
 
                             //TODO old_uuid if present selection
                             if index > items.len() - 1 {
@@ -518,11 +522,13 @@ impl App {
                                 note_list_state.lock().unwrap().select(Some(index));
                             }
 
-                            let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
-                                note.metadata.uuid == old_uuid
-                            }).last().unwrap().0;
+                            if let Some(uuid) = old_uuid {
+                                let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                    note.metadata.uuid == uuid
+                                }).last().unwrap().0;
 
-                            note_list_state.lock().unwrap().select(Some(old_note_idx));
+                                note_list_state.lock().unwrap().select(Some(old_note_idx));
+                            }
 
                             text = entries.get(index).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
