@@ -54,31 +54,32 @@ enum Outcome {
 embed_migrations!("../migrations/");
 
 struct App {
-
+    apple_notes: Arc<Mutex<AppleNotes>>
 }
 
 impl App {
 
     pub fn new() -> App {
-        App {
 
+        let profile = apple_notes_manager::get_user_profile();
+        let db_connection = SqliteDBConnection::new();
+        let migration_connection =  SqliteDBConnection::new();
+        let connection = Box::new(db_connection);
+        let app = apple_notes_manager::AppleNotes::new(profile, connection);
+
+        // This will run the necessary migrations.
+        embedded_migrations::run(migration_connection.connection()).unwrap();
+
+        App {
+            apple_notes: Arc::new(Mutex::new(app))
         }
     }
 
     //TODO entries nil check
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
 
-        let profile = apple_notes_manager::get_user_profile();
-        let db_connection = SqliteDBConnection::new();
-        let db_connection_2 =  SqliteDBConnection::new();
-        let connection = Box::new(db_connection);
-        let app = apple_notes_manager::AppleNotes::new(profile, connection);
 
-        let app_lock = Arc::new(Mutex::new(app));
-        let app_lock_2 = app_lock.clone();
-
-        // This will run the necessary migrations.
-        embedded_migrations::run(db_connection_2.connection()).unwrap();
+        let app_lock_2 = self.apple_notes.clone();
 
         enable_raw_mode().expect("can run in raw mode");
 
@@ -208,7 +209,7 @@ impl App {
 
         });
 
-        let mut entries: Vec<LocalNote> = refetch_notes(&*app_lock.lock().unwrap(), &keyword);
+        let mut entries: Vec<LocalNote> = refetch_notes(&*self.apple_notes.lock().unwrap(), &keyword);
 
         let mut items: Vec<ListItem> = self.generate_list_items(&entries, &keyword);
 
@@ -281,7 +282,7 @@ impl App {
                             *color.lock().unwrap() = Color::White;
                             in_search_mode = false;
 
-                            entries = refetch_notes(&app_lock.lock().unwrap(), &keyword);
+                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                             note_list_state.lock().unwrap().select(Some(0));
@@ -306,7 +307,7 @@ impl App {
                                     *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
                                 }
 
-                                entries = refetch_notes(&app_lock.lock().unwrap(), &keyword);
+                                entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
                                 items = self.generate_list_items(&entries, &keyword);
                                 list = self.gen_list(&mut items, &keyword);
 
@@ -318,7 +319,7 @@ impl App {
                             keyword = Some(format!("{}{}", keyword.unwrap(), ed));
                              *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
 
-                            entries = refetch_notes(&app_lock.lock().unwrap(), &keyword);
+                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                         }
@@ -377,8 +378,8 @@ impl App {
                         },
                         KeyCode::Char('m') => {
                             let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
-                            let connection = &*app_lock.lock().unwrap();
-                            match app_lock.lock().unwrap().merge(&note.metadata.uuid) {
+                            let connection = &*self.apple_notes.lock().unwrap();
+                            match self.apple_notes.lock().unwrap().merge(&note.metadata.uuid) {
                                 Ok(_) => {
                                     let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
                                     entries = refetch_notes(connection, &keyword);
@@ -410,14 +411,14 @@ impl App {
                         KeyCode::Char('e') => {
                             let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
                             let result: Result<LocalNote,Box<dyn std::error::Error>> =
-                                app_lock.lock().unwrap().edit_note(&note, false)
+                                self.apple_notes.lock().unwrap().edit_note(&note, false)
                                 .map_err(|e| e.into())
-                                .and_then(|note| (&*app_lock).lock().unwrap().update_note(&note).map(|_n| note).map_err(|e| e.into()));
+                                .and_then(|note| (&*self.apple_notes).lock().unwrap().update_note(&note).map(|_n| note).map_err(|e| e.into()));
                             match result {
                                 Ok(_note) => {
                                     let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
 
-                                    entries = refetch_notes(&app_lock.lock().unwrap(), &keyword);
+                                    entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
                                     items = self.generate_list_items(&entries, &keyword);
                                     list = self.gen_list(&mut items, &keyword);
 
@@ -450,7 +451,7 @@ impl App {
                             note.metadata.locally_deleted = !note.metadata.locally_deleted ;
                             let db_connection = apple_notes_manager::db::SqliteDBConnection::new();
                             db_connection.update(&note).unwrap();
-                            entries = refetch_notes(&*app_lock.lock().unwrap(), &keyword);
+                            entries = refetch_notes(&*self.apple_notes.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
 
@@ -490,7 +491,7 @@ impl App {
                                 old_uuid = Some(old_selected_entry.metadata.uuid.clone());
                             }
 
-                            entries = refetch_notes(&app_lock.lock().unwrap(), &keyword);
+                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
 
@@ -524,7 +525,7 @@ impl App {
 
                             *color.lock().unwrap() = Color::Green;
                             *status.lock().unwrap() = s;
-                            entries = refetch_notes(&app_lock.lock().unwrap(), &keyword);
+                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                             let mut index = note_list_state.lock().unwrap().selected().unwrap_or(0);
@@ -548,7 +549,7 @@ impl App {
                         Outcome::Failure(s) => {
                             *color.lock().unwrap() = Color::Red;
                             *status.lock().unwrap() = s;
-                            entries = refetch_notes(&app_lock.lock().unwrap(), &keyword);
+                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);
                             list = self.gen_list(&mut items, &keyword);
                         }
