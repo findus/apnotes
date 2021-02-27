@@ -235,6 +235,6 @@ impl AppleNotes {
 
 }
 
-pub fn get_user_profile() -> Profile {
+pub fn get_user_profile() -> Result<Profile> {
     profile::load_profile()
 }

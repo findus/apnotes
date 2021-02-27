@@ -122,7 +122,7 @@ impl Body {
     pub fn new(uid: Option<i64>, metadata_reference: String, profile: &Profile) -> Body {
         Body {
             old_remote_message_id: None,
-            message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
+            message_id: format!("<{}@{}", util::generate_uuid(), profile.domain),
             text: None,
             uid,
             metadata_uuid: metadata_reference

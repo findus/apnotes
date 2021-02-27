@@ -8,6 +8,9 @@ use self::regex::Regex;
 use std::fs::File;
 use self::log::{info, warn};
 use std::path::PathBuf;
+use error::ProfileError::*;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[cfg(target_family = "unix")]
 use self::xdg::BaseDirectories;
@@ -18,29 +21,26 @@ pub struct Profile {
     pub(crate) imap_server: String,
     pub(crate) email: String,
     pub(crate) editor: String,
-    pub(crate) editor_arguments: Vec<String>
+    pub(crate) editor_arguments: Vec<String>,
+    #[allow(dead_code)]
+    pub(crate) domain: String
 }
 
 impl Profile {
-    #[allow(dead_code)]
-    pub(crate) fn domain(&self) -> String {
-        let uuid_regex = Regex::new(r".*@(.*)").unwrap();
-        let domain = get_with_regex(uuid_regex, &self.email);
-        domain
-    }
+
 }
 
 #[cfg(target_family = "unix")]
-pub(crate)  fn get_config_path() -> PathBuf {
-        let xdg_dir = BaseDirectories::new().expect("Could not find xdg dirs");
+pub(crate)  fn get_config_path() -> Result<PathBuf> {
+        let xdg_dir = BaseDirectories::new()?;
         match xdg_dir.find_config_file("apple_notes/config") {
-            Some(path) => path,
+            Some(path) => Ok(path),
             None => {
                 warn!("Could not detect config file, gonna create empty one");
-                let mut path = xdg_dir.create_config_directory("apple_notes").expect("Could not create apple_notes config folder");
+                let mut path = xdg_dir.create_config_directory("apple_notes")?;
                 path.push("config");
                 File::create(&path).expect("Unable to create file");
-                path.to_path_buf()
+                Ok(path.to_path_buf())
             }
         }
 }
@@ -89,40 +89,49 @@ pub(crate)  fn get_db_path() -> PathBuf {
 }
 
 
-pub(crate) fn load_profile() -> Profile {
-    let path = get_config_path();
-    info!("Read config file from {}", &path.as_os_str().to_str().unwrap());
-    let creds = fs::read_to_string(&path).expect(format!("error reading config file at {}", path.into_os_string().to_str().unwrap()).as_ref());
+pub(crate) fn load_profile() -> Result<Profile> {
+    let path = get_config_path()?;
+    let path = path.into_os_string().to_string_lossy().to_string();
 
-    let username_regex = Regex::new(r"username=(.*)").unwrap();
-    let password_regex = Regex::new(r"password=(.*)").unwrap();
-    let imap_regex = Regex::new(r"imap_server=(.*)").unwrap();
-    let email_regex = Regex::new(r"email=(.*)").unwrap();
-    let editor_regex = Regex::new(r"editor=(.*)").unwrap();
-    let args_regex = Regex::new(r"editor_arguments=(.*)").unwrap();
+    info!("Read config file from {}", &path);
+    let creds = fs::read_to_string(&path)?;
 
-    let username = get_with_regex(username_regex, &creds);
-    let password = get_with_regex(password_regex, &creds);
-    let imap_server = get_with_regex(imap_regex, &creds);
-    let email = get_with_regex(email_regex, &creds);
-    let editor = get_with_regex(editor_regex, &creds);
-    let args = get_with_regex(args_regex, &creds).split(" ").map(|s| s.to_string()).filter(|s| s.len() > 0).collect();
+    let username_regex = Regex::new(r"username=(.*)")?;
+    let password_regex = Regex::new(r"password=(.*)")?;
+    let imap_regex = Regex::new(r"imap_server=(.*)")?;
+    let email_regex = Regex::new(r"email=(.*)")?;
+    let editor_regex = Regex::new(r"editor=(.*)")?;
+    let args_regex = Regex::new(r"editor_arguments=(.*)")?;
+    let uuid_regex = Regex::new(r".*@(.*)")?;
 
-    Profile {
-        username,
-        password,
-        imap_server,
-        email,
-        editor,
-        editor_arguments: args
-    }
+    let username = get_with_regex(username_regex, &creds)?;
+    let password = get_with_regex(password_regex, &creds)?;
+    let imap_server = get_with_regex(imap_regex, &creds)?;
+    let email = get_with_regex(email_regex, &creds)?;
+    let editor = get_with_regex(editor_regex, &creds)?;
+    let args = get_with_regex(args_regex, &creds)?.split(" ").map(|s| s.to_string()).filter(|s| s.len() > 0).collect();
+    let domain = get_with_regex(uuid_regex, &email)?;
+
+    Ok(
+        Profile {
+            username,
+            password,
+            imap_server,
+            email,
+            editor,
+            editor_arguments: args,
+            domain
+        }
+    )
 }
 
-fn get_with_regex(regex: Regex, creds: &str) -> String {
-    regex.captures(&creds)
+fn get_with_regex(regex: Regex, creds: &str) -> Result<String> {
+    match regex.captures(&creds)
         .and_then(|captured| captured.get(1))
-        .and_then(|result| Option::from(result.as_str().to_string()))
-        .expect(format!("Could not get value for {}", regex.as_str()).as_ref())
+        .and_then(|result| Option::from(result.as_str().to_string())) {
+        Some(e) => Ok(e),
+        None => Err(NotFound(regex.to_string()).into())
+    }
 }
 
 #[cfg(test)]

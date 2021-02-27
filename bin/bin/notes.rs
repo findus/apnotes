@@ -103,33 +103,39 @@ fn main() {
         );
 
     let db_connection= ::apple_notes_manager::db::SqliteDBConnection::new();
-    let profile = ::apple_notes_manager::get_user_profile();
 
-   // ::apple_notes_manager::notes::
+    match ::apple_notes_manager::get_user_profile() {
+        Ok(profile) => {
+            let apple_notes = ::apple_notes_manager::AppleNotes::new(
+                profile,
+                Box::new(db_connection)
+            );
 
-    let apple_notes = ::apple_notes_manager::AppleNotes::new(
-        profile,
-        Box::new(db_connection)
-    );
+            let result = match app.get_matches().subcommand() {
+                ("new",  Some(sub_matches)) => new(sub_matches,&apple_notes),
+                ("sync", Some(_sub_matches)) => apple_notes.sync_notes().map(|_| ()),
+                ("list", Some(sub_matches)) => list_notes(sub_matches,&apple_notes),
+                ("edit", Some(sub_matches)) => edit_passed_note(sub_matches,&apple_notes),
+                ("merge", Some(sub_matches)) => merge_note(sub_matches,&apple_notes),
+                ("delete", Some(sub_matches)) => delete_note(sub_matches,&apple_notes),
+                ("undelete", Some(sub_matches)) => undelete_note(sub_matches,&apple_notes),
+                (_, _) => unreachable!(),
+            };
 
-    let result = match app.get_matches().subcommand() {
-        ("new",  Some(sub_matches)) => new(sub_matches,&apple_notes),
-        ("sync", Some(_sub_matches)) => apple_notes.sync_notes().map(|_| ()),
-        ("list", Some(sub_matches)) => list_notes(sub_matches,&apple_notes),
-        ("edit", Some(sub_matches)) => edit_passed_note(sub_matches,&apple_notes),
-        ("merge", Some(sub_matches)) => merge_note(sub_matches,&apple_notes),
-        ("delete", Some(sub_matches)) => delete_note(sub_matches,&apple_notes),
-        ("undelete", Some(sub_matches)) => undelete_note(sub_matches,&apple_notes),
-        (_, _) => unreachable!(),
-    };
-
-    match result {
-        Ok(_) => {info!("Done")}
+            match result {
+                Ok(_) => {info!("Done")}
+                Err(e) => {
+                    error!("Error: {}", e.to_string());
+                    std::process::exit(-1);
+                },
+            }
+        }
         Err(e) => {
-            error!("Error: {}", e.to_string());
-            std::process::exit(-1);
-        },
+            error!("Could not load profile: {}", e.to_string());
+        }
     }
+
+
 
 }
 

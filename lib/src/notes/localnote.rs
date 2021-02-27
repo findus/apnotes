@@ -55,7 +55,8 @@ impl LocalNote {
             imap_server: "test".to_string(),
             email: "test@test.de".to_string(),
             editor: "test".to_string(),
-            editor_arguments: vec![]
+            editor_arguments: vec![],
+            domain: "".to_string()
         };
 
         RemoteNoteMetaData {

@@ -21,7 +21,7 @@ impl BodyMetadataBuilder {
         BodyMetadataBuilder {
             body: Body {
                 old_remote_message_id: None,
-                message_id: format!("<{}@{}>", generate_uuid(), &profile.domain()),
+                message_id: format!("<{}@{}>", generate_uuid(), &profile.domain),
                 text: None,
                 uid: None,
                 metadata_uuid: "".to_string()
@@ -169,7 +169,7 @@ impl HeaderBuilder {
     //TODO reimplement message-id formatting somwhere else
     pub fn with_message_id(mut self, message_id: String) -> Self {
       //  let profile = self::profile::load_profile();
-//        self.headers.push(("Message-Id".to_string(), format!("<{}@{}", message_id, profile.domain())));
+//        self.headers.push(("Message-Id".to_string(), format!("<{}@{}", message_id, profile.domain)));
         self.headers.push(("Message-Id".to_string(), message_id));
         self
     }
@@ -192,7 +192,7 @@ impl HeaderBuilder {
         }
 
         if None == self.headers.get_header_value("Message-Id") {
-            self.headers.push(("Message-Id".to_string(), format!("<{}@{}>", generate_uuid(), profile.domain())));
+            self.headers.push(("Message-Id".to_string(), format!("<{}@{}>", generate_uuid(), profile.domain)));
         }
 
         self.headers

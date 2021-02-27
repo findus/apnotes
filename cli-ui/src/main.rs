@@ -65,7 +65,7 @@ impl App {
         let db_connection = SqliteDBConnection::new();
         let migration_connection =  SqliteDBConnection::new();
         let connection = Box::new(db_connection);
-        let app = apple_notes_manager::AppleNotes::new(profile, connection);
+        let app = apple_notes_manager::AppleNotes::new(profile.unwrap(), connection);
 
         // This will run the necessary migrations.
         embedded_migrations::run(migration_connection.connection()).unwrap();

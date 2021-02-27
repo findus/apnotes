@@ -1,3 +1,7 @@
+#[derive(Debug,PartialEq)]
+pub enum ProfileError {
+    NotFound(String)
+}
 
 #[derive(Debug,PartialEq)]
 pub enum UpdateError {
@@ -15,6 +19,7 @@ pub enum NoteError {
     NoteNotFound
 }
 
+impl std::error::Error for ProfileError {}
 impl std::error::Error for NoteError {}
 impl std::error::Error for UpdateError {}
 
@@ -25,6 +30,12 @@ impl std::fmt::Display for UpdateError {
 }
 
 impl std::fmt::Display for NoteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::fmt::Display for ProfileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }

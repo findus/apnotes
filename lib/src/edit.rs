@@ -151,7 +151,8 @@ mod edit_tests {
             imap_server: "".to_string(),
             email: "".to_string(),
             editor: "".to_string(),
-            editor_arguments: vec![]
+            editor_arguments: vec![],
+            domain: "".to_string()
         };
 
         match edit_note(&note, false, &profile) {
