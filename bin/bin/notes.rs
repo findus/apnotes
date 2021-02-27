@@ -3,35 +3,22 @@ extern crate apple_notes_manager;
 #[macro_use]
 extern crate log;
 extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
 extern crate colored;
 extern crate itertools;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 
-use self::diesel_migrations::*;
-
-use apple_notes_manager::db::{SqliteDBConnection};
 use colored::Colorize;
 use itertools::*;
 use log::Level;
 use apple_notes_manager::AppleNotes;
 use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
 
-
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-embed_migrations!("../migrations/");
 
 fn main() {
 
     simple_logger::init_with_level(Level::Info).unwrap();
-
-    let connection = SqliteDBConnection::new();
-
-    // This will run the necessary migrations.
-    embedded_migrations::run(connection.connection()).unwrap();
 
     let app = App::new("NotesManager")
         .setting(AppSettings::ArgRequiredElseHelp)
