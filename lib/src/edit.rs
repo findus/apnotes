@@ -16,10 +16,11 @@ use self::regex::Regex;
 use model::NotesMetadata;
 
 use chrono::Utc;
+use profile::Profile;
 
 
 /// Edits the passed note and alters the metadata if successful
-pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteError> {
+pub fn edit_note(local_note: &LocalNote, new: bool, profile: &Profile) -> Result<LocalNote, NoteError> {
 
 
     if local_note.needs_merge() {
@@ -30,8 +31,6 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
         .expect("Expected at least 1 note body");
 
     let environment_editor = std::env::var("RS_NOTES_EDITOR");
-
-    let profile = ::profile::load_profile();
 
     #[cfg(target_family = "unix")]
         let file_path = format!("/tmp/{}_{}", note.metadata_uuid , note.subject_escaped());
@@ -62,7 +61,7 @@ pub fn edit_note(local_note: &LocalNote, new: bool) -> Result<LocalNote, NoteErr
     proc
         .join()
         .map_err(|e| EditError(e.to_string()))
-        .and_then(|_| read_edited_text(local_note, note, &file_path))
+        .and_then(|_| read_edited_text(local_note, note, &file_path, profile))
         .and_then(|localnote| remove_temp_file(&file_path).map(|_| localnote))
 }
 
@@ -72,7 +71,7 @@ fn remove_temp_file(file_path: &String) -> Result<(), NoteError> {
         .map_err(|e| NoteError::EditError(e.to_string()))
 }
 
-fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Result<LocalNote, NoteError> {
+fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str, profile: &Profile) -> Result<LocalNote, NoteError> {
     //Read content and save to body.text
     let file_content = std::fs::read_to_string(&file_path)
         .map_err(|e| NoteError::EditError(e.to_string()))?;
@@ -91,7 +90,13 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str) -> Res
             mime_version: local_note.metadata.mime_version.clone()
         };
 
-        let mut body = BodyMetadataBuilder::new()
+        #[cfg(not(test))]
+        let mut body = BodyMetadataBuilder::new(profile)
+            .with_uid(note.uid.clone())
+            .with_text(&file_content);
+
+        #[cfg(test)]
+            let mut body = BodyMetadataBuilder::new()
             .with_uid(note.uid.clone())
             .with_text(&file_content);
 
@@ -123,6 +128,7 @@ mod edit_tests {
     use error::NoteError;
     use edit::{edit_note, replace_uuid};
     use builder::*;
+    use profile::Profile;
 
     #[test]
     fn should_generate_new_uuid() {
@@ -139,7 +145,16 @@ mod edit_tests {
         BodyMetadataBuilder::new().build()
     );
 
-        match edit_note(&note, false) {
+        let profile = Profile {
+            username: "".to_string(),
+            password: "".to_string(),
+            imap_server: "".to_string(),
+            email: "".to_string(),
+            editor: "".to_string(),
+            editor_arguments: vec![]
+        };
+
+        match edit_note(&note, false, &profile) {
             Err(e) => { assert_eq!(e, NoteError::NeedsMerge) }
             Ok(_) => panic!("Should be error")
         }

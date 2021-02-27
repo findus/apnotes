@@ -26,6 +26,7 @@ use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
 use notes::localnote::LocalNote;
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::identifyable_note::IdentifyableNote;
+use profile::Profile;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -39,9 +40,7 @@ pub struct TlsImapSession {
 
 impl TlsImapSession {
 
-    fn login() -> Result<Session<TlsStream<TcpStream>>> {
-        let profile = self::profile::load_profile();
-
+    fn login(profile: &Profile) -> Result<Session<TlsStream<TcpStream>>> {
         let domain = profile.imap_server.as_str();
         info!("Imap login");
         info!("Connecting to {}", domain);
@@ -52,7 +51,7 @@ impl TlsImapSession {
         // certificate is valid for the domain we're connecting to.
         imap::connect((domain, 993), domain, &tls)
             .map_err(|e| e.into())
-            .and_then(|client| client.login(profile.username, profile.password).map_err(|e| e.0.into()))
+            .and_then(|client| client.login(&profile.username, &profile.password).map_err(|e| e.0.into()))
     }
 }
 
@@ -88,19 +87,21 @@ pub trait MailService<T: 'static> {
     fn logout(&mut self) -> Result<()>;
 }
 
-pub struct MailServiceImpl {
-    session: TlsImapSession
+pub struct MailServiceImpl<'a> {
+    session: TlsImapSession,
+    profile: &'a Profile
 }
 
-impl MailServiceImpl {
-    pub fn new_with_login() -> Result<MailServiceImpl> {
-        match TlsImapSession::login() {
+impl <'a>MailServiceImpl<'a> {
+    pub fn new_with_login(profile: &Profile) -> Result<MailServiceImpl> {
+        match TlsImapSession::login(profile) {
             Ok(session) => {
                 Ok(
                     MailServiceImpl {
                         session: TlsImapSession {
                             session: session
-                        }
+                        },
+                        profile
                     }
                 )
             }
@@ -200,7 +201,7 @@ impl MailServiceImpl {
     }
 }
 
-impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
+impl <'a>MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl<'a> {
 
     fn fetch_headers(&mut self) -> Result<Vec<RemoteNoteMetaData>> {
         info!("Fetching Headers of Remote Notes...");
@@ -263,7 +264,7 @@ impl MailService<Session<TlsStream<TcpStream>>> for MailServiceImpl {
     fn update_message(&mut self, localnote: &LocalNote) -> Result<u32> {
         //Todo check >1
 
-        let headers = localnote.to_header_vector().iter().map( |(k,v)| {
+        let headers = localnote.to_header_vector(self.profile).iter().map( |(k,v)| {
             format!("{}: {}",k,v)
         })
             .collect::<Vec<String>>()

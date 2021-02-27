@@ -46,7 +46,6 @@ use error::{UpdateError};
 use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
 use profile::Profile;
-use diesel::result::Error;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -78,23 +77,39 @@ impl AppleNotes {
     /// Tuple content:  (UpdateAction,Subject,Result)
     pub fn sync_notes(&self)
                          -> Result<Vec<(String, String, Result<()>)>> {
-        sync::sync_notes(&self.db_connection)
+        sync::sync_notes(&self.db_connection, &self.profile)
     }
 
     /// Opens a text editor with the content of the specified note
     /// Returns the updated note object, it will not save it in the db
     /// you have to save it manually afterwards
     pub fn edit_note(&self, local_note: &LocalNote, new: bool) -> Result<LocalNote> {
-        edit::edit_note(local_note, new).map_err(|e| e.into())
+        edit::edit_note(local_note, new, &self.profile).map_err(|e| e.into())
     }
 
     /// Creates a new note, with the specified name inside the specified folder
+    #[cfg(test)]
     pub fn create_new_note(&self, with_subject: &String, folder: &String)
                               -> Result<LocalNote>
     {
         let note = note!(
         builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
         builder::BodyMetadataBuilder::new().with_text(&with_subject.clone()).build()
+    );
+
+        self.db_connection.insert_into_db(&note)
+            .and_then(|_| Ok(note))
+            .map_err(|e| e.into())
+    }
+
+    /// Creates a new note, with the specified name inside the specified folder
+    #[cfg(not(test))]
+    pub fn create_new_note(&self, with_subject: &String, folder: &String)
+                           -> Result<LocalNote>
+    {
+        let note = note!(
+        builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
+        builder::BodyMetadataBuilder::new(&self.profile).with_text(&with_subject.clone()).build()
     );
 
         self.db_connection.insert_into_db(&note)
@@ -142,6 +157,7 @@ impl AppleNotes {
     /// Merges notes that have > 1 bodies (right now only 2 bodies supported)
     /// After merging it the default text editor gets opened so that the user
     /// can resolve all conflicts, after saving the note is marked as merged
+    #[cfg(test)]
     pub fn merge(&self, uuid_or_name: &String)
                     -> Result<()> {
         self.find_note(&uuid_or_name)
@@ -159,7 +175,32 @@ impl AppleNotes {
             ];
                 Ok(note)
             })
-            .and_then(|note| edit::edit_note(&note, false).map_err(|e| e.into()))
+            .and_then(|note| edit::edit_note(&note, false, &self.profile).map_err(|e| e.into()))
+            .and_then(|note| self.db_connection.update(&note).map_err(|e| e.into()))
+    }
+
+    /// Merges notes that have > 1 bodies (right now only 2 bodies supported)
+    /// After merging it the default text editor gets opened so that the user
+    /// can resolve all conflicts, after saving the note is marked as merged
+    #[cfg(not(test))]
+    pub fn merge(&self, uuid_or_name: &String)
+                 -> Result<()> {
+        self.find_note(&uuid_or_name)
+            .and_then(|note| {
+
+                //TODO currently only supports merging for 2 notes
+                if note.needs_merge() == false || note.body.len() > 2 {
+                    return Err(UpdateError::SyncError("Note not mergeable, right now only notes with 2 bodies are mergeable".to_string()).into());
+                }
+
+                let diff = merge::merge_two(&note.body[0].text.as_ref().unwrap(), &note.body[1].text.as_ref().unwrap());
+                let note = note![
+                note.metadata.clone(),
+                builder::BodyMetadataBuilder::new(&self.profile).with_text(&diff).with_message_id(&format!("{},{}",&note.body[0].message_id, &note.body[1].message_id)).build()
+            ];
+                Ok(note)
+            })
+            .and_then(|note| edit::edit_note(&note, false, &self.profile).map_err(|e| e.into()))
             .and_then(|note| self.db_connection.update(&note).map_err(|e| e.into()))
     }
 
@@ -191,4 +232,9 @@ impl AppleNotes {
     pub fn update_note(&self, note: &LocalNote) -> Result<()> {
         self.db_connection.update(note).map_err(|e| e.into())
     }
+
+}
+
+pub fn get_user_profile() -> Profile {
+    profile::load_profile()
 }

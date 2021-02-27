@@ -104,7 +104,7 @@ fn main() {
         );
 
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
-    let profile = ::apple_notes_rs_lib::profile::load_profile();
+    let profile = ::apple_notes_rs_lib::get_user_profile();
 
     let apple_notes = ::apple_notes_rs_lib::AppleNotes::new(
         profile,

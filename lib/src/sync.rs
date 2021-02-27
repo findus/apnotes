@@ -27,6 +27,7 @@ use std::fmt::Display;
 use serde::export::Formatter;
 use colored::Colorize;
 use chrono::DateTime;
+use profile::Profile;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -84,9 +85,9 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send + Send>)
+pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send + Send>, profile: &Profile)
     -> Result<Vec<(String,String,Result<()>)>> {
-    ::apple_imap::MailServiceImpl::new_with_login()
+    ::apple_imap::MailServiceImpl::new_with_login(profile)
         .and_then(|mut imap_service| {
             sync(&mut imap_service, db_connection).map(|result| (result,imap_service))
         })

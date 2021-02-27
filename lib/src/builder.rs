@@ -4,6 +4,7 @@ use chrono::Utc;
 use profile;
 use notes::note_headers::NoteHeaders;
 use notes::traits::header_parser::HeaderParser;
+use profile::Profile;
 
 pub struct BodyMetadataBuilder {
     body: Body
@@ -14,12 +15,26 @@ pub struct BodyMetadataBuilder {
 /// If no own message-id gets provided it gets randomly
 /// generated
 impl BodyMetadataBuilder {
-    pub fn new() -> BodyMetadataBuilder {
-        let profile = self::profile::load_profile();
+
+    #[cfg(not(test))]
+    pub fn new(profile: &Profile) -> BodyMetadataBuilder {
         BodyMetadataBuilder {
             body: Body {
                 old_remote_message_id: None,
-                message_id: format!("<{}@{}>", generate_uuid(), profile.domain()),
+                message_id: format!("<{}@{}>", generate_uuid(), &profile.domain()),
+                text: None,
+                uid: None,
+                metadata_uuid: "".to_string()
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new() -> BodyMetadataBuilder {
+        BodyMetadataBuilder {
+            body: Body {
+                old_remote_message_id: None,
+                message_id: format!("<{}@{}>", generate_uuid(), "test@test.de".clone()),
                 text: None,
                 uid: None,
                 metadata_uuid: "".to_string()
@@ -112,14 +127,14 @@ impl NotesMetadataBuilder {
 }
 
 pub struct HeaderBuilder {
-    headers: Vec<(String,String)>
+    headers: Vec<(String,String)>,
 }
 
 impl HeaderBuilder {
 
-    pub fn new() -> HeaderBuilder {
+    #[cfg(not(test))]
+    pub fn new(profile: &Profile) -> HeaderBuilder {
         let mut headers: Vec<(String,String)> = vec![];
-        let profile = profile::load_profile();
         headers.push(("X-Uniform-Type-Identifier".to_string(), "com.apple.mail-note".to_string()));
         headers.push(("Content-Type".to_string(), "text/html; charset=utf-8".to_string()));
         headers.push(("Content-Transfer-Encoding".to_string(), "quoted-printable".to_string()));
@@ -127,7 +142,24 @@ impl HeaderBuilder {
         let date = Utc::now().to_rfc2822();
         headers.push(("Date".to_string(), date.clone()));
         headers.push(("X-Mail-Created-Date".to_string(), date.clone()));
-        headers.push(("From".to_string(), profile.email));
+        headers.push(("From".to_string(), (&profile).email.to_string()));
+
+        HeaderBuilder {
+            headers
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new() -> HeaderBuilder {
+        let mut headers: Vec<(String,String)> = vec![];
+        headers.push(("X-Uniform-Type-Identifier".to_string(), "com.apple.mail-note".to_string()));
+        headers.push(("Content-Type".to_string(), "text/html; charset=utf-8".to_string()));
+        headers.push(("Content-Transfer-Encoding".to_string(), "quoted-printable".to_string()));
+        headers.push(("Mime-Version".to_string(), "1.0 (Mac OS X Notes 4.6 \\(879.10\\))".to_string()));
+        let date = Utc::now().to_rfc2822();
+        headers.push(("Date".to_string(), date.clone()));
+        headers.push(("X-Mail-Created-Date".to_string(), date.clone()));
+        headers.push(("From".to_string(), "test@test.de".to_string()));
 
         HeaderBuilder {
             headers
@@ -152,8 +184,8 @@ impl HeaderBuilder {
         self
     }
 
-    pub fn build(mut self) -> NoteHeaders {
-        let profile = self::profile::load_profile();
+    #[cfg(not(test))]
+    pub fn build(mut self, profile: &Profile) -> NoteHeaders {
 
         if None == self.headers.get_header_value("X-Universally-Unique-Identifier") {
             self.headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
@@ -161,6 +193,20 @@ impl HeaderBuilder {
 
         if None == self.headers.get_header_value("Message-Id") {
             self.headers.push(("Message-Id".to_string(), format!("<{}@{}>", generate_uuid(), profile.domain())));
+        }
+
+        self.headers
+    }
+
+    #[cfg(test)]
+    pub fn build(mut self) -> NoteHeaders {
+
+        if None == self.headers.get_header_value("X-Universally-Unique-Identifier") {
+            self.headers.push(("X-Universally-Unique-Identifier".to_string(), generate_uuid()));
+        }
+
+        if None == self.headers.get_header_value("Message-Id") {
+            self.headers.push(("Message-Id".to_string(), format!("<{}@{}>", generate_uuid(), "test@test.de".to_string())));
         }
 
         self.headers

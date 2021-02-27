@@ -30,7 +30,7 @@ impl Profile {
 }
 
 #[cfg(target_family = "unix")]
-pub fn get_config_path() -> PathBuf {
+pub(crate)  fn get_config_path() -> PathBuf {
         let xdg_dir = BaseDirectories::new().expect("Could not find xdg dirs");
         match xdg_dir.find_config_file("apple_notes/config") {
             Some(path) => path,
@@ -45,7 +45,7 @@ pub fn get_config_path() -> PathBuf {
 }
 
 #[cfg(target_family = "windows")]
-pub fn get_config_path() -> PathBuf {
+pub(crate)  fn get_config_path() -> PathBuf {
     let config_file_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\config".to_string()));
     if config_file_path.exists() {
         config_file_path
@@ -58,7 +58,7 @@ pub fn get_config_path() -> PathBuf {
 }
 
 #[cfg(target_family = "unix")]
-pub fn get_db_path() -> PathBuf {
+pub(crate)  fn get_db_path() -> PathBuf {
     let xdg_dir = BaseDirectories::new().expect("Could not find xdg dirs");
     match xdg_dir.find_data_file("apple_notes/notes_db") {
         Some(path) => path,
@@ -73,7 +73,7 @@ pub fn get_db_path() -> PathBuf {
 }
 
 #[cfg(target_family = "windows")]
-pub fn get_db_path() -> PathBuf {
+pub(crate)  fn get_db_path() -> PathBuf {
     let db_file_path = PathBuf::from(format!("{}\\{}", env!("APPDATA"), "rs-notes\\db".to_string()));
     if db_file_path.exists() {
         db_file_path
@@ -88,7 +88,7 @@ pub fn get_db_path() -> PathBuf {
 }
 
 
-pub fn load_profile() -> Profile {
+pub(crate) fn load_profile() -> Profile {
     let path = get_config_path();
     info!("Read config file from {}", &path.as_os_str().to_str().unwrap());
     let creds = fs::read_to_string(&path).expect(format!("error reading config file at {}", path.into_os_string().to_str().unwrap()).as_ref());

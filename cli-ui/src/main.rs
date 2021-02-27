@@ -69,7 +69,7 @@ impl App {
     //TODO entries nil check
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
 
-        let profile = apple_notes_rs_lib::profile::load_profile();
+        let profile = apple_notes_rs_lib::get_user_profile();
         let db_connection = SqliteDBConnection::new();
         let db_connection_2 =  SqliteDBConnection::new();
         let connection = Box::new(db_connection);

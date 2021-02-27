@@ -7,6 +7,7 @@ use builder::{HeaderBuilder};
 use notes::note_headers::NoteHeaders;
 use notes::localnote::LocalNote;
 use notes::traits::header_parser::HeaderParser;
+use profile::Profile;
 
 /// Data Structure that represents a remote note
 #[derive(Clone,Eq,Debug)]
@@ -17,6 +18,26 @@ pub struct RemoteNoteMetaData {
 }
 
 impl RemoteNoteMetaData {
+
+    #[cfg(not(test))]
+    pub fn new(local_note: &LocalNote, profile: &Profile) -> Vec<RemoteNoteMetaData> {
+        local_note.body.iter().map(|body| {
+            let headers = HeaderBuilder::new(profile)
+                .with_subject(&body.subject())
+                .with_uuid(local_note.metadata.uuid.clone())
+                .with_message_id(body.message_id.clone())
+                .build(&profile);
+
+            RemoteNoteMetaData {
+                headers,
+                folder: local_note.metadata.subfolder.clone(),
+                uid: body.uid.unwrap_or(-1)
+            }
+        }).collect()
+
+    }
+
+    #[cfg(test)]
     pub fn new(local_note: &LocalNote) -> Vec<RemoteNoteMetaData> {
         local_note.body.iter().map(|body| {
             let headers = HeaderBuilder::new()

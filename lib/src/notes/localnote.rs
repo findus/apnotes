@@ -10,6 +10,7 @@ use notes::traits::mergeable_note_body::MergeableNoteBody;
 use notes::traits::header_parser::HeaderParser;
 use std::collections::HashSet;
 use quoted_printable::ParseMode;
+use profile::Profile;
 
 #[derive(Eq,Clone,Debug)]
 pub struct LocalNote {
@@ -22,25 +23,44 @@ impl LocalNote {
         self.body.len() > 1
     }
     //TODO right not it only works for merged notes
-    pub fn to_header_vector(&self) -> NoteHeaders {
+    pub fn to_header_vector(&self, profile: &Profile) -> NoteHeaders {
         let mut headers: Vec<(String,String)> = vec![];
-        let profile = profile::load_profile();
         headers.push(("X-Uniform-Type-Identifier".to_string(), "com.apple.mail-note".to_string()));
         headers.push(("Content-Type".to_string(), "text/html; charset=utf-8".to_string()));
         headers.push(("Content-Transfer-Encoding".to_string(), "quoted-printable".to_string()));
         headers.push(("Mime-Version".to_string(), "1.0 (Mac OS X Notes 4.6 \\(879.10\\))".to_string()));
         headers.push(("Date".to_string(), self.metadata.date.clone()));
         headers.push(("X-Mail-Created-Date".to_string(), self.metadata.date.clone()));
-        headers.push(("From".to_string(), profile.email)); //todo implement in noteheader
+        headers.push(("From".to_string(), (&profile.email).to_string())); //todo implement in noteheader
         headers.push(("Message-Id".to_string(), self.body.first().unwrap().message_id.clone()));
         headers.push(("X-Universally-Unique-Identifier".to_string(), self.metadata.uuid.clone()));
         headers.push(("Subject".to_string(), self.body.first().unwrap().subject().clone()));
         headers
     }
 
-    pub fn to_remote_metadata(&self) -> RemoteNoteMetaData {
+    #[cfg(not(test))]
+    pub fn to_remote_metadata(&self, profile: &Profile) -> RemoteNoteMetaData {
         RemoteNoteMetaData {
-            headers: self.to_header_vector(),
+            headers: self.to_header_vector(profile),
+            folder: self.folder(),
+            uid: self.body.first().unwrap().uid.unwrap_or(-1)
+        }
+    }
+
+    #[cfg(test)]
+    pub fn to_remote_metadata(&self) -> RemoteNoteMetaData {
+
+        let profile = Profile {
+            username: "test".to_string(),
+            password: "test".to_string(),
+            imap_server: "test".to_string(),
+            email: "test@test.de".to_string(),
+            editor: "test".to_string(),
+            editor_arguments: vec![]
+        };
+
+        RemoteNoteMetaData {
+            headers: self.to_header_vector(&profile),
             folder: self.folder(),
             uid: self.body.first().unwrap().uid.unwrap_or(-1)
         }

@@ -9,6 +9,7 @@ use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::header_parser::HeaderParser;
 use chrono::{DateTime};
+use profile::Profile;
 
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]
@@ -115,11 +116,23 @@ pub struct Body {
 }
 
 impl Body {
-    pub fn new(uid: Option<i64>, metadata_reference: String) -> Body {
-        let profile = profile::load_profile();
+
+    #[cfg(not(test))]
+    pub fn new(uid: Option<i64>, metadata_reference: String, profile: &Profile) -> Body {
         Body {
             old_remote_message_id: None,
             message_id: format!("<{}@{}", util::generate_uuid(), profile.domain()),
+            text: None,
+            uid,
+            metadata_uuid: metadata_reference
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new(uid: Option<i64>, metadata_reference: String) -> Body {
+        Body {
+            old_remote_message_id: None,
+            message_id: format!("<{}@{}", util::generate_uuid(), "test@test.de".to_string()),
             text: None,
             uid,
             metadata_uuid: metadata_reference
