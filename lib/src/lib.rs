@@ -25,7 +25,7 @@ extern crate quoted_printable;
 mod macros;
 mod apple_imap;
 mod converter;
-pub mod profile;
+mod profile;
 mod sync;
 #[macro_use]
 mod util;
@@ -38,7 +38,7 @@ mod builder;
 pub mod notes;
 mod merge;
 
-use db::{DatabaseService, DBConnector};
+use db::{DatabaseService};
 use error::NoteError::NoteNotFound;
 use util::is_uuid;
 use notes::localnote::LocalNote;

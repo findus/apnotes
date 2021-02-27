@@ -24,10 +24,6 @@ use std::collections::hash_map::RandomState;
 use schema::metadata::columns::subfolder;
 use notes::localnote::LocalNote;
 
-pub trait DBConnector {
-
-}
-
 pub trait DatabaseService {
     /// Deletes everything
     fn delete_everything(&self) -> Result<(), Error>;
@@ -72,7 +68,7 @@ pub trait DatabaseService {
     fn replace_notes(&self, notes: &Vec<Body>, uuid: String) -> Result<(), Error>;
 }
 
-pub struct SqLiteConnector {
+struct SqLiteConnector {
 
 }
 

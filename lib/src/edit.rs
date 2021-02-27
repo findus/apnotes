@@ -71,7 +71,7 @@ fn remove_temp_file(file_path: &String) -> Result<(), NoteError> {
         .map_err(|e| NoteError::EditError(e.to_string()))
 }
 
-fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str, profile: &Profile) -> Result<LocalNote, NoteError> {
+fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str, _profile: &Profile) -> Result<LocalNote, NoteError> {
     //Read content and save to body.text
     let file_content = std::fs::read_to_string(&file_path)
         .map_err(|e| NoteError::EditError(e.to_string()))?;
@@ -91,7 +91,7 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str, profil
         };
 
         #[cfg(not(test))]
-        let mut body = BodyMetadataBuilder::new(profile)
+        let mut body = BodyMetadataBuilder::new(_profile)
             .with_uid(note.uid.clone())
             .with_text(&file_content);
 

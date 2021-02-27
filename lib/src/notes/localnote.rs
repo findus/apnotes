@@ -1,5 +1,4 @@
 use model::NotesMetadata;
-use profile;
 use model::Body;
 use std::hash::Hasher;
 use notes::note_headers::NoteHeaders;
@@ -19,7 +18,7 @@ pub struct LocalNote {
 }
 
 impl LocalNote {
-    pub(crate) fn needs_merge(&self) -> bool {
+    pub fn needs_merge(&self) -> bool {
         self.body.len() > 1
     }
     //TODO right not it only works for merged notes

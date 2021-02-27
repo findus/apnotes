@@ -14,8 +14,6 @@ use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
 use model::{NotesMetadata};
-use ::{profile};
-
 use converter::convert_to_html;
 use imap::types::Mailbox;
 #[cfg(test)]

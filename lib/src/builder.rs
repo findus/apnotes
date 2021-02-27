@@ -1,9 +1,9 @@
 use model::{Body, NotesMetadata};
 use util::generate_uuid;
 use chrono::Utc;
-use profile;
 use notes::note_headers::NoteHeaders;
 use notes::traits::header_parser::HeaderParser;
+#[cfg(not(test))]
 use profile::Profile;
 
 pub struct BodyMetadataBuilder {

@@ -12,13 +12,12 @@ use clap::{Arg, App, ArgMatches, AppSettings};
 
 use self::diesel_migrations::*;
 
-use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
+use apple_notes_rs_lib::db::{SqliteDBConnection};
 use colored::Colorize;
 use itertools::*;
-use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
-use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
 use log::Level;
 use apple_notes_rs_lib::AppleNotes;
+use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -105,6 +104,8 @@ fn main() {
 
     let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
     let profile = ::apple_notes_rs_lib::get_user_profile();
+
+   // ::apple_notes_rs_lib::notes::
 
     let apple_notes = ::apple_notes_rs_lib::AppleNotes::new(
         profile,

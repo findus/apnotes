@@ -22,6 +22,7 @@ pub struct Profile {
 }
 
 impl Profile {
+    #[allow(dead_code)]
     pub(crate) fn domain(&self) -> String {
         let uuid_regex = Regex::new(r".*@(.*)").unwrap();
         let domain = get_with_regex(uuid_regex, &self.email);
@@ -114,29 +115,6 @@ pub(crate) fn load_profile() -> Profile {
         email,
         editor,
         editor_arguments: args
-    }
-}
-
-#[cfg(target_family = "unix")]
-pub fn get_notes_dir() -> PathBuf {
-    let xdg = BaseDirectories::new().expect("Could not find xdg data dir");
-    if let Some(dir) = xdg.find_data_file("notes") {
-        dir
-    } else {
-        info!("No xdg data dir found, create a new one");
-        xdg.create_data_directory("notes").expect("Could not create xdg data dir")
-    }
-}
-
-#[cfg(target_family = "windows")]
-pub fn get_notes_dir() -> PathBuf {
-    let notes_dir_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\notes".to_string()));
-    if notes_dir_path.exists() {
-        notes_dir_path
-    } else {
-        info!("No notes dir found, will create a new one");
-        std::fs::create_dir(&notes_dir_path).expect("Could not create notes dir");
-        notes_dir_path
     }
 }
 

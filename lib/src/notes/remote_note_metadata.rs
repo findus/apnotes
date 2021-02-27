@@ -7,6 +7,7 @@ use builder::{HeaderBuilder};
 use notes::note_headers::NoteHeaders;
 use notes::localnote::LocalNote;
 use notes::traits::header_parser::HeaderParser;
+#[cfg(not(test))]
 use profile::Profile;
 
 /// Data Structure that represents a remote note

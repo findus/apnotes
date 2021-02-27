@@ -1,4 +1,4 @@
-use ::{util, profile};
+use ::util;
 use schema::metadata;
 use schema::body;
 #[cfg(test)]
@@ -9,6 +9,7 @@ use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::identifyable_note::IdentifyableNote;
 use notes::traits::header_parser::HeaderParser;
 use chrono::{DateTime};
+#[cfg(not(test))]
 use profile::Profile;
 
 

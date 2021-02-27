@@ -13,7 +13,7 @@ use model::{NotesMetadata, Body};
 use error::UpdateError::SyncError;
 use error::UpdateError;
 use apple_imap::{MailService};
-use db::{DBConnector, DatabaseService};
+use db::{DatabaseService};
 use converter::convert2md;
 use notes::localnote::{LocalNote};
 use notes::remote_note_metadata::RemoteNoteMetaData;

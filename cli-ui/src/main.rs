@@ -21,7 +21,6 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use apple_notes_rs_lib::db::{DatabaseService, SqliteDBConnection};
-use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use tui::layout::Alignment;
 use apple_notes_rs_lib::notes::localnote::LocalNote;
 use std::thread::sleep;
@@ -30,8 +29,8 @@ use crate::Outcome::{Success, Failure, End, Busy};
 
 
 use self::diesel_migrations::*;
-use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
 use apple_notes_rs_lib::AppleNotes;
+use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 
 enum Event<I> {
     Input(I),
