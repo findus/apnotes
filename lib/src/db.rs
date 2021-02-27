@@ -28,7 +28,7 @@ pub trait DBConnector {
 
 }
 
-pub trait DatabaseService<C: DBConnector> {
+pub trait DatabaseService {
     /// Deletes everything
     fn delete_everything(&self) -> Result<(), Error>;
     /// Appends a note to an already present note
@@ -92,10 +92,6 @@ impl SqLiteConnector {
     }
 }
 
-impl DBConnector for SqliteDBConnection {
-
-}
-
 pub struct SqliteDBConnection {
     connection: ::diesel::sqlite::SqliteConnection
 }
@@ -113,7 +109,7 @@ impl SqliteDBConnection {
 }
 
 
-impl DatabaseService<SqliteDBConnection> for SqliteDBConnection {
+impl DatabaseService for SqliteDBConnection {
     fn delete_everything(&self) -> Result<(), Error> {
         self.connection.transaction::<_,Error,_>(|| {
 

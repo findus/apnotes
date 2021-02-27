@@ -84,8 +84,8 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes<C>(db_connection: &dyn DatabaseService<C>)
-    -> Result<Vec<(String,String,Result<()>)>>  where C: 'static + DBConnector {
+pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send + Send>)
+    -> Result<Vec<(String,String,Result<()>)>> {
     ::apple_imap::MailServiceImpl::new_with_login()
         .and_then(|mut imap_service| {
             sync(&mut imap_service, db_connection).map(|result| (result,imap_service))
@@ -270,9 +270,9 @@ fn get_needs_merge_basic<'a>(remote_note_header: Option<&'a RemoteNoteHeaderColl
     }
 }
 
-pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn DatabaseService<C>)
+pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn DatabaseService + Send>)
     -> Result<Vec<(String,String, Result<()>)>>
-    where C: 'static + DBConnector, T: 'static
+    where T: 'static
 {
     let headers = imap_session.fetch_headers()?;
     let grouped_not_headers = collect_mergeable_notes(headers);
@@ -300,11 +300,11 @@ pub fn sync<T, C>(imap_session: &mut dyn MailService<T>, db_connection: &dyn Dat
     Ok(results)
 }
 
-pub fn process_actions<'a, T, C>(
+pub fn process_actions<'a, T>(
     imap_connection: &mut dyn MailService<T>,
-    db_connection: &dyn DatabaseService<C>,
+    db_connection: &Box<dyn DatabaseService + Send>,
     actions: &'a Vec<UpdateAction<'a>>) -> Vec<(&'a UpdateAction<'a>,String, Result<()>)>
-    where C: 'static + DBConnector, T: 'static
+    where T: 'static
 {
     let result = actions
         .iter()
@@ -324,12 +324,12 @@ pub fn process_actions<'a, T, C>(
     return result;
 }
 
-fn process_add_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
-                               db_connection: &dyn DatabaseService<C>,
+fn process_add_locally<'a,T>(imap_connection: &mut dyn MailService<T>,
+                               db_connection: &Box<dyn DatabaseService + Send>,
                                action: &'a UpdateAction,
                                noteheaders: &RemoteNoteHeaderCollection)
     -> (&'a UpdateAction<'a>, String, Result<()>)
-    where C: 'static + DBConnector, T: 'static {
+    where T: 'static {
 
     let result =
         localnote_from_remote_header(imap_connection, noteheaders)
@@ -338,12 +338,12 @@ fn process_add_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
     (action, noteheaders.first_subject(), result)
 }
 
-fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
-                                   db_connection: &dyn DatabaseService<C>,
+fn process_update_locally<'a,T>(imap_connection: &mut dyn MailService<T>,
+                                   db_connection: &Box<dyn DatabaseService + Send>,
                                    action: &'a UpdateAction,
                                    new_note_bodies: &RemoteNoteHeaderCollection)
     -> (&'a UpdateAction<'a>, String, Result<()>)
-    where C: 'static + DBConnector, T: 'static {
+    where T: 'static {
 
     let uuid = &new_note_bodies.last().unwrap().headers.uuid();
 
@@ -390,12 +390,12 @@ fn process_update_locally<'a,T,C>(imap_connection: &mut dyn MailService<T>,
     (action, new_note_bodies.first_subject(), result)
 }
 
-fn process_delete_remotely<'a, C, T>(imap_connection: &mut dyn MailService<T>,
-                                     db_connection: &dyn DatabaseService<C>,
+fn process_delete_remotely<'a, T>(imap_connection: &mut dyn MailService<T>,
+                                     db_connection: &Box<dyn DatabaseService + Send>,
                                      action: &'a UpdateAction,
                                      localnote: &LocalNote)
     -> (&'a UpdateAction<'a>,String , Result<()>)
-    where C: 'static + DBConnector, T: 'static
+    where T: 'static
 {
     let result = imap_connection
         .delete_message(localnote)
@@ -405,11 +405,11 @@ fn process_delete_remotely<'a, C, T>(imap_connection: &mut dyn MailService<T>,
     (action,localnote.first_subject(), result)
 }
 
-fn process_delete_locally<'a, C>(db_connection: &dyn DatabaseService<C>,
+fn process_delete_locally<'a>(db_connection: &Box<dyn DatabaseService + Send>,
                                  action: &'a UpdateAction,
                                  b: &LocalNote)
     -> (&'a UpdateAction<'a>, String, Result<()>)
-    where C: 'static + DBConnector {
+{
     //TODO what happens if remote umerged note gets deleted only delete this body
     // what happens if to be deleted note with message-id:x has merged un-updated
     //content on local side
@@ -418,11 +418,11 @@ fn process_delete_locally<'a, C>(db_connection: &dyn DatabaseService<C>,
     (action,b.metadata.first_subject(), result)
 }
 
-fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
-                                     db_connection: &dyn DatabaseService<C>,
+fn update_message_remotely<'a, T>(imap_connection: &mut dyn MailService<T>,
+                                     db_connection: &Box<dyn DatabaseService + Send>,
                                      localnote: &LocalNote)
     -> Result<()>
-    where C: 'static + DBConnector, T: 'static
+    where T: 'static
 {
     info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
     let metadata = &localnote.metadata;
@@ -457,12 +457,12 @@ fn update_message_remotely<'a, T, C>(imap_connection: &mut dyn MailService<T>,
         })
 }
 
-fn process_merge<'a,T,C>(imap_connection: &mut dyn MailService<T>,
-                                  db_connection: &dyn DatabaseService<C>,
+fn process_merge<'a,T>(imap_connection: &mut dyn MailService<T>,
+                                  db_connection: &Box<dyn DatabaseService + Send>,
                                   action: &'a UpdateAction,
                                   new_notes: &Vec<RemoteNoteMetaData>)
                                   -> (&'a UpdateAction<'a>,String, Result<()>)
-    where C: 'static + DBConnector, T: 'static {
+    where T: 'static {
 
     match action {
         UpdateAction::Merge(MergeMethod::AppendLocally, _remote_note) => {

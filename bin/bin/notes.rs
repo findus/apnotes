@@ -10,7 +10,6 @@ extern crate itertools;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 
-use apple_notes_rs_lib::{create_new_note, edit_note};
 use self::diesel_migrations::*;
 
 use apple_notes_rs_lib::db::{SqliteDBConnection, DatabaseService};
@@ -19,6 +18,7 @@ use itertools::*;
 use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
 use apple_notes_rs_lib::notes::traits::mergeable_note_body::MergeableNoteBody;
 use log::Level;
+use apple_notes_rs_lib::AppleNotes;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -103,14 +103,22 @@ fn main() {
             )
         );
 
+    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
+    let profile = ::apple_notes_rs_lib::profile::load_profile();
+
+    let apple_notes = ::apple_notes_rs_lib::AppleNotes::new(
+        profile,
+        Box::new(db_connection)
+    );
+
     let result = match app.get_matches().subcommand() {
-        ("new",  Some(sub_matches)) => new(sub_matches),
-        ("sync", Some(_sub_matches)) => ::apple_notes_rs_lib::sync_notes(&::apple_notes_rs_lib::db::SqliteDBConnection::new()).map(|_| ()),
-        ("list", Some(sub_matches)) => list_notes(sub_matches),
-        ("edit", Some(sub_matches)) => edit_passed_note(sub_matches),
-        ("merge", Some(sub_matches)) => merge_note(sub_matches),
-        ("delete", Some(sub_matches)) => delete_note(sub_matches),
-        ("undelete", Some(sub_matches)) => undelete_note(sub_matches),
+        ("new",  Some(sub_matches)) => new(sub_matches,&apple_notes),
+        ("sync", Some(_sub_matches)) => apple_notes.sync_notes().map(|_| ()),
+        ("list", Some(sub_matches)) => list_notes(sub_matches,&apple_notes),
+        ("edit", Some(sub_matches)) => edit_passed_note(sub_matches,&apple_notes),
+        ("merge", Some(sub_matches)) => merge_note(sub_matches,&apple_notes),
+        ("delete", Some(sub_matches)) => delete_note(sub_matches,&apple_notes),
+        ("undelete", Some(sub_matches)) => undelete_note(sub_matches,&apple_notes),
         (_, _) => unreachable!(),
     };
 
@@ -124,36 +132,32 @@ fn main() {
 
 }
 
-fn undelete_note(sub_matches: &ArgMatches) -> Result<()> {
-    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
+fn undelete_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
-    apple_notes_rs_lib::undelete_note(&uuid_or_name, &db_connection)
+    app.undelete_note(&uuid_or_name)
 }
 
-fn delete_note(sub_matches: &ArgMatches) -> Result<()> {
-    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
+fn delete_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
-    apple_notes_rs_lib::delete_note(&uuid_or_name, &db_connection)
+    app.delete_note(&uuid_or_name)
 }
 
-fn merge_note(sub_matches: &ArgMatches) -> Result<()> {
+fn merge_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
-    let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
-    ::apple_notes_rs_lib::merge(&uuid_or_name, &db)
+    app.merge(&uuid_or_name)
 }
 
-fn edit_passed_note(sub_matches: &ArgMatches) -> Result<()> {
+fn edit_passed_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
     let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
-    let db = apple_notes_rs_lib::db::SqliteDBConnection::new();
-    ::apple_notes_rs_lib::find_note(&uuid_or_name, &db)
-        .and_then(|note| apple_notes_rs_lib::edit_note(&note, false).map_err(|e| e.into()))
-        .and_then(|note| db.update(&note).map_err(|e| e.into()))
+    app.find_note(&uuid_or_name)
+        .and_then(|note| app.edit_note(&note, false).map_err(|e| e.into()))
+        .and_then(|note| app.update_note(&note).map_err(|e| e.into()))
 }
 
-fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
+fn list_notes(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()>{
     let _show_uuid = sub_matches.is_present("uuid");
-    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
-    ::apple_notes_rs_lib::get_notes(&db_connection)
+
+    app.get_notes()
         .and_then(|notes| {
             let max_len = notes.iter()
                 .map(|note| format!("{} {}", note.metadata.uuid, note.metadata.folder()).len())
@@ -189,17 +193,12 @@ fn list_notes(sub_matches: &ArgMatches) -> Result<()>{
         .map_err(|e| e.into())
 }
 
-fn new(sub_matches: &ArgMatches) -> Result<()> {
+fn new(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
     let folder = sub_matches.value_of("folder").unwrap().to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
 
-    let db_connection = ::apple_notes_rs_lib::db::SqliteDBConnection::new();
-
-    create_new_note(&db_connection,&subject,&folder)
-        .and_then(|metadata| edit_note(&metadata, true))
-        .and_then(|local_note| db_connection.update(&local_note)
-            .map(|_| ())
-            .map_err(|e| e.into())
-        )
+    app.create_new_note(&subject,&folder)
+        .and_then(|metadata| app.edit_note(&metadata, true))
+        .and_then(|local_note| app.update_note(&local_note))
         .map_err(|e| e.into())
 }
