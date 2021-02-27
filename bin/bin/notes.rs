@@ -1,5 +1,5 @@
 extern crate clap;
-extern crate apple_notes_rs_lib;
+extern crate apple_notes_manager;
 #[macro_use]
 extern crate log;
 extern crate diesel;
@@ -12,12 +12,12 @@ use clap::{Arg, App, ArgMatches, AppSettings};
 
 use self::diesel_migrations::*;
 
-use apple_notes_rs_lib::db::{SqliteDBConnection};
+use apple_notes_manager::db::{SqliteDBConnection};
 use colored::Colorize;
 use itertools::*;
 use log::Level;
-use apple_notes_rs_lib::AppleNotes;
-use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
+use apple_notes_manager::AppleNotes;
+use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -102,12 +102,12 @@ fn main() {
             )
         );
 
-    let db_connection= ::apple_notes_rs_lib::db::SqliteDBConnection::new();
-    let profile = ::apple_notes_rs_lib::get_user_profile();
+    let db_connection= ::apple_notes_manager::db::SqliteDBConnection::new();
+    let profile = ::apple_notes_manager::get_user_profile();
 
-   // ::apple_notes_rs_lib::notes::
+   // ::apple_notes_manager::notes::
 
-    let apple_notes = ::apple_notes_rs_lib::AppleNotes::new(
+    let apple_notes = ::apple_notes_manager::AppleNotes::new(
         profile,
         Box::new(db_connection)
     );

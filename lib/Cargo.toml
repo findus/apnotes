@@ -1,6 +1,6 @@
 [package]
-name = "apple_notes_rs_lib"
-version = "0.1.2"
+name = "apple_notes_manager"
+version = "0.2.0"
 authors = ["Findus"]
 autobins = false
 

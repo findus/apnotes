@@ -19,25 +19,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "apple_notes_rs_bin"
-version = "0.0.2"
-dependencies = [
- "apple_notes_rs_lib",
- "clap",
- "colored 2.0.0",
- "diesel",
- "diesel_migrations",
- "itertools",
- "log",
- "serde 1.0.114",
- "serde_derive",
- "serde_json",
- "simple_logger",
-]
-
-[[package]]
-name = "apple_notes_rs_lib"
-version = "0.1.2"
+name = "apple_notes_manager"
+version = "0.2.0"
 dependencies = [
  "cascade",
  "chrono",
@@ -72,10 +55,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "apple_notes_rs_bin"
+version = "0.0.2"
+dependencies = [
+ "apple_notes_manager",
+ "clap",
+ "colored 2.0.0",
+ "diesel",
+ "diesel_migrations",
+ "itertools",
+ "log",
+ "serde 1.0.114",
+ "serde_derive",
+ "serde_json",
+ "simple_logger",
+]
+
+[[package]]
 name = "apple_notes_rs_ui"
 version = "0.0.2"
 dependencies = [
- "apple_notes_rs_lib",
+ "apple_notes_manager",
  "atk",
  "cairo-rs 0.8.1",
  "gdk",
@@ -287,7 +287,7 @@ dependencies = [
 name = "cli-ui"
 version = "0.1.0"
 dependencies = [
- "apple_notes_rs_lib",
+ "apple_notes_manager",
  "colored 2.0.0",
  "crossterm 0.19.0",
  "diesel",

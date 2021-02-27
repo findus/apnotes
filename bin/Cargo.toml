@@ -16,7 +16,7 @@ diesel = { features = ["sqlite"], version =  "1.4.5"}
 diesel_migrations = "1.4.0"
 itertools = "0.10.0"
 
-apple_notes_rs_lib = { path = "../lib" }
+apple_notes_manager = { path = "../lib" }
 
 
 [[bin]]

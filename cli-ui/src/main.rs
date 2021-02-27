@@ -1,4 +1,4 @@
-extern crate apple_notes_rs_lib;
+extern crate apple_notes_manager;
 extern crate itertools;
 extern crate log;
 extern crate diesel;
@@ -20,17 +20,17 @@ use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use apple_notes_rs_lib::db::{DatabaseService, SqliteDBConnection};
+use apple_notes_manager::db::{DatabaseService, SqliteDBConnection};
 use tui::layout::Alignment;
-use apple_notes_rs_lib::notes::localnote::LocalNote;
+use apple_notes_manager::notes::localnote::LocalNote;
 use std::thread::sleep;
 use crate::Outcome::{Success, Failure, End, Busy};
 
 
 
 use self::diesel_migrations::*;
-use apple_notes_rs_lib::AppleNotes;
-use apple_notes_rs_lib::notes::traits::identifyable_note::IdentifyableNote;
+use apple_notes_manager::AppleNotes;
+use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
 
 enum Event<I> {
     Input(I),
@@ -68,11 +68,11 @@ impl App {
     //TODO entries nil check
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
 
-        let profile = apple_notes_rs_lib::get_user_profile();
+        let profile = apple_notes_manager::get_user_profile();
         let db_connection = SqliteDBConnection::new();
         let db_connection_2 =  SqliteDBConnection::new();
         let connection = Box::new(db_connection);
-        let app = apple_notes_rs_lib::AppleNotes::new(profile, connection);
+        let app = apple_notes_manager::AppleNotes::new(profile, connection);
 
         let app_lock = Arc::new(Mutex::new(app));
         let app_lock_2 = app_lock.clone();
@@ -204,7 +204,7 @@ impl App {
 
             }
 
-            //apple_notes_rs_lib::sync::sync_notes().unwrap();
+            //apple_notes_manager::sync::sync_notes().unwrap();
 
         });
 
@@ -448,7 +448,7 @@ impl App {
                         KeyCode::Char('d') => {
                             let mut note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().clone();
                             note.metadata.locally_deleted = !note.metadata.locally_deleted ;
-                            let db_connection = apple_notes_rs_lib::db::SqliteDBConnection::new();
+                            let db_connection = apple_notes_manager::db::SqliteDBConnection::new();
                             db_connection.update(&note).unwrap();
                             entries = refetch_notes(&*app_lock.lock().unwrap(), &keyword);
                             items = self.generate_list_items(&entries, &keyword);

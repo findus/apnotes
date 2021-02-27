@@ -17,7 +17,7 @@ once_cell = "^0"
 pango = "^0"
 pangocairo = "^0"
 cairo-rs = { version = "^0", features = ["png"] }
-apple_notes_rs_lib = { path = "../lib" }
+apple_notes_manager = { path = "../lib" }
 
 [features]
 #default = ["gtk_3_22_30"]
