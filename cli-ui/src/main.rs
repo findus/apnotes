@@ -2,8 +2,6 @@ extern crate apple_notes_manager;
 extern crate itertools;
 extern crate log;
 extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
 
 use std::{io};
 use tui::Terminal;
@@ -25,10 +23,6 @@ use tui::layout::Alignment;
 use apple_notes_manager::notes::localnote::LocalNote;
 use std::thread::sleep;
 use crate::Outcome::{Success, Failure, End, Busy};
-
-
-
-use self::diesel_migrations::*;
 use apple_notes_manager::AppleNotes;
 use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
 
@@ -51,8 +45,6 @@ enum Outcome {
     End()
 }
 
-embed_migrations!("../migrations/");
-
 struct App {
     apple_notes: Arc<Mutex<AppleNotes>>
 }
@@ -63,12 +55,8 @@ impl App {
 
         let profile = apple_notes_manager::get_user_profile();
         let db_connection = SqliteDBConnection::new();
-        let migration_connection =  SqliteDBConnection::new();
         let connection = Box::new(db_connection);
         let app = apple_notes_manager::AppleNotes::new(profile.unwrap(), connection);
-
-        // This will run the necessary migrations.
-        embedded_migrations::run(migration_connection.connection()).unwrap();
 
         App {
             apple_notes: Arc::new(Mutex::new(app))
