@@ -29,6 +29,7 @@ dependencies = [
  "ctor",
  "curl",
  "diesel",
+ "diesel_migrations",
  "diff",
  "dotenv",
  "glob",

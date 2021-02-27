@@ -20,6 +20,8 @@ extern crate diff;
 #[macro_use]
 extern crate log;
 extern crate quoted_printable;
+#[macro_use]
+extern crate diesel_migrations;
 
 #[macro_use]
 mod macros;

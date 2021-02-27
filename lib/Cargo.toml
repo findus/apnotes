@@ -33,6 +33,7 @@ colored = "2"
 notify = "4.0.15"
 diff = "0.1.12"
 quoted_printable = "0.4.2"
+diesel_migrations = "1.4.0"
 
 [dev-dependencies]
 ctor = "0.1.17"

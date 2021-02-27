@@ -9,9 +9,7 @@ Set: SQLITE3_LIB_DIR
 
 use ::{schema};
 
-//use util::get_notes_file_path_from_metadata;
 use diesel::{SqliteConnection, Connection};
-use std::env;
 use diesel::*;
 use diesel::result::Error;
 use model::{NotesMetadata, Body};
@@ -23,6 +21,8 @@ use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
 use schema::metadata::columns::subfolder;
 use notes::localnote::LocalNote;
+
+embed_migrations!("../migrations/");
 
 pub trait DatabaseService {
     /// Deletes everything
@@ -74,8 +74,7 @@ struct SqLiteConnector {
 
 impl SqLiteConnector {
     fn connect() -> SqliteConnection {
-        let database_url = env::var("NOTES_DATABASE_URL")
-            .unwrap_or(::profile::get_db_path().into_os_string().to_string_lossy().to_string());
+        let database_url = ::profile::get_db_path().into_os_string().to_string_lossy().to_string();
 
         info!("Database Path: {}", database_url);
 
@@ -83,6 +82,8 @@ impl SqLiteConnector {
             .expect(&format!("Error connecting to {}", database_url));
 
         &connection.execute("PRAGMA foreign_keys = ON").unwrap();
+        // This will run the necessary migrations.
+        embedded_migrations::run(&connection).unwrap();
 
         connection
     }

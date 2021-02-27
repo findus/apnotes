@@ -61,12 +61,16 @@ pub(crate)  fn get_config_path() -> PathBuf {
 #[cfg(target_family = "unix")]
 pub(crate)  fn get_db_path() -> PathBuf {
     let xdg_dir = BaseDirectories::new().expect("Could not find xdg dirs");
-    match xdg_dir.find_data_file("apple_notes/notes_db") {
+    #[cfg(test)]
+        let db = "notes_db_test";
+    #[cfg(not(test))]
+        let db = "notes_db";
+    match xdg_dir.find_data_file(format!("apple_notes/{}",db)) {
         Some(path) => path,
         None => {
             warn!("Could not detect database, gonna create empty one");
             let mut path = xdg_dir.create_data_directory("apple_notes").expect("Could not create apple_notes config folder");
-            path.push("notes_db");
+            path.push(&db);
             File::create(&path).expect("Unable to create file");
             path.to_path_buf()
         }
