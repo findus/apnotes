@@ -41,7 +41,7 @@ pub mod notes;
 mod merge;
 
 use db::{DatabaseService};
-use error::NoteError::NoteNotFound;
+use error::NoteError::{NoteNotFound, InsertionError};
 use util::is_uuid;
 use notes::localnote::LocalNote;
 use error::{UpdateError};
@@ -77,8 +77,7 @@ impl AppleNotes {
     /// of every individual note that got processes
     ///
     /// Tuple content:  (UpdateAction,Subject,Result)
-    pub fn sync_notes(&self)
-                         -> Result<Vec<(String, String, Result<()>)>> {
+    pub fn sync_notes(&self) -> Result<Vec<(String, String, Result<()>)>> {
         sync::sync_notes(&self.db_connection, &self.profile)
     }
 
@@ -90,29 +89,24 @@ impl AppleNotes {
     }
 
     /// Creates a new note, with the specified name inside the specified folder
-    #[cfg(test)]
     pub fn create_new_note(&self, with_subject: &String, folder: &String)
                               -> Result<LocalNote>
     {
-        let note = note!(
-        builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
-        builder::BodyMetadataBuilder::new().with_text(&with_subject.clone()).build()
-    );
 
-        self.db_connection.insert_into_db(&note)
-            .and_then(|_| Ok(note))
-            .map_err(|e| e.into())
-    }
+        if folder.chars().all(char::is_alphanumeric) == false {
+            return Err(InsertionError("Folder name has to be alphanumeric".to_string()).into())
+        }
 
-    /// Creates a new note, with the specified name inside the specified folder
-    #[cfg(not(test))]
-    pub fn create_new_note(&self, with_subject: &String, folder: &String)
-                           -> Result<LocalNote>
-    {
-        let note = note!(
-        builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
-        builder::BodyMetadataBuilder::new(&self.profile).with_text(&with_subject.clone()).build()
-    );
+        #[cfg(test)]
+            let note = note!(
+             builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
+             builder::BodyMetadataBuilder::new().with_text(&with_subject.clone()).build()
+           );
+        #[cfg(not(test))]
+            let note = note!(
+             builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
+             builder::BodyMetadataBuilder::new(&self.profile).with_text(&with_subject.clone()).build()
+           );
 
         self.db_connection.insert_into_db(&note)
             .and_then(|_| Ok(note))
