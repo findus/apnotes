@@ -398,15 +398,16 @@ impl App {
                         }
                         KeyCode::Char('e') => {
                             let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
+                            let lib = (&*self.apple_notes).lock().unwrap();
                             let result: Result<LocalNote,Box<dyn std::error::Error>> =
-                                self.apple_notes.lock().unwrap().edit_note(&note, false)
+                                lib.edit_note(&note, false)
                                 .map_err(|e| e.into())
-                                .and_then(|note| (&*self.apple_notes).lock().unwrap().update_note(&note).map(|_n| note).map_err(|e| e.into()));
+                                .and_then(|note| lib.update_note(&note).map(|_n| note).map_err(|e| e.into()));
                             match result {
                                 Ok(_note) => {
                                     let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
 
-                                    entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
+                                    entries = refetch_notes(&lib, &keyword);
                                     items = self.generate_list_items(&entries, &keyword);
                                     list = self.gen_list(&mut items, &keyword);
 
