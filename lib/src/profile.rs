@@ -46,15 +46,15 @@ pub(crate)  fn get_config_path() -> Result<PathBuf> {
 }
 
 #[cfg(target_family = "windows")]
-pub(crate)  fn get_config_path() -> PathBuf {
+pub(crate)  fn get_config_path() -> Result<PathBuf> {
     let config_file_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\config".to_string()));
     if config_file_path.exists() {
-        config_file_path
+        Ok(config_file_path)
     } else {
         warn!("Could not detect config file, gonna create empty one");
-        std::fs::create_dir(&config_file_path.parent().unwrap()).expect("Unable to create config folder");
-        File::create(&config_file_path).expect("Unable to create config file");
-        config_file_path
+        std::fs::create_dir(&config_file_path.parent().unwrap())?;
+        File::create(&config_file_path)?;
+        Ok(config_file_path)
     }
 }
 
