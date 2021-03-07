@@ -1,4 +1,4 @@
-# NotesManager
+# apple-notes-bridge
 Interface for Linux to View, Edit, Create, Backup and Sync Notes from apple devices.
 Not everything is implemented yet, and you should duplicate your notes somewhere before using this.
 Works only, if you dont store your notes in icloud
