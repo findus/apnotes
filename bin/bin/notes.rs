@@ -11,7 +11,6 @@ use clap::{Arg, App, ArgMatches, AppSettings};
 
 use colored::Colorize;
 use itertools::*;
-use log::Level;
 use apple_notes_manager::AppleNotes;
 use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
 use flexi_logger::{Logger, Record, DeferredNow};
