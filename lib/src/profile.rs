@@ -134,7 +134,14 @@ fn get_with_regex(regex: Regex, creds: &str) -> Result<String> {
         .and_then(|captured| captured.get(1))
         .and_then(|result| Option::from(result.as_str().to_string())) {
         Some(e) => Ok(e),
-        None => Err(NotFound(regex.to_string()).into())
+        None => {
+            let config_entry_name = regex.to_string().replace("=(.*)","");
+            Err(
+                NotFound(
+                    format!("Could not find entry in config file for key: '{}'", config_entry_name)
+                ).into()
+            )
+        }
     }
 }
 
