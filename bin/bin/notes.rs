@@ -22,7 +22,7 @@ fn main() {
 
     let app = App::new("NotesManager")
         .setting(AppSettings::ArgRequiredElseHelp)
-        .version("0.1")
+        .version("0.2.0")
         .author("Philipp Hentschel")
         .subcommand(App::new("list")
             .about("Lists all available notes")
