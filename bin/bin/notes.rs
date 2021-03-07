@@ -5,6 +5,7 @@ extern crate log;
 extern crate diesel;
 extern crate colored;
 extern crate itertools;
+extern crate flexi_logger;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 
@@ -13,12 +14,26 @@ use itertools::*;
 use log::Level;
 use apple_notes_manager::AppleNotes;
 use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
+use flexi_logger::{Logger, Record, DeferredNow};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+//Minimal println like formatting for flexi_logger
+pub fn default_format(
+    w: &mut dyn std::io::Write,
+    _now: &mut DeferredNow,
+    record: &Record,
+) -> core::result::Result<(), std::io::Error> {
+    write!(
+        w,
+        "{}",
+        record.args()
+    )
+}
+
 fn main() {
 
-    simple_logger::init_with_level(Level::Info).unwrap();
+    Logger::with_env_or_str("info").format(default_format).start().unwrap();
 
     let app = App::new("NotesManager")
         .setting(AppSettings::ArgRequiredElseHelp)

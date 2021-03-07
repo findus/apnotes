@@ -2,7 +2,7 @@ extern crate apple_notes_manager;
 extern crate log;
 
 fn main() {
-    simple_logger::init().unwrap();
+    //simple_logger::init().unwrap();
     /*let mut session = apple_imap::login();
     let folders = list_note_folders(&mut session);
     info!("Loaded {} folders", folders.len());
