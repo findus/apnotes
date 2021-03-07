@@ -48,7 +48,6 @@ dependencies = [
  "serde 1.0.114",
  "serde_derive",
  "serde_json",
- "simple_logger",
  "subprocess",
  "uuid 0.8.1",
  "walkdir",

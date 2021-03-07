@@ -575,7 +575,6 @@ mod sync_tests {
     #[ctor::ctor]
     fn init() {
         dotenv::dotenv().ok();
-        simple_logger::init_with_level(Level::Debug).unwrap();
     }
 
     /// tests : Standard, note with 2 bodies, check if parent note gets deleted if only 1 body
