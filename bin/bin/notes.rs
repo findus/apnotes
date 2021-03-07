@@ -79,7 +79,6 @@ fn main() {
                 .long("folder")
                 .help("Specifies the subfolder where the note should be put in. Uses default folder, if not used")
                 .required(false)
-                .default_value("Notes")
                 .takes_value(true)
             )
             .arg(Arg::with_name("title")
@@ -188,7 +187,7 @@ fn list_notes(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()>{
 }
 
 fn new(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
-    let folder = sub_matches.value_of("folder").unwrap().to_string();
+    let folder = sub_matches.value_of("folder").unwrap_or("").to_string();
     let subject = sub_matches.value_of("title").unwrap().to_string();
 
     app.create_new_note(&subject,&folder)
