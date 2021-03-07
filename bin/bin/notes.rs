@@ -90,6 +90,8 @@ fn main() {
 
     let db_connection= ::apple_notes_manager::db::SqliteDBConnection::new();
 
+    let matches = app.get_matches();
+
     match ::apple_notes_manager::get_user_profile() {
         Ok(profile) => {
             let apple_notes = ::apple_notes_manager::AppleNotes::new(
@@ -97,7 +99,7 @@ fn main() {
                 Box::new(db_connection)
             );
 
-            let result = match app.get_matches().subcommand() {
+            let result = match matches.subcommand() {
                 ("new",  Some(sub_matches)) => new(sub_matches,&apple_notes),
                 ("sync", Some(_sub_matches)) => apple_notes.sync_notes().map(|_| ()),
                 ("list", Some(sub_matches)) => list_notes(sub_matches,&apple_notes),

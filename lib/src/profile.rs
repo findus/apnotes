@@ -138,7 +138,7 @@ fn get_with_regex(regex: Regex, creds: &str) -> Result<String> {
             let config_entry_name = regex.to_string().replace("=(.*)","");
             Err(
                 NotFound(
-                    format!("Could not find entry in config file for key: '{}'", config_entry_name)
+                    format!("Could not find entry in config file for key: \"{}\"", config_entry_name)
                 ).into()
             )
         }
