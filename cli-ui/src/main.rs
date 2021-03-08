@@ -25,6 +25,11 @@ use std::thread::sleep;
 use crate::Outcome::{Success, Failure, End, Busy};
 use apple_notes_manager::AppleNotes;
 use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
+use std::sync::mpsc::{
+    Sender,
+    Receiver
+};
+use crossterm::event::KeyEvent;
 
 enum Event<I> {
     Input(I),
@@ -45,29 +50,112 @@ enum Outcome {
     End()
 }
 
-struct App {
-    apple_notes: Arc<Mutex<AppleNotes>>
+struct UiState {
+    action_sender: Sender<Task>,
+    event_receiver: Receiver<Event<KeyEvent>>,
+    event_sender: Sender<Event<KeyEvent>>
 }
 
-impl App {
+struct App {
+    apple_notes: Arc<Mutex<AppleNotes>>,
+    app_stuff: Arc<Mutex<AppStuff>>
+}
 
-    pub fn new() -> App {
+struct AppStuff {
+    action_receiver: Receiver<Task>,
+    event_sender: Sender<Event<KeyEvent>>
+}
 
-        let profile = apple_notes_manager::get_user_profile();
-        let db_connection = SqliteDBConnection::new();
-        let connection = Box::new(db_connection);
-        let app = apple_notes_manager::AppleNotes::new(profile.unwrap(), connection);
+struct Ui<'u> {
+    note_list_state: ListState,
+    end: bool,
+    color: Color,
+    status: String,
+    app: Arc<Mutex<AppleNotes>>,
+    ui_state: Arc<Mutex<UiState>>,
+    entries: Vec<LocalNote>,
+    keyword: Option<String>,
+    items: Vec<ListItem<'u>>,
+    list: List<'u>,
+    text: String,
+    scroll_amount: u16,
+    in_search_mode: bool,
+}
 
-        App {
-            apple_notes: Arc::new(Mutex::new(app))
+impl<'u> Ui<'u> {
+
+    fn gen_list(&self) -> List<'u> {
+
+        let title = match self.keyword.clone() {
+            None => {
+                format!("List")
+            }
+            Some(word) => {
+                format!("List Filter:[{}]", word)
+
+            }
+        };
+
+        List::new(self.items.clone())
+            .block(Block::default().title(title).borders(Borders::ALL))
+            .style(Style::default().fg(Color::White))
+            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
+            .highlight_symbol(">>")
+    }
+
+    fn generate_list_items(&mut self) -> Vec<ListItem<'u>> {
+        self.entries.iter()
+            .filter(|entry| {
+                if self.keyword.is_some() {
+                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&self.keyword.as_ref().unwrap().to_lowercase())
+                } else {
+                    return true
+                }
+            })
+            .map(|e| {
+                if e.needs_merge() {
+                    ListItem::new(format!("[M] {} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
+                } else if e.content_changed_locally() {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
+                } else if e.metadata.locally_deleted {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
+                } else if e.metadata.new {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
+                } else {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
+                }
+            }).collect()
+    }
+
+    fn refresh(&mut self) {
+        self.entries = refetch_notes(&self.app.lock().unwrap(), &self.keyword);
+        self.items = self.generate_list_items( );
+        self.list = self.gen_list();
+    }
+
+    fn reload_text(&mut self) {
+        // self.note_list_state.select(Some(0));
+
+        match self.note_list_state.selected() {
+            Some(index) if matches!(self.entries.get(index), Some(_)) => {
+                let entry = self.entries.get(index).unwrap();
+                self.text = entry.body[0].text.as_ref().unwrap().clone();
+            }
+            _ => {
+                self.text = "".to_string();
+            }
         }
     }
 
-    //TODO entries nil check
-    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn set_status<'a>(&self, text: &'a str, color: Color) -> Paragraph<'a> {
+        Paragraph::new(text)
+            .block(Block::default().title("Status").borders(Borders::ALL))
+            .style(Style::default().fg(color))
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: true })
+    }
 
-
-        let app_lock_2 = self.apple_notes.clone();
+    pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
 
         enable_raw_mode().expect("can run in raw mode");
 
@@ -77,152 +165,37 @@ impl App {
 
         terminal.clear().unwrap();
 
-        let (tx, rx) = mpsc::channel();
-        let tx_2 = tx.clone();
+        //let ui_state = self.ui_state.lock().unwrap();
 
-        let tick_rate = Duration::from_millis(1000);
+        self.status = "Syncing".to_string();
+        self.color = Color::Yellow;
 
-        let color = Arc::new(Mutex::new(Color::White));
-        let _color_2 = color.clone();
+        //ui_state.action_sender.send(Task::Sync);
 
-        let status = Arc::new(Mutex::new("Started".to_string()));
-        let _status_2 = status.clone();
-
-        let (action_tx, action_rx) = mpsc::channel::<Task>();
-
-        *status.lock().unwrap() = "Syncing".to_string();
-        *color.lock().unwrap() = Color::Yellow;
-        action_tx.send(Task::Sync).unwrap();
+        // Insert Thread for input detection
 
 
-        let mut in_search_mode = false;
-        let mut keyword: Option<String> = None;
+        self.note_list_state = ListState::default();
+        self.note_list_state.select(Some(0));
+        self.end = false;
 
-        thread::spawn(move || {
-            let mut last_tick = Instant::now();
-            loop {
-                let timeout = tick_rate
-                    .checked_sub(last_tick.elapsed())
-                    .unwrap_or_else(|| Duration::from_secs(0));
+        self.refresh();
 
-                if event::poll(timeout).expect("poll works") {
-                    if let CEvent::Key(key) = event::read().expect("can read events") {
-                        tx.send(Event::Input(key)).expect("can send events");
-                    }
-                }
+        self.reload_text();
+        self.scroll_amount = 0;
 
-                if last_tick.elapsed() >= tick_rate {
-                    if let Ok(_) = tx.send(Event::Tick) {
-                        last_tick = Instant::now();
-                    }
-                }
-            }
-        });
+        let a = Arc::clone(&self.app);
+        let b =  Arc::clone(&self.ui_state);
 
-        let note_list_state = Arc::new(Mutex::new(ListState::default()));
-        note_list_state.lock().unwrap().select(Some(0));
-        let counter = Arc::new(Mutex::new(0));
-
-        let note_list_state_2 = note_list_state.clone();
-        let keyword_2 = keyword.clone();
-
-        let end = Arc::new(Mutex::new(false));
-        let end_3 = end.clone();
-
-
-        let worker_tread = thread::spawn( move || {
-
-            let active = Arc::new(Mutex::new(false));
-
-            loop {
-                let _note_list_state_3 = note_list_state_2.clone();
-                let next = action_rx.recv().unwrap();
-
-                if *active.lock().unwrap() == false {
-                    *active.lock().unwrap() = true;
-                    let active_2 = active.clone();
-                    let end_2 = end.clone();
-                    let tx_3 = tx_2.clone();
-                    let counter_2 = counter.clone();
-                    let _keyword_3 = keyword_2.clone();
-
-                    let app_lock_3 = app_lock_2.clone();
-
-                    if matches!(next,Task::End) {
-                        *end_2.lock().unwrap() = true;
-                        *active_2.lock().unwrap() = false;
-                    } else {
-
-                        thread::spawn( move || {
-                            match next {
-                                Task::Sync => {
-                                    match app_lock_3.lock().unwrap().sync_notes() {
-                                        Ok(result) => {
-                                            if result.iter().find(|r| r.2.is_err()).is_some() {
-                                                tx_3.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note")))).unwrap();
-                                            } else {
-                                                tx_3.send(Event::OutCome(Success("Synced!".to_string()))).unwrap();
-                                            }
-                                        }
-                                        Err(e) => {
-                                            tx_3.send(Event::OutCome(Failure(format!("Sync error: {}",e)))).unwrap();
-                                        }
-                                    }
-                                }
-                                Task::End => {
-
-                                },
-                                Task::Test => {
-                                    sleep(Duration::new(2,0));
-                                    *counter_2.lock().unwrap() += 1;
-                                    tx_3.send(Event::OutCome(Success(format!("Test! {}", *counter_2.lock().unwrap())))).unwrap();
-                                }
-                            }
-
-                            *active_2.lock().unwrap() = false;
-                        });
-                    }
-                } else {
-                    tx_2.send(Event::OutCome(Busy())).unwrap();
-                };
-
-                if *active.lock().unwrap() == false && *end.lock().unwrap() {
-                    tx_2.send(Event::OutCome(End())).unwrap();
-                    break;
-                }
-
-            }
-
-            //apple_notes_manager::sync::sync_notes().unwrap();
-
-        });
-
-        let mut entries: Vec<LocalNote> = refetch_notes(&*self.apple_notes.lock().unwrap(), &keyword);
-
-        let mut items: Vec<ListItem> = self.generate_list_items(&entries, &keyword);
-
-        let mut list = self.gen_list(&mut items, &keyword);
-
-        let mut text: String = "".to_string();
-
-        let mut scroll_amount = 0;
-
-        match note_list_state.lock().unwrap().selected() {
-            Some(index) if matches!(entries.get(index), Some(_)) => {
-                let entry = entries.get(index).unwrap();
-                text = entry.body[0].text.as_ref().unwrap().clone();
-            }
-            _ => {
-
-            }
-        }
+        let app = a.lock().unwrap();
+        let ui_state = b.lock().unwrap();
 
         loop {
 
             terminal.draw(|f| {
 
-                let value = status.lock().unwrap();
-                let t2 = self.set_status(value.as_ref(), *color.lock().unwrap());
+                let value = &self.status;
+                let t2 = self.set_status(value, self.color);
 
                 let lay = Layout::default()
                     .direction(Direction::Vertical)
@@ -246,13 +219,17 @@ impl App {
                         ].as_ref()
                     ).split(chunks[0]);
 
-                f.render_stateful_widget(list.clone(), noteslayout[0], &mut note_list_state.lock().unwrap());
+                f.render_stateful_widget(
+                    self.list.clone(),
+                    noteslayout[0],
+                    &mut self.note_list_state.clone()
+                );
 
-                let t  = Paragraph::new(text.clone())
+                let t  = Paragraph::new(self.text.clone())
                     .block(Block::default().title("Content").borders(Borders::ALL))
                     .style(Style::default().fg(Color::White))
                     .alignment(Alignment::Left)
-                    .scroll((scroll_amount,scroll_amount))
+                    .scroll((self.scroll_amount,self.scroll_amount))
                     .wrap(Wrap { trim: false });
 
 
@@ -260,56 +237,37 @@ impl App {
                 f.render_widget(t2.clone(), chunks[1]);
             }).unwrap();
 
-            let received_keystroke = rx.recv()?;
+            let received_keystroke = self.ui_state.lock().unwrap().event_receiver.recv()?;
 
-            if in_search_mode {
+            if self.in_search_mode {
                 match received_keystroke {
                     Event::Input(event) => match event.code {
                         KeyCode::Esc => {
-                            *status.lock().unwrap() = "".to_string();
-                            *color.lock().unwrap() = Color::White;
-                            in_search_mode = false;
-
-                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items, &keyword);
-                            note_list_state.lock().unwrap().select(Some(0));
-
-                            match note_list_state.lock().unwrap().selected() {
-                                Some(index) if matches!(entries.get(index), Some(_)) => {
-                                    let entry = entries.get(index).unwrap();
-                                    text = entry.body[0].text.as_ref().unwrap().clone();
-                                }
-                                _ => {
-
-                                }
-                            }
+                            self.status = "".to_string();
+                            self.color = Color::White;
+                            self.in_search_mode = false;
+                            self.refresh();
+                            self.reload_text()
                         }
                         KeyCode::Backspace => {
-                            if keyword.is_some() {
-                                let len = keyword.as_ref().unwrap().len();
+                            if self.keyword.is_some() {
+                                let len = self.keyword.as_ref().unwrap().len();
                                 if len > 0 {
-                                    let mut d = keyword.as_ref().unwrap().clone();
+                                    let mut d = self.keyword.as_ref().unwrap().clone();
                                     d.pop();
-                                    keyword = Some(d);
-                                    *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
+                                    self.keyword = Some(d);
+                                    self.status = self.keyword.as_ref().unwrap().clone();
                                 }
 
-                                entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
-                                items = self.generate_list_items(&entries, &keyword);
-                                list = self.gen_list(&mut items, &keyword);
-
-                                note_list_state.lock().unwrap().select(Some(0));
+                                self.refresh();
+                                self.note_list_state.select(Some(0));
                             }
                         }
                         KeyCode::Char(c) => {
                             let ed = c;
-                            keyword = Some(format!("{}{}", keyword.unwrap(), ed));
-                             *status.lock().unwrap() = keyword.as_ref().unwrap().clone();
-
-                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items, &keyword);
+                            self.keyword = Some(format!("{}{}", self.keyword.as_ref().unwrap(), ed));
+                            self.status = self.keyword.as_ref().unwrap().clone();
+                            self.refresh();
                         }
                         _ => {}
                     }
@@ -319,228 +277,182 @@ impl App {
                 match received_keystroke {
                     Event::Input(event) => match event.code {
                         KeyCode::Char('j') => {
-                            let selected = note_list_state.lock().unwrap().selected();
-                            if entries.len() > 0 && selected.unwrap_or(0) < entries.len() -1 {
-                                note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) + 1));
-
-                                match note_list_state.lock().unwrap().selected() {
-                                    Some(index) if matches!(entries.get(index), Some(_)) => {
-                                        let entry = entries.get(index).unwrap();
-                                        text = entry.body[0].text.as_ref().unwrap().clone();
-                                    }
-                                    _ => {
-
-                                    }
-                                }
-
-                                scroll_amount = 0;
+                            let selected = self.note_list_state.selected();
+                            if self.entries.len() > 0 && selected.unwrap_or(0) < self.entries.len() -1 {
+                                self.note_list_state.select(Some(selected.unwrap_or(0) + 1));
+                                self.reload_text();
+                                self.scroll_amount = 0;
                             }
                         },
                         KeyCode::Char('k') => {
-                            let selected = note_list_state.lock().unwrap().selected();
+                            let selected = self.note_list_state.selected();
                             if selected.unwrap_or(0) > 0 {
-                                note_list_state.lock().unwrap().select(Some(selected.unwrap_or(0) - 1));
-
-                                match note_list_state.lock().unwrap().selected() {
-                                    Some(index) if matches!(entries.get(index), Some(_)) => {
-                                        let entry = entries.get(index).unwrap();
-                                        text = entry.body[0].text.as_ref().unwrap().clone();
-                                    }
-                                    _ => {
-
-                                    }
-                                }
-
-                                scroll_amount = 0;
+                                self.note_list_state.select(Some(selected.unwrap_or(0) - 1));
+                                self.reload_text();
+                                self.scroll_amount = 0;
                             }
                         },
                         KeyCode::Char('J') => {
-                            scroll_amount += 4;
+                            self.scroll_amount += 4;
                         },
                         KeyCode::Char('K') => {
-                            if scroll_amount >= 4 {
-                                scroll_amount -= 4;
+                            if self.scroll_amount >= 4 {
+                                self.scroll_amount -= 4;
                             } else {
-                                scroll_amount = 0;
+                                self.scroll_amount = 0;
                             }
                         },
                         KeyCode::Char('m') => {
-                            let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
-                            let connection = &*self.apple_notes.lock().unwrap();
-                            match self.apple_notes.lock().unwrap().merge(&note.metadata.uuid) {
+                            let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
+                            match app.merge(&note.metadata.uuid) {
                                 Ok(_) => {
-                                    let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
-                                    entries = refetch_notes(connection, &keyword);
-                                    items = self.generate_list_items(&entries, &keyword);
-                                    list = self.gen_list(&mut items, &keyword);
+                                    let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
+                                    self.refresh();
 
-                                    let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                    let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
                                         note.metadata.uuid == old_uuid
                                     }).last().unwrap().0;
 
-                                    note_list_state.lock().unwrap().select(Some(old_note_idx));
-
-                                    match note_list_state.lock().unwrap().selected() {
-                                        Some(index) if matches!(entries.get(index), Some(_)) => {
-                                            let entry = entries.get(index).unwrap();
-                                            text = entry.body[0].text.as_ref().unwrap().clone();
-                                        }
-                                        _ => {
-
-                                        }
-                                    }
+                                    self.note_list_state.select(Some(old_note_idx));
+                                    self.reload_text();
                                 }
                                 Err(e) => {
-                                    *color.lock().unwrap() = Color::Red;
-                                    *status.lock().unwrap() = e.to_string();
+                                    self.color = Color::Red;
+                                    self.status = e.to_string();
                                 }
                             }
                         }
                         KeyCode::Char('e') => {
-                            let note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap();
-                            let lib = (&*self.apple_notes).lock().unwrap();
+                            let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
                             let result: Result<LocalNote,Box<dyn std::error::Error>> =
-                                lib.edit_note(&note, false)
-                                .map_err(|e| e.into())
-                                .and_then(|note| lib.update_note(&note).map(|_n| note).map_err(|e| e.into()));
+                                app.edit_note(&note, false)
+                                    .map_err(|e| e.into())
+                                    .and_then(|note| app.update_note(&note).map(|_n| note).map_err(|e| e.into()));
+
                             match result {
                                 Ok(_note) => {
-                                    let old_uuid = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().metadata.uuid.clone();
+                                    let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
 
-                                    entries = refetch_notes(&lib, &keyword);
-                                    items = self.generate_list_items(&entries, &keyword);
-                                    list = self.gen_list(&mut items, &keyword);
+                                    self.refresh();
 
-                                    let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                    let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
                                         note.metadata.uuid == old_uuid
                                     }).last().unwrap().0;
 
-                                    note_list_state.lock().unwrap().select(Some(old_note_idx));
-
-                                    match note_list_state.lock().unwrap().selected() {
-                                        Some(index) if matches!(entries.get(index), Some(_)) => {
-                                            let entry = entries.get(index).unwrap();
-                                            text = entry.body[0].text.as_ref().unwrap().clone();
-                                        }
-                                        _ => {
-
-                                        }
-                                    }
+                                    self.note_list_state.select(Some(old_note_idx));
+                                    self.reload_text();
 
                                 }
                                 Err(e) => {
-                                    *color.lock().unwrap() = Color::Red;
-                                    *status.lock().unwrap() = e.to_string();
+                                    self.color = Color::Red;
+                                    self.status = e.to_string();
                                 }
                             }
 
                         },
                         KeyCode::Char('d') => {
-                            let mut note = entries.get(note_list_state.lock().unwrap().selected().unwrap()).unwrap().clone();
+                            let mut note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().clone();
                             note.metadata.locally_deleted = !note.metadata.locally_deleted ;
+
                             let db_connection = apple_notes_manager::db::SqliteDBConnection::new();
                             db_connection.update(&note).unwrap();
-                            entries = refetch_notes(&*self.apple_notes.lock().unwrap(), &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items, &keyword);
+
+                            self.refresh();
 
                         },
                         KeyCode::Char('s') => {
-                            *status.lock().unwrap() = "Syncing".to_string();
-                            *color.lock().unwrap() = Color::Yellow;
+                            self.status = "Syncing".to_string();
+                            self.color = Color::Yellow;
 
-                            action_tx.send(Task::Sync).unwrap();
+                            ui_state.action_sender.send(Task::Sync).unwrap();
 
                         },
                         KeyCode::Char('x') => {
-                            *status.lock().unwrap() = "Syncing".to_string();
-                            *color.lock().unwrap() = Color::Yellow;
+                            self.status = "Syncing".to_string();
+                            self.color = Color::Yellow;
 
-                            action_tx.send(Task::Test).unwrap();
+                            ui_state.action_sender.send(Task::Test).unwrap();
                         },
                         KeyCode::Char('q') => {
-                            *end_3.lock().unwrap() = true;
-                            action_tx.send(Task::End).unwrap();
+                            self.end = true;
+
+                            ui_state.action_sender.send(Task::End).unwrap();
                         },
                         KeyCode::Char('/') => {
-                            keyword = Some("".to_string());
-                            *status.lock().unwrap() = format!("Search mode: {}", keyword.as_ref().unwrap());
-                            *color.lock().unwrap() = Color::Cyan;
-                            in_search_mode = true;
+                            self.keyword = Some("".to_string());
+                            self.status = format!("Search mode: {}", self.keyword.as_ref().unwrap());
+                            self.color = Color::Cyan;
+                            self.in_search_mode = true;
                         },
                         KeyCode::Char('c') => {
-                            *status.lock().unwrap() = format!("Filter Cleared");
-                            *color.lock().unwrap() = Color::White;
+                            self.status = format!("Filter Cleared");
+                            self.color = Color::White;
 
-                            keyword = None;
+                            self.keyword = None;
 
                             let mut old_uuid = None;
 
-                            if let Some(old_selected_entry) = entries.get(note_list_state.lock().unwrap().selected().unwrap_or(0)) {
+                            if let Some(old_selected_entry) = self.entries.get(self.note_list_state.selected().unwrap_or(0)) {
                                 old_uuid = Some(old_selected_entry.metadata.uuid.clone());
                             }
 
-                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items, &keyword);
+                            self.refresh();
 
                             if let Some(uuid) = old_uuid {
-                                let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
                                     note.metadata.uuid == uuid
                                 }).last().unwrap().0;
 
-                                note_list_state.lock().unwrap().select(Some(old_note_idx));
+                                self.note_list_state.select(Some(old_note_idx));
                             }
 
                         },
                         KeyCode::Esc => {
-                            *status.lock().unwrap() = "".to_string();
-                            in_search_mode = false;
+                            self.status = "".to_string();
+                            self.in_search_mode = false;
                         }
                         _ => {}
                     }
                     Event::Tick => {}
                     Event::OutCome(outcome) => match outcome {
                         Outcome::Busy() => {
-                            *color.lock().unwrap() = Color::Red;
-                            *status.lock().unwrap() = "Currently Busy".to_string();
+                            self.color = Color::Red;
+                            self.status = "Currently Busy".to_string();
                         }
                         Outcome::Success(s) => {
                             let mut old_uuid = None;
 
-                            if let Some(old_selected_entry) = entries.get(note_list_state.lock().unwrap().selected().unwrap_or(0)) {
+                            if let Some(old_selected_entry) = self.entries.get(self.note_list_state.selected().unwrap_or(0)) {
                                 old_uuid = Some(old_selected_entry.metadata.uuid.clone());
                             }
 
-                            *color.lock().unwrap() = Color::Green;
-                            *status.lock().unwrap() = s;
-                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items, &keyword);
-                            let mut index = note_list_state.lock().unwrap().selected().unwrap_or(0);
+                            self.color = Color::Green;
+                            self.status = s;
+
+                            self.refresh();
+
+                            let mut index = self.note_list_state.selected().unwrap_or(0);
 
                             //TODO old_uuid if present selection
-                            if index > items.len() - 1 {
-                                index = items.len() - 1;
-                                note_list_state.lock().unwrap().select(Some(index));
+                            if index > self.items.len() - 1 {
+                                index = self.items.len() - 1;
+                                self.note_list_state.select(Some(index));
                             }
 
                             if let Some(uuid) = old_uuid {
-                                let old_note_idx = entries.iter().enumerate().filter(|(_idx,note)| {
+                                let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
                                     note.metadata.uuid == uuid
                                 }).last().unwrap().0;
 
-                                note_list_state.lock().unwrap().select(Some(old_note_idx));
+                                self.note_list_state.select(Some(old_note_idx));
                             }
 
-                            text = entries.get(index).unwrap().body[0].text.as_ref().unwrap().clone();
+                            self.text = self.entries.get(index).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
                         Outcome::Failure(s) => {
-                            *color.lock().unwrap() = Color::Red;
-                            *status.lock().unwrap() = s;
-                            entries = refetch_notes(&self.apple_notes.lock().unwrap(), &keyword);
-                            items = self.generate_list_items(&entries, &keyword);
-                            list = self.gen_list(&mut items, &keyword);
+                            self.color = Color::Red;
+                            self.status = s;
+                            self.refresh();
                         }
                         Outcome::End() => {
                             break;
@@ -552,64 +464,115 @@ impl App {
 
         }
 
-
-        worker_tread.join().unwrap();
         terminal.clear().unwrap();
         disable_raw_mode().unwrap();
+
 
         Ok(())
     }
 
-    fn set_status<'a>(&self, text: &'a str, color: Color) -> Paragraph<'a> {
-        Paragraph::new(text)
-            .block(Block::default().title("Status").borders(Borders::ALL))
-            .style(Style::default().fg(color))
-            .alignment(Alignment::Left)
-            .wrap(Wrap { trim: true })
-    }
+}
 
-    fn gen_list<'a>(&self, items: &mut Vec<ListItem<'a>>, filtered_word: &Option<String>) -> List<'a> {
+impl App {
 
-        let title = match filtered_word {
-            None => {
-                format!("List")
-            }
-            Some(word) => {
-                format!("List Filter:[{}]", word)
+    pub fn new(action_receiver: Receiver<Task>) -> App {
 
-            }
+        let (tx, rx) = mpsc::channel();
+
+        let profile = apple_notes_manager::get_user_profile();
+        let db_connection = SqliteDBConnection::new();
+        let connection = Box::new(db_connection);
+        let app = apple_notes_manager::AppleNotes::new(profile.unwrap(), connection);
+
+        let app = App {
+            apple_notes: Arc::new(Mutex::new(app)),
+            app_stuff: Arc::new(Mutex::new(AppStuff {
+                action_receiver,
+                event_sender: tx
+            }))
         };
 
-        List::new(items.clone())
-            .block(Block::default().title(title).borders(Borders::ALL))
-            .style(Style::default().fg(Color::White))
-            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-            .highlight_symbol(">>")
+        app
+
     }
 
-    fn generate_list_items<'a>(&self, entries: &Vec<LocalNote>, filter_word: &Option<String>) -> Vec<ListItem<'a>> {
-        entries.iter()
-            .filter(|entry| {
-                if filter_word.is_some() {
-                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.as_ref().unwrap().to_lowercase())
+    //TODO entries nil check
+    pub fn run(&'static self) -> Result<(), Box<dyn std::error::Error + '_>> {
+
+        let worker_tread = thread::spawn( move || {
+
+            let active = Arc::new(Mutex::new(false));
+
+            let a = Arc::clone(&self.app_stuff);
+            let b =  Arc::clone(&self.apple_notes);
+
+            let app_stuff = a.lock().unwrap();
+            let app_lock = b.lock().unwrap();
+
+            let action_rx = &app_stuff.action_receiver;
+            let event_tx = &app_stuff.event_sender;
+
+            loop {
+
+                let next = action_rx.recv().unwrap();
+
+                if *active.lock().unwrap() == false {
+                    *active.lock().unwrap() = true;
+                    let active_2 = active.clone();
+                    let tx_2 = event_tx.clone();
+                    let app_lock = Arc::clone(&b);
+
+                    if matches!(next,Task::End) {
+                        tx_2.send(Event::OutCome(End())).unwrap();
+                    } else {
+
+                        thread::spawn( move || {
+                            match next {
+                                Task::Sync => {
+                                    match app_lock.lock().unwrap().sync_notes() {
+                                        Ok(result) => {
+                                            if result.iter().find(|r| r.2.is_err()).is_some() {
+                                                tx_2.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note")))).unwrap();
+                                            } else {
+                                                tx_2.send(Event::OutCome(Success("Synced!".to_string()))).unwrap();
+                                            }
+                                        }
+                                        Err(e) => {
+                                            tx_2.send(Event::OutCome(Failure(format!("Sync error: {}",e)))).unwrap();
+                                        }
+                                    }
+                                }
+                                Task::End => {
+
+                                },
+                                Task::Test => {
+                                    sleep(Duration::new(2,0));
+                                    tx_2.send(Event::OutCome(Success(format!("Test!")))).unwrap();
+                                }
+                            }
+
+                            *active_2.lock().unwrap() = false;
+                        });
+                    }
                 } else {
-                    return true
-                }
-            })
-            .map(|e| {
-                if e.needs_merge() {
-                    ListItem::new(format!("[M] {} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
-                } else if e.content_changed_locally() {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
-                } else if e.metadata.locally_deleted {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
-                } else if e.metadata.new {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
-                } else {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
-                }
-        }).collect()
+                    event_tx.send(Event::OutCome(Busy())).unwrap();
+                };
+
+               /* if *active.lock().unwrap() == false && *end.lock().unwrap() {
+                    event_tx.send(Event::OutCome(End())).unwrap();
+                    break;
+                }*/
+
+            }
+
+        });
+
+
+        worker_tread.join().unwrap();
+
+        Ok(())
     }
+
 }
 
 fn refetch_notes(app: &AppleNotes, filter_word: &Option<String>) -> Vec<LocalNote> {
@@ -628,6 +591,33 @@ fn refetch_notes(app: &AppleNotes, filter_word: &Option<String>) -> Vec<LocalNot
 }
 
 fn main() {
-    let app = App::new();
-    app.run().unwrap();
+
+    let (tx, rx) = mpsc::channel();
+    let (action_tx, action_rx) = mpsc::channel::<Task>();
+
+    let app = App::new(action_rx);
+
+    let ui_state = UiState {
+        action_sender: action_tx,
+        event_receiver: rx,
+        event_sender: tx
+    };
+
+    let mut ui = Ui {
+        note_list_state: Default::default(),
+        end: false,
+        color: Color::Reset,
+        status: "Started".to_string(),
+        app: app.apple_notes,
+        ui_state: Arc::new(Mutex::new(ui_state)),
+        entries: vec![],
+        keyword: None,
+        items: vec![],
+        list: List::new(Vec::new()),
+        text: "".to_string(),
+        scroll_amount: 0,
+        in_search_mode: false
+    };
+
+    ui.run().unwrap();
 }
