@@ -21,7 +21,7 @@ use crossterm::{
 use apple_notes_manager::db::{DatabaseService, SqliteDBConnection};
 use tui::layout::Alignment;
 use apple_notes_manager::notes::localnote::LocalNote;
-use std::thread::sleep;
+use std::thread::{sleep, JoinHandle};
 use crate::Outcome::{Success, Failure, End, Busy};
 use apple_notes_manager::AppleNotes;
 use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
@@ -53,7 +53,7 @@ enum Outcome {
 struct UiState {
     action_sender: Sender<Task>,
     event_receiver: Receiver<Event<KeyEvent>>,
-    event_sender: Sender<Event<KeyEvent>>
+    event_sender: Arc<Mutex<Sender<Event<KeyEvent>>>>
 }
 
 struct App {
@@ -72,7 +72,7 @@ struct Ui<'u> {
     color: Color,
     status: String,
     app: Arc<Mutex<AppleNotes>>,
-    ui_state: Arc<Mutex<UiState>>,
+    ui_state: UiState,
     entries: Vec<LocalNote>,
     keyword: Option<String>,
     items: Vec<ListItem<'u>>,
@@ -167,13 +167,34 @@ impl<'u> Ui<'u> {
 
         //let ui_state = self.ui_state.lock().unwrap();
 
-        self.status = "Syncing".to_string();
-        self.color = Color::Yellow;
-
-        //ui_state.action_sender.send(Task::Sync);
-
         // Insert Thread for input detection
 
+        let sender = Arc::clone(&self.ui_state.event_sender);
+
+        thread::spawn(move || {
+            let tick_rate = Duration::from_millis(1000);
+            let mut last_tick = Instant::now();
+            loop {
+
+                let sender = sender.lock().unwrap();
+
+                let timeout = tick_rate
+                    .checked_sub(last_tick.elapsed())
+                    .unwrap_or_else(|| Duration::from_secs(0));
+
+                if event::poll(timeout).expect("poll works") {
+                    if let CEvent::Key(key) = event::read().expect("can read events") {
+                        sender.send(Event::Input(key)).expect("can send events");
+                    }
+                }
+
+                if last_tick.elapsed() >= tick_rate {
+                    if let Ok(_) = sender.send(Event::Tick) {
+                        last_tick = Instant::now();
+                    }
+                }
+            }
+        });
 
         self.note_list_state = ListState::default();
         self.note_list_state.select(Some(0));
@@ -184,13 +205,14 @@ impl<'u> Ui<'u> {
         self.reload_text();
         self.scroll_amount = 0;
 
-        let a = Arc::clone(&self.app);
-        let b =  Arc::clone(&self.ui_state);
+        self.status = "Syncing".to_string();
+        self.color = Color::Yellow;
 
-        let app = a.lock().unwrap();
-        let ui_state = b.lock().unwrap();
+        self.ui_state.action_sender.send(Task::Sync);
 
         loop {
+
+            let a = Arc::clone(&self.app);
 
             terminal.draw(|f| {
 
@@ -237,7 +259,7 @@ impl<'u> Ui<'u> {
                 f.render_widget(t2.clone(), chunks[1]);
             }).unwrap();
 
-            let received_keystroke = self.ui_state.lock().unwrap().event_receiver.recv()?;
+            let received_keystroke = self.ui_state.event_receiver.recv()?;
 
             if self.in_search_mode {
                 match received_keystroke {
@@ -304,7 +326,7 @@ impl<'u> Ui<'u> {
                         },
                         KeyCode::Char('m') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
-                            match app.merge(&note.metadata.uuid) {
+                            match a.lock().unwrap().merge(&note.metadata.uuid) {
                                 Ok(_) => {
                                     let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
                                     self.refresh();
@@ -324,6 +346,7 @@ impl<'u> Ui<'u> {
                         }
                         KeyCode::Char('e') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
+                            let app = a.lock().unwrap();
                             let result: Result<LocalNote,Box<dyn std::error::Error>> =
                                 app.edit_note(&note, false)
                                     .map_err(|e| e.into())
@@ -364,19 +387,19 @@ impl<'u> Ui<'u> {
                             self.status = "Syncing".to_string();
                             self.color = Color::Yellow;
 
-                            ui_state.action_sender.send(Task::Sync).unwrap();
+                            self.ui_state.action_sender.send(Task::Sync).unwrap();
 
                         },
                         KeyCode::Char('x') => {
                             self.status = "Syncing".to_string();
                             self.color = Color::Yellow;
 
-                            ui_state.action_sender.send(Task::Test).unwrap();
+                            self.ui_state.action_sender.send(Task::Test).unwrap();
                         },
                         KeyCode::Char('q') => {
                             self.end = true;
 
-                            ui_state.action_sender.send(Task::End).unwrap();
+                            self.ui_state.action_sender.send(Task::End).unwrap();
                         },
                         KeyCode::Char('/') => {
                             self.keyword = Some("".to_string());
@@ -475,9 +498,7 @@ impl<'u> Ui<'u> {
 
 impl App {
 
-    pub fn new(action_receiver: Receiver<Task>) -> App {
-
-        let (tx, rx) = mpsc::channel();
+    pub fn new(action_receiver: Receiver<Task>, event_sender: Sender<Event<KeyEvent>>) -> App {
 
         let profile = apple_notes_manager::get_user_profile();
         let db_connection = SqliteDBConnection::new();
@@ -488,7 +509,7 @@ impl App {
             apple_notes: Arc::new(Mutex::new(app)),
             app_stuff: Arc::new(Mutex::new(AppStuff {
                 action_receiver,
-                event_sender: tx
+                event_sender
             }))
         };
 
@@ -497,22 +518,20 @@ impl App {
     }
 
     //TODO entries nil check
-    pub fn run(&'static self) -> Result<(), Box<dyn std::error::Error + '_>> {
-
-        let worker_tread = thread::spawn( move || {
+    pub fn run(& self) -> JoinHandle<()> {
+        let a = Arc::clone(&self.app_stuff);
+        let b =  Arc::clone(&self.apple_notes);
+         thread::spawn( move || {
 
             let active = Arc::new(Mutex::new(false));
 
-            let a = Arc::clone(&self.app_stuff);
-            let b =  Arc::clone(&self.apple_notes);
-
-            let app_stuff = a.lock().unwrap();
-            let app_lock = b.lock().unwrap();
-
-            let action_rx = &app_stuff.action_receiver;
-            let event_tx = &app_stuff.event_sender;
-
             loop {
+
+                let app_stuff = a.lock().unwrap();
+               // let app_lock = b.lock().unwrap();
+
+                let action_rx = &app_stuff.action_receiver;
+                let event_tx = &app_stuff.event_sender;
 
                 let next = action_rx.recv().unwrap();
 
@@ -529,7 +548,8 @@ impl App {
                         thread::spawn( move || {
                             match next {
                                 Task::Sync => {
-                                    match app_lock.lock().unwrap().sync_notes() {
+                                    let d = app_lock.lock().unwrap();
+                                    match d.sync_notes() {
                                         Ok(result) => {
                                             if result.iter().find(|r| r.2.is_err()).is_some() {
                                                 tx_2.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note")))).unwrap();
@@ -565,12 +585,7 @@ impl App {
 
             }
 
-        });
-
-
-        worker_tread.join().unwrap();
-
-        Ok(())
+        })
     }
 
 }
@@ -595,12 +610,14 @@ fn main() {
     let (tx, rx) = mpsc::channel();
     let (action_tx, action_rx) = mpsc::channel::<Task>();
 
-    let app = App::new(action_rx);
+    let app = App::new(action_rx, tx.clone());
+
+    let handle = app.run();
 
     let ui_state = UiState {
         action_sender: action_tx,
         event_receiver: rx,
-        event_sender: tx
+        event_sender: Arc::new(Mutex::new(tx))
     };
 
     let mut ui = Ui {
@@ -609,7 +626,7 @@ fn main() {
         color: Color::Reset,
         status: "Started".to_string(),
         app: app.apple_notes,
-        ui_state: Arc::new(Mutex::new(ui_state)),
+        ui_state: ui_state,
         entries: vec![],
         keyword: None,
         items: vec![],
@@ -620,4 +637,5 @@ fn main() {
     };
 
     ui.run().unwrap();
+    handle.join().unwrap();
 }
