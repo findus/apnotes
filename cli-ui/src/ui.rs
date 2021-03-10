@@ -424,8 +424,13 @@ impl<'u> Ui<'u> {
     fn get_note_index(&mut self, uuid: String) -> usize {
         let old_note_idx = self.entries.iter().enumerate().filter(|(_idx, note)| {
             note.metadata.uuid == uuid
-        }).last().unwrap().0;
-        old_note_idx
+        }).last();
+
+        if let Some((index,_)) = old_note_idx {
+            return index;
+        } else {
+            return 0;
+        }
     }
 
     fn get_old_selected_entry_uuid(&mut self) -> Option<String> {
