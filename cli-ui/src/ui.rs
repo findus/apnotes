@@ -236,7 +236,7 @@ impl<'u> Ui<'u> {
                             match result {
                                 Ok(_note) => {
                                     let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
-                                    self.refresh();
+                                    self.refresh_with_ref(&app);
                                     let old_note_idx = self.get_note_index(old_uuid);
                                     self.note_list_state.select(Some(old_note_idx));
                                     self.reload_text();
@@ -379,6 +379,12 @@ impl<'u> Ui<'u> {
                     ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
                 }
             }).collect()
+    }
+
+    fn refresh_with_ref(&mut self, app: &AppleNotes) {
+        self.entries = refetch_notes(app, &self.keyword);
+        self.items = self.generate_list_items( );
+        self.list = self.gen_list();
     }
 
     fn refresh(&mut self) {
