@@ -48,14 +48,14 @@ enum Outcome {
     End()
 }
 
-struct App {
-    apple_notes: Arc<Mutex<AppleNotes>>,
-    app_stuff: Arc<Mutex<AppStuff>>
-}
-
 struct AppStuff {
     action_receiver: Receiver<Task>,
     event_sender: Sender<Event<KeyEvent>>
+}
+
+struct App {
+    apple_notes: Arc<Mutex<AppleNotes>>,
+    app_stuff: Arc<Mutex<AppStuff>>
 }
 
 impl App {
@@ -81,46 +81,48 @@ impl App {
 
     //TODO entries nil check
     pub fn start_action_event_loop(& self) -> JoinHandle<()> {
-        let a = Arc::clone(&self.app_stuff);
-        let b =  Arc::clone(&self.apple_notes);
-         thread::spawn( move || {
+        let app_stuff = Arc::clone(&self.app_stuff);
+        let apple_notes =  Arc::clone(&self.apple_notes);
 
+        thread::spawn( move || {
+
+            // Indicator if a task ist currently active
             let active = Arc::new(Mutex::new(false));
 
             loop {
 
-                let app_stuff = a.lock().unwrap();
-               // let app_lock = b.lock().unwrap();
+                let app_stuff = app_stuff.lock().unwrap();
 
                 let action_rx = &app_stuff.action_receiver;
                 let event_tx = &app_stuff.event_sender;
 
-                let next = action_rx.recv().unwrap();
+                let next_action = action_rx.recv().unwrap();
 
                 if *active.lock().unwrap() == false {
                     *active.lock().unwrap() = true;
-                    let active_2 = active.clone();
-                    let tx_2 = event_tx.clone();
-                    let app_lock = Arc::clone(&b);
+                    let active = active.clone();
+                    let event_tx = event_tx.clone();
+                    let app_lock = Arc::clone(&apple_notes);
 
-                    if matches!(next,Task::End) {
-                        tx_2.send(Event::OutCome(End())).unwrap();
+                    if matches!(next_action,Task::End) {
+                        event_tx.send(Event::OutCome(End())).unwrap();
+                        break;
                     } else {
 
                         thread::spawn( move || {
-                            match next {
+                            match next_action {
                                 Task::Sync => {
                                     let d = app_lock.lock().unwrap();
                                     match d.sync_notes() {
                                         Ok(result) => {
                                             if result.iter().find(|r| r.2.is_err()).is_some() {
-                                                tx_2.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note")))).unwrap();
+                                                event_tx.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note")))).unwrap();
                                             } else {
-                                                tx_2.send(Event::OutCome(Success("Synced!".to_string()))).unwrap();
+                                                event_tx.send(Event::OutCome(Success("Synced!".to_string()))).unwrap();
                                             }
                                         }
                                         Err(e) => {
-                                            tx_2.send(Event::OutCome(Failure(format!("Sync error: {}",e)))).unwrap();
+                                            event_tx.send(Event::OutCome(Failure(format!("Sync error: {}", e)))).unwrap();
                                         }
                                     }
                                 }
@@ -129,21 +131,16 @@ impl App {
                                 },
                                 Task::Test => {
                                     sleep(Duration::new(2,0));
-                                    tx_2.send(Event::OutCome(Success(format!("Test!")))).unwrap();
+                                    event_tx.send(Event::OutCome(Success(format!("Test!")))).unwrap();
                                 }
                             }
 
-                            *active_2.lock().unwrap() = false;
+                            *active.lock().unwrap() = false;
                         });
                     }
                 } else {
                     event_tx.send(Event::OutCome(Busy())).unwrap();
                 };
-
-               /* if *active.lock().unwrap() == false && *end.lock().unwrap() {
-                    event_tx.send(Event::OutCome(End())).unwrap();
-                    break;
-                }*/
 
             }
 
@@ -169,17 +166,17 @@ fn refetch_notes(app: &AppleNotes, filter_word: &Option<String>) -> Vec<LocalNot
 
 fn main() {
 
-    let (tx, rx) = mpsc::channel();
+    let (event_sender, event_receiver) = mpsc::channel();
     let (action_tx, action_rx) = mpsc::channel::<Task>();
 
-    let app = App::new(action_rx, tx.clone());
+    let app = App::new(action_rx, event_sender.clone());
 
     let handle = app.start_action_event_loop();
 
     let ui_state = UiState {
         action_sender: action_tx,
-        event_receiver: rx,
-        event_sender: Arc::new(Mutex::new(tx))
+        event_receiver,
+        event_sender: Arc::new(Mutex::new(event_sender))
     };
 
     let mut ui = Ui {
