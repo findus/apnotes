@@ -209,7 +209,10 @@ impl<'u> Ui<'u> {
                         },
                         KeyCode::Char('m') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
-                            match a.lock().unwrap().merge(&note.metadata.uuid) {
+                            let result =  {
+                                a.lock().unwrap().merge(&note.metadata.uuid)
+                            };
+                            match result {
                                 Ok(_) => {
                                     let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
                                     self.refresh();
