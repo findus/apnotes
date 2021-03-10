@@ -10,14 +10,15 @@ Right now this repository consists of 3 Crates:
 
 # Feature Overview
 
-| Feature        | Original Client       | CLI-UI                    |  CLI-Client    |
-|--------------- |-----------------------|---------------------------|----------------|
-| Add Notes      | ✔                    | ❌                        |✔ |
-| Delete Notes   | ✔                    | ✔                         |✔ |
-| Move Notes     | ✔                    | ❌                        |❌|
-| Edit Notes     | ✔                    | ✔                         |✔ |
-| View Notes     | ✔                    | ✔                         |✔ |
-| Sync Notes     | ✔                    | ✔                         |✔ |
-| Merge Notes    | ❌                   | ✔ (Max 2 Versions)        |✔ (Max 2 Versions)  |
+| Feature           | Original Client       | CLI-UI                    |  CLI-Client    |
+|---------------    |-----------------------|---------------------------|----------------|
+| Add Notes         | ✔                    | ❌                        |✔ |
+| Delete Notes      | ✔                    | ✔                         |✔ |
+| Move Notes        | ✔                    | ❌                        |❌|
+| Edit Notes        | ✔                    | ✔                         |✔ |
+| View Notes        | ✔                    | ✔                         |✔ |
+| Sync Notes        | ✔                    | ✔                         |✔ |
+| Search Notes      | ✔                    | ✔                         |❔ (Scripting) |
+| Merge Notes       | ❌                   | ✔ (Max 2 Versions)        |✔ (Max 2 Versions)  |
 
 ![](https://raw.githubusercontent.com/findus/NotesManager/master/screencast.gif)
