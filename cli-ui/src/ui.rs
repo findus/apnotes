@@ -313,18 +313,9 @@ impl<'u> Ui<'u> {
                             self.status = s;
 
                             self.refresh();
-
-                            let mut index = self.note_list_state.selected().unwrap_or(0);
-
-                            //TODO old_uuid if present selection
-                            if index > self.items.len() - 1 {
-                                index = self.items.len() - 1;
-                                self.note_list_state.select(Some(index));
-                            }
-
                             self.select_entry(old_uuid);
+                            self.reload_text();
 
-                            self.text = self.entries.get(index).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
                         Outcome::Failure(s) => {
                             self.color = Color::Red;
