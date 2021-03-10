@@ -116,7 +116,11 @@ impl NotesMetadataBuilder {
     }
 
     pub fn with_folder(mut self, folder: String) -> Self {
-        self.notes_metadata.subfolder = format!("Notes.{}",folder.clone());
+        if folder.len() > 0 {
+            self.notes_metadata.subfolder = format!("Notes.{}",folder.clone());
+        } else {
+            self.notes_metadata.subfolder = format!("Notes{}",folder.clone());
+        }
         self
     }
 
