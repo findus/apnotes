@@ -5,24 +5,18 @@ extern crate diesel;
 
 mod ui;
 
-use std::{io};
-use tui::Terminal;
-use tui::backend::CrosstermBackend;
-use tui::layout::{Layout, Constraint, Direction};
-use tui::widgets::{Borders, Block, ListItem, List, ListState, Paragraph, Wrap};
-use tui::style::{Modifier, Style, Color};
 use std::sync::{mpsc, Mutex, Arc};
-use std::time::{Instant, Duration};
+use std::time::{Duration};
 use itertools::*;
 use std::{thread};
 
-use apple_notes_manager::db::{DatabaseService, SqliteDBConnection};
-use tui::layout::Alignment;
+use apple_notes_manager::db::{SqliteDBConnection};
+
 use apple_notes_manager::notes::localnote::LocalNote;
 use std::thread::{sleep, JoinHandle};
 use crate::Outcome::{Success, Failure, End, Busy};
 use apple_notes_manager::AppleNotes;
-use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
+
 use std::sync::mpsc::{
     Sender,
     Receiver
@@ -32,6 +26,8 @@ use crate::ui::{
     UiState,
     Ui
 };
+use tui::style::Color;
+use tui::widgets::List;
 
 enum Event<I> {
     Input(I),

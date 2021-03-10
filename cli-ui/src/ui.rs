@@ -166,7 +166,7 @@ impl<'u> Ui<'u> {
         self.status = "Syncing".to_string();
         self.color = Color::Yellow;
 
-        self.ui_state.action_sender.send(Task::Sync);
+        self.ui_state.action_sender.send(Task::Sync).unwrap();
 
         loop {
 
