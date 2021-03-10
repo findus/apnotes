@@ -297,8 +297,12 @@ impl<'u> Ui<'u> {
 
                         },
                         KeyCode::Esc => {
+                            let old_uuid = self.get_old_selected_entry_uuid();
                             self.status = "".to_string();
                             self.in_search_mode = false;
+                            self.refresh();
+                            self.select_entry(old_uuid);
+                            self.reload_text();
                         }
                         _ => {}
                     }
