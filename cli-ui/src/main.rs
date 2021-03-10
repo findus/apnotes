@@ -84,7 +84,7 @@ impl App {
     }
 
     //TODO entries nil check
-    pub fn run(& self) -> JoinHandle<()> {
+    pub fn start_action_event_loop(& self) -> JoinHandle<()> {
         let a = Arc::clone(&self.app_stuff);
         let b =  Arc::clone(&self.apple_notes);
          thread::spawn( move || {
@@ -178,7 +178,7 @@ fn main() {
 
     let app = App::new(action_rx, tx.clone());
 
-    let handle = app.run();
+    let handle = app.start_action_event_loop();
 
     let ui_state = UiState {
         action_sender: action_tx,
