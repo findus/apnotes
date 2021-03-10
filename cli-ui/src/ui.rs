@@ -1,4 +1,4 @@
-use crate::{Outcome, Event, Task, refetch_notes};
+use crate::{Outcome, Event, Task};
 use apple_notes_manager::db::DatabaseService;
 use apple_notes_manager::notes::localnote::LocalNote;
 use tui::widgets::{Wrap, Borders, Block, Paragraph, ListState, ListItem, List};
@@ -17,6 +17,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use crossterm::event::KeyEvent;
+use itertools::Itertools;
 
 pub struct UiState {
     pub(crate) action_sender: Sender<Task>,
@@ -390,7 +391,7 @@ impl<'u> Ui<'u> {
     }
 
     fn refresh(&mut self) {
-        self.entries = refetch_notes(&self.app.lock().unwrap(), &self.keyword);
+        self.entries = self.refetch_notes(&self.app.lock().unwrap(), &self.keyword);
         self.items = self.generate_list_items( );
         self.list = self.gen_list();
     }
@@ -447,5 +448,20 @@ impl<'u> Ui<'u> {
             old_uuid = Some(old_selected_entry.metadata.uuid.clone());
         }
         old_uuid
+    }
+
+    fn refetch_notes(&self, app: &AppleNotes, filter_word: &Option<String>) -> Vec<LocalNote> {
+        app.get_notes().unwrap()
+            .into_iter()
+            .filter(|entry| {
+                if filter_word.is_some() {
+                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.as_ref().unwrap().to_lowercase())
+                } else {
+                    return true
+                }
+            })
+            .sorted_by_key(|note| note.metadata.timestamp())
+            .rev()
+            .collect()
     }
 }

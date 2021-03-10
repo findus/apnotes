@@ -7,16 +7,11 @@ mod ui;
 
 use std::sync::{mpsc, Mutex, Arc};
 use std::time::{Duration};
-use itertools::*;
 use std::{thread};
-
 use apple_notes_manager::db::{SqliteDBConnection};
-
-use apple_notes_manager::notes::localnote::LocalNote;
 use std::thread::{sleep, JoinHandle};
 use crate::Outcome::{Success, Failure, End, Busy};
 use apple_notes_manager::AppleNotes;
-
 use std::sync::mpsc::{
     Sender,
     Receiver
@@ -147,21 +142,6 @@ impl App {
         })
     }
 
-}
-
-fn refetch_notes(app: &AppleNotes, filter_word: &Option<String>) -> Vec<LocalNote> {
-    app.get_notes().unwrap()
-        .into_iter()
-        .filter(|entry| {
-            if filter_word.is_some() {
-                entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&filter_word.as_ref().unwrap().to_lowercase())
-            } else {
-                return true
-            }
-        })
-        .sorted_by_key(|note| note.metadata.timestamp())
-        .rev()
-        .collect()
 }
 
 fn main() {
