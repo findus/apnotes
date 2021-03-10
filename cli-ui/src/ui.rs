@@ -42,77 +42,6 @@ pub struct Ui<'u> {
 
 impl<'u> Ui<'u> {
 
-    fn gen_list(&self) -> List<'u> {
-
-        let title = match self.keyword.clone() {
-            None => {
-                format!("List")
-            }
-            Some(word) => {
-                format!("List Filter:[{}]", word)
-
-            }
-        };
-
-        List::new(self.items.clone())
-            .block(Block::default().title(title).borders(Borders::ALL))
-            .style(Style::default().fg(Color::White))
-            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-            .highlight_symbol(">>")
-    }
-
-    fn generate_list_items(&mut self) -> Vec<ListItem<'u>> {
-        self.entries.iter()
-            .filter(|entry| {
-                if self.keyword.is_some() {
-                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&self.keyword.as_ref().unwrap().to_lowercase())
-                } else {
-                    return true
-                }
-            })
-            .map(|e| {
-                if e.needs_merge() {
-                    ListItem::new(format!("[M] {} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
-                } else if e.content_changed_locally() {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
-                } else if e.metadata.locally_deleted {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
-                } else if e.metadata.new {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
-                } else {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
-                }
-            }).collect()
-    }
-
-    fn refresh(&mut self) {
-        self.entries = refetch_notes(&self.app.lock().unwrap(), &self.keyword);
-        self.items = self.generate_list_items( );
-        self.list = self.gen_list();
-    }
-
-    fn reload_text(&mut self) {
-        // self.note_list_state.select(Some(0));
-
-        match self.note_list_state.selected() {
-            Some(index) if matches!(self.entries.get(index), Some(_)) => {
-                let entry = self.entries.get(index).unwrap();
-                self.text = entry.body[0].text.as_ref().unwrap().clone();
-            }
-            _ => {
-                self.text = "".to_string();
-            }
-        }
-    }
-
-    fn set_status<'a>(&self, text: &'a str, color: Color) -> Paragraph<'a> {
-        Paragraph::new(text)
-            .block(Block::default().title("Status").borders(Borders::ALL))
-            .style(Style::default().fg(color))
-            .alignment(Alignment::Left)
-            .wrap(Wrap { trim: true })
-    }
-
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
 
         enable_raw_mode().expect("can run in raw mode");
@@ -122,10 +51,6 @@ impl<'u> Ui<'u> {
         let mut terminal = Terminal::new(backend)?;
 
         terminal.clear().unwrap();
-
-        //let ui_state = self.ui_state.lock().unwrap();
-
-        // Insert Thread for input detection
 
         let sender = Arc::clone(&self.ui_state.event_sender);
 
@@ -289,9 +214,7 @@ impl<'u> Ui<'u> {
                                     let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
                                     self.refresh();
 
-                                    let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
-                                        note.metadata.uuid == old_uuid
-                                    }).last().unwrap().0;
+                                    let old_note_idx = self.get_note_index(old_uuid);
 
                                     self.note_list_state.select(Some(old_note_idx));
                                     self.reload_text();
@@ -313,13 +236,8 @@ impl<'u> Ui<'u> {
                             match result {
                                 Ok(_note) => {
                                     let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
-
                                     self.refresh();
-
-                                    let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
-                                        note.metadata.uuid == old_uuid
-                                    }).last().unwrap().0;
-
+                                    let old_note_idx = self.get_note_index(old_uuid);
                                     self.note_list_state.select(Some(old_note_idx));
                                     self.reload_text();
 
@@ -371,21 +289,10 @@ impl<'u> Ui<'u> {
 
                             self.keyword = None;
 
-                            let mut old_uuid = None;
-
-                            if let Some(old_selected_entry) = self.entries.get(self.note_list_state.selected().unwrap_or(0)) {
-                                old_uuid = Some(old_selected_entry.metadata.uuid.clone());
-                            }
-
+                            let old_uuid = self.get_old_selected_entry_uuid();
                             self.refresh();
-
-                            if let Some(uuid) = old_uuid {
-                                let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
-                                    note.metadata.uuid == uuid
-                                }).last().unwrap().0;
-
-                                self.note_list_state.select(Some(old_note_idx));
-                            }
+                            self.select_entry(old_uuid);
+                            self.reload_text();
 
                         },
                         KeyCode::Esc => {
@@ -401,12 +308,7 @@ impl<'u> Ui<'u> {
                             self.status = "Currently Busy".to_string();
                         }
                         Outcome::Success(s) => {
-                            let mut old_uuid = None;
-
-                            if let Some(old_selected_entry) = self.entries.get(self.note_list_state.selected().unwrap_or(0)) {
-                                old_uuid = Some(old_selected_entry.metadata.uuid.clone());
-                            }
-
+                            let old_uuid = self.get_old_selected_entry_uuid();
                             self.color = Color::Green;
                             self.status = s;
 
@@ -420,13 +322,7 @@ impl<'u> Ui<'u> {
                                 self.note_list_state.select(Some(index));
                             }
 
-                            if let Some(uuid) = old_uuid {
-                                let old_note_idx = self.entries.iter().enumerate().filter(|(_idx,note)| {
-                                    note.metadata.uuid == uuid
-                                }).last().unwrap().0;
-
-                                self.note_list_state.select(Some(old_note_idx));
-                            }
+                            self.select_entry(old_uuid);
 
                             self.text = self.entries.get(index).unwrap().body[0].text.as_ref().unwrap().clone();
                         }
@@ -451,4 +347,101 @@ impl<'u> Ui<'u> {
         Ok(())
     }
 
+    fn gen_list(&self) -> List<'u> {
+
+        let title = match self.keyword.clone() {
+            None => {
+                format!("List")
+            }
+            Some(word) => {
+                format!("List Filter:[{}]", word)
+
+            }
+        };
+
+        List::new(self.items.clone())
+            .block(Block::default().title(title).borders(Borders::ALL))
+            .style(Style::default().fg(Color::White))
+            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
+            .highlight_symbol(">>")
+    }
+
+    fn generate_list_items(&mut self) -> Vec<ListItem<'u>> {
+        self.entries.iter()
+            .filter(|entry| {
+                if self.keyword.is_some() {
+                    entry.body[0].text.as_ref().unwrap().to_lowercase().contains(&self.keyword.as_ref().unwrap().to_lowercase())
+                } else {
+                    return true
+                }
+            })
+            .map(|e| {
+                if e.needs_merge() {
+                    ListItem::new(format!("[M] {} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
+                } else if e.content_changed_locally() {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
+                } else if e.metadata.locally_deleted {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
+                } else if e.metadata.new {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
+                } else {
+                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
+                }
+            }).collect()
+    }
+
+    fn refresh(&mut self) {
+        self.entries = refetch_notes(&self.app.lock().unwrap(), &self.keyword);
+        self.items = self.generate_list_items( );
+        self.list = self.gen_list();
+    }
+
+    fn reload_text(&mut self) {
+        // self.note_list_state.select(Some(0));
+
+        match self.note_list_state.selected() {
+            Some(index) if matches!(self.entries.get(index), Some(_)) => {
+                let entry = self.entries.get(index).unwrap();
+                self.text = entry.body[0].text.as_ref().unwrap().clone();
+            }
+            _ => {
+                self.text = "".to_string();
+            }
+        }
+    }
+
+    fn set_status<'a>(&self, text: &'a str, color: Color) -> Paragraph<'a> {
+        Paragraph::new(text)
+            .block(Block::default().title("Status").borders(Borders::ALL))
+            .style(Style::default().fg(color))
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: true })
+    }
+
+    fn select_entry(&mut self, old_uuid: Option<String>) {
+        if let Some(uuid) = old_uuid {
+            let old_note_idx = self.get_note_index(uuid);
+            self.note_list_state.select(Some(old_note_idx));
+        } else if self.entries.len() > 0 {
+            self.note_list_state.select(Some(0))
+        } else {
+            self.note_list_state.select(None)
+        }
+    }
+
+    fn get_note_index(&mut self, uuid: String) -> usize {
+        let old_note_idx = self.entries.iter().enumerate().filter(|(_idx, note)| {
+            note.metadata.uuid == uuid
+        }).last().unwrap().0;
+        old_note_idx
+    }
+
+    fn get_old_selected_entry_uuid(&mut self) -> Option<String> {
+        let mut old_uuid = None;
+
+        if let Some(old_selected_entry) = self.entries.get(self.note_list_state.selected().unwrap_or(0)) {
+            old_uuid = Some(old_selected_entry.metadata.uuid.clone());
+        }
+        old_uuid
+    }
 }
