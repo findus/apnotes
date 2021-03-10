@@ -227,16 +227,17 @@ impl<'u> Ui<'u> {
                         }
                         KeyCode::Char('e') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
-                            let app = a.lock().unwrap();
-                            let result: Result<LocalNote,Box<dyn std::error::Error>> =
+                            let result: Result<LocalNote,Box<dyn std::error::Error>> = {
+                                let app = a.lock().unwrap();
                                 app.edit_note(&note, false)
                                     .map_err(|e| e.into())
-                                    .and_then(|note| app.update_note(&note).map(|_n| note).map_err(|e| e.into()));
+                                    .and_then(|note| app.update_note(&note).map(|_n| note).map_err(|e| e.into()))
+                            };
 
                             match result {
                                 Ok(_note) => {
                                     let old_uuid = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().metadata.uuid.clone();
-                                    self.refresh_with_ref(&app);
+                                    self.refresh();
                                     let old_note_idx = self.get_note_index(old_uuid);
                                     self.note_list_state.select(Some(old_note_idx));
                                     self.reload_text();
@@ -379,12 +380,6 @@ impl<'u> Ui<'u> {
                     ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
                 }
             }).collect()
-    }
-
-    fn refresh_with_ref(&mut self, app: &AppleNotes) {
-        self.entries = refetch_notes(app, &self.keyword);
-        self.items = self.generate_list_items( );
-        self.list = self.gen_list();
     }
 
     fn refresh(&mut self) {
