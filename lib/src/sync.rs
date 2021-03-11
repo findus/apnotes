@@ -386,6 +386,8 @@ fn process_update_locally<'a,T>(imap_connection: &mut dyn MailService<T>,
 
     let mut note = db_connection.fetch_single_note(uuid).unwrap().unwrap();
     note.metadata.date = date.unwrap().headers.date();
+    let new_folder = new_note_bodies.iter().last().unwrap().folder.clone();
+    note.metadata.subfolder = new_folder;
     db_connection.update(&note).unwrap();
 
     (action, new_note_bodies.first_subject(), result)
