@@ -184,6 +184,19 @@ impl AppleNotes {
             .and_then(|note| self.db_connection.update(&note).map_err(|e| e.into()))
     }
 
+    pub fn print(&self, uuid_or_name: &String) -> Result<()> {
+
+        self.find_note(&uuid_or_name)
+            .and_then(|note| {
+                if note.needs_merge() {
+                    return Err("Needs merge".to_string().into())
+                }
+                let first_body = note.body.first().unwrap();
+                println!("{}", (&first_body.text).as_ref().unwrap_or(&"".to_string()));
+                Ok(())
+            })
+    }
+
     /// Unflags a note, so that in will not get deleted within the next sync
     pub fn undelete_note(&self, uuid_or_name: &String)
                             -> Result<()> {
