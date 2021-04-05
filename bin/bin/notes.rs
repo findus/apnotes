@@ -121,6 +121,7 @@ fn main() {
                 ("merge", Some(sub_matches)) => merge_note(sub_matches,&apple_notes),
                 ("delete", Some(sub_matches)) => delete_note(sub_matches,&apple_notes),
                 ("undelete", Some(sub_matches)) => undelete_note(sub_matches,&apple_notes),
+                ("print", Some(sub_matches)) => print_note(sub_matches, &apple_notes),
                 (_, _) => unreachable!(),
             };
 
@@ -139,6 +140,11 @@ fn main() {
 
 
 
+}
+
+fn print_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
+    let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
+    app.print(&uuid_or_name)
 }
 
 fn undelete_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
