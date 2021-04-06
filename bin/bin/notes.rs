@@ -83,6 +83,14 @@ fn main() {
                 .help("Subject or UUID of the note that should be merged")
             )
         )
+        .subcommand(App::new("print")
+            .about("Prints note content")
+            .arg(Arg::with_name("path")
+                .required(true)
+                .takes_value(true)
+                .help("Subject or UUID of the note that should be printed")
+            )
+        )
         .subcommand(App::new("backup")
             .about("Duplicates current note tree on the imap server")
         )
@@ -121,6 +129,7 @@ fn main() {
                 ("merge", Some(sub_matches)) => merge_note(sub_matches,&apple_notes),
                 ("delete", Some(sub_matches)) => delete_note(sub_matches,&apple_notes),
                 ("undelete", Some(sub_matches)) => undelete_note(sub_matches,&apple_notes),
+                ("print", Some(sub_matches)) => print_note(sub_matches, &apple_notes),
                 (_, _) => unreachable!(),
             };
 
@@ -139,6 +148,11 @@ fn main() {
 
 
 
+}
+
+fn print_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
+    let uuid_or_name = sub_matches.value_of("path").unwrap().to_string();
+    app.print(&uuid_or_name)
 }
 
 fn undelete_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
