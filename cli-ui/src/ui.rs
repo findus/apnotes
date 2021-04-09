@@ -39,6 +39,7 @@ pub struct Ui<'u> {
     pub text: String,
     pub scroll_amount: u16,
     pub in_search_mode: bool,
+    pub new_note_mode: bool
 }
 
 impl<'u> Ui<'u> {
@@ -156,24 +157,42 @@ impl<'u> Ui<'u> {
                             self.reload_text()
                         }
                         KeyCode::Backspace => {
-                            if self.keyword.is_some() {
-                                let len = self.keyword.as_ref().unwrap().len();
-                                if len > 0 {
-                                    let mut d = self.keyword.as_ref().unwrap().clone();
-                                    d.pop();
-                                    self.keyword = Some(d);
-                                    self.status = self.keyword.as_ref().unwrap().clone();
-                                }
+                            let word = self.delete_character();
+                            self.keyword = Some(word);
+                            self.status = self.keyword.as_ref().unwrap().clone();
 
-                                self.refresh();
-                                self.note_list_state.select(Some(0));
-                            }
+                            self.refresh();
+                            self.note_list_state.select(Some(0));
                         }
                         KeyCode::Char(c) => {
                             let ed = c;
                             self.keyword = Some(format!("{}{}", self.keyword.as_ref().unwrap(), ed));
                             self.status = self.keyword.as_ref().unwrap().clone();
                             self.refresh();
+                        }
+                        _ => {}
+                    }
+                    _ => {}
+                }
+            } else if self.new_note_mode {
+                match received_keystroke {
+                    Event::Input(event) => match event.code {
+                        KeyCode::Char(c) => {
+                            let ed = c;
+                            self.status = format!("{}{}", self.status, ed);
+                        }
+                        KeyCode::Backspace => {
+                            let word = self.delete_character();
+                            self.status = format!("{}{}", self.status, word);
+                        }
+                        KeyCode::Esc => {
+                            self.status = "".to_string();
+                            self.color = Color::White;
+                            self.new_note_mode = false;
+                        }
+                        KeyCode::Enter => {
+                            self.ui_state.action_sender.send(Task::NewNote(self.status.clone())).unwrap();
+                            self.new_note_mode = false;
                         }
                         _ => {}
                     }
@@ -207,6 +226,12 @@ impl<'u> Ui<'u> {
                             } else {
                                 self.scroll_amount = 0;
                             }
+                        },
+                        KeyCode::Char('n') => {
+                            self.keyword = Some("".to_string());
+                            self.status = format!("New Note: {}", self.keyword.as_ref().unwrap());
+                            self.color = Color::Cyan;
+                            self.new_note_mode = true;
                         },
                         KeyCode::Char('m') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
@@ -345,6 +370,21 @@ impl<'u> Ui<'u> {
         disable_raw_mode().unwrap();
 
         Ok(())
+    }
+
+    fn delete_character(&mut self) -> String {
+        if self.keyword.is_some() {
+            let len = self.keyword.as_ref().unwrap().len();
+            if len > 0 {
+                let mut d = self.keyword.as_ref().unwrap().clone();
+                d.pop();
+                d
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        }
     }
 
     fn gen_list(&self) -> List<'u> {

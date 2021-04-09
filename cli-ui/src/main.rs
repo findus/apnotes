@@ -33,7 +33,8 @@ enum Event<I> {
 enum Task {
     Sync,
     End,
-    Test
+    Test,
+    NewNote(String)
 }
 
 enum Outcome {
@@ -106,6 +107,17 @@ impl App {
 
                         thread::spawn( move || {
                             match next_action {
+                                Task::NewNote(name) => {
+                                    let d = app_lock.lock().unwrap();
+                                    match d.create_new_note(&name, &String::new()) {
+                                        Ok(_) => {
+                                            event_tx.send(Event::OutCome(Success("New note created".to_string()))).unwrap();
+                                        }
+                                        Err(e) => {
+                                            event_tx.send(Event::OutCome(Failure(format!("Could not create note: {}", e)))).unwrap();
+                                        }
+                                    }
+                                }
                                 Task::Sync => {
                                     let d = app_lock.lock().unwrap();
                                     match d.sync_notes() {
@@ -172,7 +184,8 @@ fn main() {
         list: List::new(Vec::new()),
         text: "".to_string(),
         scroll_amount: 0,
-        in_search_mode: false
+        in_search_mode: false,
+        new_note_mode: false
     };
 
     ui.run().unwrap();
