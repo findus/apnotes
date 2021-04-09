@@ -12,7 +12,7 @@ Right now this repository consists of 3 Crates:
 
 | Feature           | Original Client       | CLI-UI                    |  CLI-Client    |
 |---------------    |-----------------------|---------------------------|----------------|
-| Add Notes         | ✔                    | ❌                        |✔ |
+| Add Notes         | ✔                    | ✔                        |✔ |
 | Delete Notes      | ✔                    | ✔                         |✔ |
 | Move Notes        | ✔                    | ❌                        |❌|
 | Edit Notes        | ✔                    | ✔                         |✔ |
