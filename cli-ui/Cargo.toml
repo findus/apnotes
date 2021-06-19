@@ -1,6 +1,6 @@
 [package]
 name = "cli-ui"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 edition = "2018"
 
