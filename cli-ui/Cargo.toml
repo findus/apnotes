@@ -1,6 +1,6 @@
 [package]
 name = "cli-ui"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 edition = "2018"
 
@@ -14,3 +14,7 @@ itertools = "0.10.0"
 colored = "2"
 log = "0.4.14"
 diesel = { features = ["sqlite"], version =  "1.4.5"}
+
+[[bin]]
+name = "apnotes-tui"
+path = "src/main.rs"

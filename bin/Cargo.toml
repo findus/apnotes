@@ -1,6 +1,6 @@
 [package]
 name = "apple_notes_rs_bin"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Findus"]
 autobins = false
 
@@ -23,5 +23,5 @@ name = "backup"
 path = "bin/backup.rs"
 
 [[bin]]
-name = "notes"
+name = "apnotes"
 path = "bin/notes.rs"

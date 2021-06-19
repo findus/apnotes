@@ -1,6 +1,6 @@
 [package]
 name = "apple_notes_manager"
-version = "0.3.0"
+version = "0.3.3"
 authors = ["Findus"]
 autobins = false
 
