@@ -36,7 +36,7 @@ fn main() {
 
     let app = App::new("NotesManager")
         .setting(AppSettings::ArgRequiredElseHelp)
-        .version("0.2.0")
+        .version( env!("CARGO_PKG_VERSION"))
         .author("Philipp Hentschel")
         .subcommand(App::new("list")
             .about("Lists all available notes")

@@ -427,7 +427,7 @@ fn update_message_remotely<'a, T>(imap_connection: &mut dyn MailService<T>,
     -> Result<()>
     where T: 'static
 {
-    info!("{} changed locally, gonna sent updated file to imap server", &localnote.uuid());
+    info!("{} changed locally, gonna send updated file to imap server", &localnote.uuid());
     let metadata = &localnote.metadata;
     imap_connection.create_mailbox(metadata)
         .map_err(|e| e.into())
