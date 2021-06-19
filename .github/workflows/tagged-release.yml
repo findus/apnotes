@@ -28,13 +28,24 @@ jobs:
           lfs: true
           fetch-depth: 0
 
-      - run: "cargo test -- --test-threads=1"
+      - name: "Cacbe rust binaries"
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - run: "cargo build --release"
 
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: false
+          automatic_release_tag: false
           files: |
             target/release/cli-ui
             target/release/notes
