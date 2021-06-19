@@ -57,7 +57,7 @@ dependencies = [
 
 [[package]]
 name = "apple_notes_rs_bin"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "apple_notes_manager",
  "clap",
@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "cli-ui"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "apple_notes_manager",
  "colored",

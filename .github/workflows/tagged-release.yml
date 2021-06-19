@@ -4,7 +4,7 @@ name: tagged-release
 on:
   push:
     tags:
-      - "v*"
+      - "*"
 
 jobs:
   check:
@@ -46,8 +46,8 @@ jobs:
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          automatic_release_tag: false
+          prerelease: true
+          automatic_release_tag: "${{ github.event.release.tag_name }}"
           files: |
             target/release/cli-ui
             target/release/notes
