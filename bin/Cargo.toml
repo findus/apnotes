@@ -1,6 +1,6 @@
 [package]
 name = "apple_notes_rs_bin"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Findus"]
 autobins = false
 
