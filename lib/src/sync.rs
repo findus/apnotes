@@ -85,7 +85,7 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send + Send>, profile: &Profile)
+pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send>, profile: &Profile)
     -> Result<Vec<(String,String,Result<()>)>> {
     ::apple_imap::MailServiceImpl::new_with_login(profile)
         .and_then(|mut imap_service| {
