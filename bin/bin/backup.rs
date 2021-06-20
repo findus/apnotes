@@ -1,4 +1,4 @@
-extern crate apple_notes_manager;
+extern crate apnotes_lib;
 extern crate log;
 
 fn main() {

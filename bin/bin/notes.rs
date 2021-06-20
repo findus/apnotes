@@ -1,5 +1,5 @@
 extern crate clap;
-extern crate apple_notes_manager;
+extern crate apnotes_lib;
 #[macro_use]
 extern crate log;
 extern crate diesel;
@@ -11,8 +11,8 @@ use clap::{Arg, App, ArgMatches, AppSettings};
 
 use colored::Colorize;
 use itertools::*;
-use apple_notes_manager::AppleNotes;
-use apple_notes_manager::notes::traits::identifyable_note::IdentifiableNote;
+use apnotes_lib::AppleNotes;
+use apnotes_lib::notes::traits::identifyable_note::IdentifiableNote;
 use flexi_logger::{Logger, Record, DeferredNow};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -109,13 +109,13 @@ fn main() {
             )
         );
 
-    let db_connection= ::apple_notes_manager::db::SqliteDBConnection::new();
+    let db_connection= ::apnotes_lib::db::SqliteDBConnection::new();
 
     let matches = app.get_matches();
 
-    match ::apple_notes_manager::get_user_profile() {
+    match ::apnotes_lib::get_user_profile() {
         Ok(profile) => {
-            let apple_notes = ::apple_notes_manager::AppleNotes::new(
+            let apple_notes = ::apnotes_lib::AppleNotes::new(
                 profile,
                 Box::new(db_connection)
             );

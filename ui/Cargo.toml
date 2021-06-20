@@ -1,7 +1,7 @@
 [package]
 name = "apple_notes_rs_ui"
 version = "0.0.2"
-authors = ["Findus"]
+authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 autobins = false
 
 [dependencies]
@@ -17,7 +17,7 @@ once_cell = "^0"
 pango = "^0"
 pangocairo = "^0"
 cairo-rs = { version = "^0", features = ["png"] }
-apple_notes_manager = { path = "../lib" }
+apnotes_lib = { path = "../lib" }
 
 [features]
 #default = ["gtk_3_22_30"]

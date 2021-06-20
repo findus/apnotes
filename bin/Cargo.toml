@@ -1,7 +1,7 @@
 [package]
-name = "apple_notes_rs_bin"
-version = "0.3.5"
-authors = ["Findus"]
+name = "apnotes_bin"
+version = "0.3.6"
+authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 autobins = false
 
 [dependencies]
@@ -15,7 +15,7 @@ diesel = { features = ["sqlite"], version =  "1.4.5"}
 itertools = "0.10.0"
 flexi_logger = "0.17"
 
-apple_notes_manager = { path = "../lib" }
+apnotes_lib = { path = "../lib" }
 
 
 [[bin]]

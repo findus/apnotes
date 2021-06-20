@@ -1,6 +1,6 @@
 use crate::{Outcome, Event, Task};
-use apple_notes_manager::db::DatabaseService;
-use apple_notes_manager::notes::localnote::LocalNote;
+use apnotes_lib::db::DatabaseService;
+use apnotes_lib::notes::localnote::LocalNote;
 use tui::widgets::{Wrap, Borders, Block, Paragraph, ListState, ListItem, List};
 use tui::style::{Style, Color, Modifier};
 use tui::layout::{Constraint, Direction, Layout, Alignment};
@@ -9,9 +9,9 @@ use std::time::{Instant, Duration};
 use std::{thread, io};
 use tui::Terminal;
 use tui::backend::CrosstermBackend;
-use apple_notes_manager::AppleNotes;
+use apnotes_lib::AppleNotes;
 use std::sync::mpsc::{Sender, Receiver};
-use apple_notes_manager::notes::traits::identifyable_note::IdentifiableNote;
+use apnotes_lib::notes::traits::identifyable_note::IdentifiableNote;
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
@@ -283,7 +283,7 @@ impl<'u> Ui<'u> {
                             let mut note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().clone();
                             note.metadata.locally_deleted = !note.metadata.locally_deleted ;
 
-                            let db_connection = apple_notes_manager::db::SqliteDBConnection::new();
+                            let db_connection = apnotes_lib::db::SqliteDBConnection::new();
                             db_connection.update(&note).unwrap();
 
                             self.refresh();

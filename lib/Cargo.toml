@@ -1,7 +1,7 @@
 [package]
-name = "apple_notes_manager"
-version = "0.3.5"
-authors = ["Findus"]
+name = "apnotes_lib"
+version = "0.3.6"
+authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 autobins = false
 
 [dependencies]

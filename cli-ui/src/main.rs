@@ -1,4 +1,4 @@
-extern crate apple_notes_manager;
+extern crate apnotes_lib;
 extern crate itertools;
 extern crate log;
 extern crate diesel;
@@ -8,10 +8,10 @@ mod ui;
 use std::sync::{mpsc, Mutex, Arc};
 use std::time::{Duration};
 use std::{thread};
-use apple_notes_manager::db::{SqliteDBConnection};
+use apnotes_lib::db::{SqliteDBConnection};
 use std::thread::{sleep, JoinHandle};
 use crate::Outcome::{Success, Failure, End, Busy};
-use apple_notes_manager::AppleNotes;
+use apnotes_lib::AppleNotes;
 use std::sync::mpsc::{
     Sender,
     Receiver
@@ -58,10 +58,10 @@ impl App {
 
     pub fn new(action_receiver: Receiver<Task>, event_sender: Sender<Event<KeyEvent>>) -> App {
 
-        let profile = apple_notes_manager::get_user_profile();
+        let profile = apnotes_lib::get_user_profile();
         let db_connection = SqliteDBConnection::new();
         let connection = Box::new(db_connection);
-        let app = apple_notes_manager::AppleNotes::new(profile.unwrap(), connection);
+        let app = apnotes_lib::AppleNotes::new(profile.unwrap(), connection);
 
         let app = App {
             apple_notes: Arc::new(Mutex::new(app)),
