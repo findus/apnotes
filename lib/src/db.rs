@@ -76,6 +76,7 @@ impl SqLiteConnector {
     fn connect() -> SqliteConnection {
         let database_url = ::profile::get_db_path().into_os_string().to_string_lossy().to_string();
 
+        #[cfg(debug)]
         info!("Database Path: {}", database_url);
 
         let connection = SqliteConnection::establish(&database_url)
