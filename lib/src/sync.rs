@@ -273,7 +273,7 @@ fn get_needs_merge_basic<'a>(remote_note_header: Option<&'a RemoteNoteHeaderColl
 
 pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn DatabaseService + Send>)
     -> Result<Vec<(String,String, Result<()>)>>
-    where T: 'static
+
 {
     let headers = imap_session.fetch_headers()?;
     let grouped_not_headers = collect_mergeable_notes(headers);
@@ -305,7 +305,7 @@ pub fn process_actions<'a, T>(
     imap_connection: &mut dyn MailService<T>,
     db_connection: &Box<dyn DatabaseService + Send>,
     actions: &'a Vec<UpdateAction<'a>>) -> Vec<(&'a UpdateAction<'a>,String, Result<()>)>
-    where T: 'static
+
 {
     let result = actions
         .iter()
@@ -330,7 +330,7 @@ fn process_add_locally<'a,T>(imap_connection: &mut dyn MailService<T>,
                                action: &'a UpdateAction,
                                noteheaders: &RemoteNoteHeaderCollection)
     -> (&'a UpdateAction<'a>, String, Result<()>)
-    where T: 'static {
+     {
 
     let result =
         localnote_from_remote_header(imap_connection, noteheaders)
@@ -344,7 +344,7 @@ fn process_update_locally<'a,T>(imap_connection: &mut dyn MailService<T>,
                                    action: &'a UpdateAction,
                                    new_note_bodies: &RemoteNoteHeaderCollection)
     -> (&'a UpdateAction<'a>, String, Result<()>)
-    where T: 'static {
+     {
 
     let uuid = &new_note_bodies.last().unwrap().headers.uuid();
 
@@ -398,7 +398,7 @@ fn process_delete_remotely<'a, T>(imap_connection: &mut dyn MailService<T>,
                                      action: &'a UpdateAction,
                                      localnote: &LocalNote)
     -> (&'a UpdateAction<'a>,String , Result<()>)
-    where T: 'static
+
 {
     let result = imap_connection
         .delete_message(localnote)
@@ -425,7 +425,7 @@ fn update_message_remotely<'a, T>(imap_connection: &mut dyn MailService<T>,
                                      db_connection: &Box<dyn DatabaseService + Send>,
                                      localnote: &LocalNote)
     -> Result<()>
-    where T: 'static
+
 {
     info!("{} changed locally, gonna send updated file to imap server", &localnote.uuid());
     let metadata = &localnote.metadata;
@@ -465,7 +465,7 @@ fn process_merge<'a,T>(imap_connection: &mut dyn MailService<T>,
                                   action: &'a UpdateAction,
                                   new_notes: &Vec<RemoteNoteMetaData>)
                                   -> (&'a UpdateAction<'a>,String, Result<()>)
-    where T: 'static {
+     {
 
     match action {
         UpdateAction::Merge(MergeMethod::AppendLocally, _remote_note) => {
@@ -516,7 +516,7 @@ fn process_merge<'a,T>(imap_connection: &mut dyn MailService<T>,
 
 fn localnote_from_remote_header<T>(imap_connection: &mut dyn MailService<T>, noteheaders: &Vec<RemoteNoteMetaData>)
     -> Result<LocalNote>
-    where T: 'static
+
 {
     let bodies: Vec<Option<Body>> = noteheaders.into_iter().map(|single_remote_note| {
         (

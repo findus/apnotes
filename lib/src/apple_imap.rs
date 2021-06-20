@@ -58,7 +58,7 @@ impl ImapSession<Session<TlsStream<TcpStream>>> for TlsImapSession {
 }
 
 #[cfg_attr(test, automock)]
-pub trait MailService<T: 'static> {
+pub trait MailService<T> {
     /// Iterates through all Note-Imap folders and fetches the mail header content plus
     /// the folder name.
     ///
