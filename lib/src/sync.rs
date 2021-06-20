@@ -32,6 +32,12 @@ use profile::Profile;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+pub struct SyncResult {
+    pub action: String,
+    pub subject: String,
+    pub result: Result<()>
+}
+
 
 /// Defines the Action that has to be done to the
 /// message with the corresponding uuid
@@ -86,7 +92,7 @@ pub enum MergeMethod {
 }
 
 pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send>, profile: &Profile)
-    -> Result<Vec<(String,String,Result<()>)>> {
+    -> Result<Vec<SyncResult>> {
     ::apple_imap::MailServiceImpl::new_with_login(profile)
         .and_then(|mut imap_service| {
             sync(&mut imap_service, db_connection).map(|result| (result,imap_service))
@@ -272,7 +278,7 @@ fn get_needs_merge_basic<'a>(remote_note_header: Option<&'a RemoteNoteHeaderColl
 }
 
 pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn DatabaseService + Send>)
-    -> Result<Vec<(String,String, Result<()>)>>
+    -> Result<Vec<SyncResult>>
 
 {
     let headers = imap_session.fetch_headers()?;
@@ -295,7 +301,7 @@ pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn Da
 
     let results= results
         .into_iter()
-        .map(|(action,subject,result)| (action.to_string(),subject, result) )
+        .map(|(action,subject,result)| SyncResult { action: action.to_string(),subject, result } )
         .collect();
 
     Ok(results)

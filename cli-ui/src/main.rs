@@ -122,8 +122,8 @@ impl App {
                                     let d = app_lock.lock().unwrap();
                                     match d.sync_notes() {
                                         Ok(result) => {
-                                            if result.iter().find(|r| r.2.is_err()).is_some() {
-                                                event_tx.send(Event::OutCome(Failure(format!("Sync error: Could not sync all note")))).unwrap();
+                                            if result.iter().find(|syncresult| syncresult.result.is_err()).is_some() {
+                                                event_tx.send(Event::OutCome(Failure(format!("Sync error: Could not sync all notes")))).unwrap();
                                             } else {
                                                 event_tx.send(Event::OutCome(Success("Synced!".to_string()))).unwrap();
                                             }

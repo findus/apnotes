@@ -49,6 +49,7 @@ use error::{UpdateError};
 use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
 use profile::Profile;
+use sync::SyncResult;
 
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -78,7 +79,7 @@ impl AppleNotes {
     /// of every individual note that got processes
     ///
     /// Tuple content:  (UpdateAction,Subject,Result)
-    pub fn sync_notes(&self) -> Result<Vec<(String, String, Result<()>)>> {
+    pub fn sync_notes(&self) -> Result<Vec<SyncResult>> {
         sync::sync_notes(&self.db_connection, &self.profile)
     }
 
