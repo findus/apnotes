@@ -19,7 +19,7 @@ use notes::localnote::{LocalNote};
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
 use notes::grouped_remote_note_headers::GroupedRemoteNoteHeaders;
-use notes::traits::identifyable_note::IdentifyableNote;
+use notes::traits::identifyable_note::IdentifiableNote;
 use notes::traits::header_parser::HeaderParser;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
 use util::filter_none;

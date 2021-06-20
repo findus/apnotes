@@ -6,7 +6,7 @@ use notes::localnote::LocalNote;
 use std::hash::Hasher;
 use notes::note_headers::NoteHeaders;
 use notes::remote_note_metadata::RemoteNoteMetaData;
-use notes::traits::identifyable_note::IdentifyableNote;
+use notes::traits::identifyable_note::IdentifiableNote;
 use notes::traits::header_parser::HeaderParser;
 use chrono::{DateTime};
 #[cfg(not(test))]
@@ -66,7 +66,7 @@ impl NotesMetadata {
     }
 }
 
-impl IdentifyableNote for NotesMetadata {
+impl IdentifiableNote for NotesMetadata {
 
     fn folder(&self) -> String { self.subfolder.clone() }
     fn uuid(&self) -> String {

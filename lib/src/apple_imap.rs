@@ -23,7 +23,7 @@ use mockall::{automock, predicate::*};
 use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
 use notes::localnote::LocalNote;
 use notes::remote_note_metadata::RemoteNoteMetaData;
-use notes::traits::identifyable_note::IdentifyableNote;
+use notes::traits::identifyable_note::IdentifiableNote;
 use profile::Profile;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

@@ -337,7 +337,7 @@ mod db_tests {
     use builder::*;
     use ::model::Body;
     use super::*;
-    use notes::traits::identifyable_note::IdentifyableNote;
+    use notes::traits::identifyable_note::IdentifiableNote;
 
     /// Should return an error, because this note still has child note_bodies
     #[test]

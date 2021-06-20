@@ -1,6 +1,6 @@
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
-use notes::traits::identifyable_note::IdentifyableNote;
+use notes::traits::identifyable_note::IdentifiableNote;
 use notes::traits::header_parser::HeaderParser;
 use std::collections::HashSet;
 
@@ -34,7 +34,7 @@ impl MergeableNoteBody for RemoteNoteHeaderCollection {
 
 }
 
-impl IdentifyableNote for RemoteNoteHeaderCollection {
+impl IdentifiableNote for RemoteNoteHeaderCollection {
 
     fn folder(&self) -> String {
         self.iter().last().expect("At least one Element must be present").headers.folder()

@@ -12,7 +12,7 @@ use clap::{Arg, App, ArgMatches, AppSettings};
 use colored::Colorize;
 use itertools::*;
 use apple_notes_manager::AppleNotes;
-use apple_notes_manager::notes::traits::identifyable_note::IdentifyableNote;
+use apple_notes_manager::notes::traits::identifyable_note::IdentifiableNote;
 use flexi_logger::{Logger, Record, DeferredNow};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
