@@ -68,7 +68,7 @@ pub enum UpdateAction<'a> {
     AddRemotely(&'a LocalNote),
     /// Apply to all notes that:
     ///     their uuid is not present locally
-    AddLocally(&'a RemoteNoteHeaderCollection),
+    AddLocally(&'a RemoteNoteHeaderCollection)
 }
 
 impl<'a> Display for UpdateAction<'a>

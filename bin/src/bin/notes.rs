@@ -6,6 +6,7 @@ extern crate diesel;
 extern crate colored;
 extern crate itertools;
 extern crate flexi_logger;
+extern crate apnotes_bin;
 
 use clap::{Arg, App, ArgMatches, AppSettings};
 
@@ -14,6 +15,7 @@ use itertools::*;
 use apnotes_lib::AppleNotes;
 use apnotes_lib::notes::traits::identifyable_note::IdentifiableNote;
 use flexi_logger::{Logger, Record, DeferredNow};
+use apnotes_bin::app::app::gen_app;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -30,84 +32,11 @@ pub fn default_format(
     )
 }
 
-fn main() {
+pub fn main() {
 
     Logger::with_env_or_str("info").format(default_format).start().unwrap();
 
-    let app = App::new("NotesManager")
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .version( env!("CARGO_PKG_VERSION"))
-        .subcommand(App::new("list")
-            .about("Lists all available notes")
-            .arg(Arg::with_name("uuid")
-                .short("u")
-                .long("uuid")
-                .help("Prints additional uuid")
-                .required(false)
-            )
-        )
-        .about("Interface for interacting with Apple Notes on Linux")
-        .subcommand(App::new("edit")
-            .about("Edits an existing note")
-            .arg(Arg::with_name("path")
-                .required(true)
-                .takes_value(true)
-                .help("Subject or UUID of the note that should be edited")
-            )
-        )
-        .subcommand(App::new("sync")
-            .about("Syncs local with remote notes and vice versa")
-        )
-        .subcommand(App::new("delete")
-            .about("Flags a note as deleted")
-            .arg(Arg::with_name("path")
-                .required(true)
-                .takes_value(true)
-                .help("Subject or UUID of the note that should be deleted")
-            )
-        )
-        .subcommand(App::new("undelete")
-            .about("Removes deletion flag")
-            .arg(Arg::with_name("path")
-                .required(true)
-                .takes_value(true)
-                .help("Subject or UUID of the note")
-            )
-        )
-        .subcommand(App::new("merge")
-            .about("Merges unmerged Note")
-            .arg(Arg::with_name("path")
-                .required(true)
-                .takes_value(true)
-                .help("Subject or UUID of the note that should be merged")
-            )
-        )
-        .subcommand(App::new("print")
-            .about("Prints note content")
-            .arg(Arg::with_name("path")
-                .required(true)
-                .takes_value(true)
-                .help("Subject or UUID of the note that should be printed")
-            )
-        )
-        .subcommand(App::new("backup")
-            .about("Duplicates current note tree on the imap server")
-        )
-        .subcommand(App::new("new")
-            .about("Creates a new note")
-            .arg(Arg::with_name("folder")
-                .short("f")
-                .long("folder")
-                .help("Specifies the subfolder where the note should be put in. Uses default folder, if not used")
-                .required(false)
-                .takes_value(true)
-            )
-            .arg(Arg::with_name("title")
-                .required(true)
-                .takes_value(true)
-                .help("Title of the new note")
-            )
-        );
+    let app = gen_app();
 
     let db_connection= ::apnotes_lib::db::SqliteDBConnection::new();
 

@@ -2,5 +2,5 @@ username=your_username
 imap_server=your_imap_server_address.org
 email=your_email@server.org
 password=your_password
+	editor_arguments=-nosession -multiInst
 editor=C:\\Program Files\\Notepad++\\notepad++.exe
-editor_arguments=-nosession -multiInst
