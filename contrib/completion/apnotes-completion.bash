@@ -131,19 +131,15 @@ _apnotes() {
             return 0
             ;;
         apnotes__list)
+            opts="  --names --deleted  "
             notes=$(apnotes list --names 2>&1 )
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${notes}") -- "${cur}") 
+            if [[ ${cur} == -*  ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            else
+                COMPREPLY=( $(compgen -W "${notes}" -- "${cur}") )
                 return 0
             fi
-            case "${prev}" in
-                
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
             ;;
         apnotes__merge)
 
