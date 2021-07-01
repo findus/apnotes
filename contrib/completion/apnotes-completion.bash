@@ -136,9 +136,6 @@ _apnotes() {
             if [[ ${cur} == -*  ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
-            else
-                COMPREPLY=( $(compgen -W "${notes}" -- "${cur}") )
-                return 0
             fi
             ;;
         apnotes__merge)
