@@ -4,7 +4,7 @@ _apnotes_get_notes() {
     local CWORD=${COMP_WORDS[COMP_CWORD]}
 
     # This is our word list (in a bash array for convenience)
-    if [ -n $1 ] && [ $1 = "undelete" ]; then
+    if [ -n "$1" ] && [ "$1" = "undelete" ]; then
         local WORD_LIST=$(apnotes list --names --deleted 2>&1)
     else
         local WORD_LIST=$(apnotes list --names 2>&1) 
@@ -26,7 +26,7 @@ _apnotes_get_notes() {
 }
 
 _apnotes() {
-    local i cur prev opts cmds
+    local i cur prev opts cmd
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -198,3 +198,5 @@ _apnotes() {
             ;;
     esac
 }
+
+complete -o filenames -F _apnotes apnotes
