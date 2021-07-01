@@ -8,8 +8,7 @@ extern crate itertools;
 extern crate flexi_logger;
 extern crate apnotes_bin;
 
-use clap::{Arg, App, ArgMatches, AppSettings};
-
+use clap::{ArgMatches};
 use colored::Colorize;
 use itertools::*;
 use apnotes_lib::AppleNotes;
@@ -50,15 +49,15 @@ pub fn main() {
             );
 
             let result = match matches.subcommand() {
-                ("new",  Some(sub_matches)) => new(sub_matches,&apple_notes),
-                ("sync", Some(_sub_matches)) => apple_notes.sync_notes().map(|_| ()),
-                ("list", Some(sub_matches)) => list_notes(sub_matches,&apple_notes),
-                ("edit", Some(sub_matches)) => edit_passed_note(sub_matches,&apple_notes),
-                ("merge", Some(sub_matches)) => merge_note(sub_matches,&apple_notes),
-                ("delete", Some(sub_matches)) => delete_note(sub_matches,&apple_notes),
-                ("undelete", Some(sub_matches)) => undelete_note(sub_matches,&apple_notes),
-                ("print", Some(sub_matches)) => print_note(sub_matches, &apple_notes),
-                (_, _) => unreachable!(),
+                Some(("new",  sub_matches)) => new(sub_matches,&apple_notes),
+                Some(("sync", _sub_matches)) => apple_notes.sync_notes().map(|_| ()),
+                Some(("list", sub_matches)) => list_notes(sub_matches,&apple_notes),
+                Some(("edit", sub_matches)) => edit_passed_note(sub_matches,&apple_notes),
+                Some(("merge", sub_matches)) => merge_note(sub_matches,&apple_notes),
+                Some(("delete", sub_matches)) => delete_note(sub_matches,&apple_notes),
+                Some(("undelete", sub_matches)) => undelete_note(sub_matches,&apple_notes),
+                Some(("print", sub_matches)) => print_note(sub_matches, &apple_notes),
+                _ => unreachable!(),
             };
 
             match result {
@@ -107,6 +106,7 @@ fn edit_passed_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
 
 fn list_notes(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()>{
     let _show_uuid = sub_matches.is_present("uuid");
+    let print_names_only = sub_matches.is_present("names");
 
     app.get_notes()
         .and_then(|notes| {
@@ -122,9 +122,14 @@ fn list_notes(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()>{
                         .map(|body| body.subject())
                         .join(",");
 
+
                     let formatted_uuid_folder = format!("{} {}", ee.metadata.uuid, ee.metadata.folder());
 
-                    let formatted_string = if ee.needs_merge() {
+                    let formatted_string = if print_names_only {
+                        let subject = ee.body.iter().last().unwrap().subject();
+                        // let escaped_subject = escape(subject.into()).to_string();
+                        subject
+                    }  else if ee.needs_merge() {
                         format!("{:<width$}  [{}] {}", formatted_uuid_folder, titles.red(), "<<Needs Merge>>".red(), width = max_len)
                     } else {
                         format!("{:<width$}  [{}]", formatted_uuid_folder, titles, width = max_len)

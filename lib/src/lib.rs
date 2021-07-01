@@ -51,7 +51,6 @@ use std::collections::hash_map::RandomState;
 use profile::Profile;
 use sync::SyncResult;
 
-
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub struct AppleNotes {

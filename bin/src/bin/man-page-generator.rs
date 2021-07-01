@@ -1,16 +1,19 @@
 extern crate man;
 extern crate apnotes_bin;
+extern crate clap;
+extern crate clap_generate;
 
 use man::prelude::*;
 use man::Manual;
 use apnotes_bin::app;
-use clap_generate::generators::{Bash, Elvish, Fish, PowerShell, Zsh};
-use clap_generate::{generate, Generator};
+use clap_generate::generators::{Bash};
+use clap_generate::{generate};
+use std::io;
 
 fn main() {
 
-    let app = app::app::gen_app();
-    
+    let mut app = app::app::gen_app();
+    generate::<Bash, _>(&mut app, "apnotes", &mut io::stdout());
 
     let page = Manual::new("apnotes")
         .about("Short introduction")
