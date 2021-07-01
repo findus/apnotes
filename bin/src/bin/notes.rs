@@ -61,7 +61,7 @@ pub fn main() {
             };
 
             match result {
-                Ok(_) => {info!("Done")}
+                Ok(_) => {}
                 Err(e) => {
                     error!("Error: {}", e.to_string());
                     std::process::exit(-1);
@@ -107,9 +107,17 @@ fn edit_passed_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
 fn list_notes(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()>{
     let _show_uuid = sub_matches.is_present("uuid");
     let print_names_only = sub_matches.is_present("names");
+    let show_only_deleted = sub_matches.is_present("deleted");
 
     app.get_notes()
         .and_then(|notes| {
+
+            let notes = if show_only_deleted {
+                notes.into_iter().filter(|note| note.metadata.locally_deleted).collect()
+            } else {
+                notes
+            };
+
             let max_len = notes.iter()
                 .map(|note| format!("{} {}", note.metadata.uuid, note.metadata.folder()).len())
                 .max()
@@ -135,7 +143,7 @@ fn list_notes(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()>{
                         format!("{:<width$}  [{}]", formatted_uuid_folder, titles, width = max_len)
                     };
 
-                    let formatted_string = if ee.metadata.locally_deleted == true {
+                    let formatted_string = if ee.metadata.locally_deleted == true && print_names_only == false {
                         format!("{} <<flagged for deletion>>", formatted_string).red().to_string()
                     } else {
                         formatted_string

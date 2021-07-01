@@ -6,7 +6,7 @@ use std::fs;
 use self::regex::Regex;
 
 use std::fs::File;
-use self::log::{info, warn};
+use self::log::{warn};
 use std::path::PathBuf;
 use error::ProfileError::*;
 
@@ -97,7 +97,7 @@ pub(crate) fn load_profile() -> Result<Profile> {
     let path = get_config_path()?;
     let path = path.into_os_string().to_string_lossy().to_string();
 
-    info!("Read config file from {}", &path);
+    trace!("Read config file from {}", &path);
     let creds = fs::read_to_string(&path)?;
 
     let username_regex = Regex::new(r"username=(.*)")?;

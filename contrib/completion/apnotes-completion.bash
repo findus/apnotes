@@ -4,8 +4,11 @@ _apnotes_get_notes() {
     local CWORD=${COMP_WORDS[COMP_CWORD]}
 
     # This is our word list (in a bash array for convenience)
-    local WORD_LIST=$(apnotes list --names 2>&1) 
-
+    if [ -n $1 ] && [ $1 = "undelete" ]; then
+        local WORD_LIST=$(apnotes list --names --deleted 2>&1)
+    else
+        local WORD_LIST=$(apnotes list --names 2>&1) 
+    fi
     # Commands below depend on this IFS
     local IFS=$'\n'
 
@@ -105,11 +108,11 @@ _apnotes() {
             return 0
             ;;
         apnotes__delete)
-            _apnotes_get_notes
+            _apnotes_get_notes delete
             return 0  
             ;;
         apnotes__edit)
-            _apnotes_get_notes
+            _apnotes_get_notes edit
             return 0
             ;;
         apnotes__help)
@@ -144,7 +147,7 @@ _apnotes() {
             ;;
         apnotes__merge)
 
-            _apnotes_get_notes
+            _apnotes_get_notes merge
             return 0
             ;;
         apnotes__new)
@@ -171,7 +174,7 @@ _apnotes() {
             return 0
             ;;
         apnotes__print)
-            _apnotes_get_notes
+            _apnotes_get_notes print
             return 0
             ;;
         apnotes__sync)
@@ -190,7 +193,7 @@ _apnotes() {
             return 0
             ;;
         apnotes__undelete)
-            _apnotes_get_notes
+            _apnotes_get_notes undelete
             return 0
             ;;
     esac
