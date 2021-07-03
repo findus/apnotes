@@ -86,7 +86,7 @@ impl ErrorCode for NoteError {
 
 impl ErrorCode for diesel::result::Error {
     fn error_code(&self) -> i32 {
-        return 999;
+        return 255;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -96,7 +96,7 @@ impl ErrorCode for diesel::result::Error {
 
 impl ErrorCode for std::str::Utf8Error {
     fn error_code(&self) -> i32 {
-        return 999;
+        return 255;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -106,7 +106,7 @@ impl ErrorCode for std::str::Utf8Error {
 
 impl ErrorCode for xdg::BaseDirectoriesError {
     fn error_code(&self) -> i32 {
-        return 999;
+        return 255;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -116,7 +116,7 @@ impl ErrorCode for xdg::BaseDirectoriesError {
 
 impl ErrorCode for std::io::Error {
     fn error_code(&self) -> i32 {
-        return 999;
+        return 255;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -126,7 +126,7 @@ impl ErrorCode for std::io::Error {
 
 impl ErrorCode for regex::Error {
     fn error_code(&self) -> i32 {
-        return 999;
+        return 255;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -136,7 +136,7 @@ impl ErrorCode for regex::Error {
 
 impl ErrorCode for imap::Error{
     fn error_code(&self) -> i32 {
-        return 999;
+        return 255;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -146,7 +146,7 @@ impl ErrorCode for imap::Error{
 
 impl ErrorCode for secret_service::SsError {
     fn error_code(&self) -> i32 {
-        return 103;
+        return 3;
     }
 
     fn human_readable_error_message(&self) -> String {
