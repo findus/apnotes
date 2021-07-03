@@ -34,6 +34,7 @@ diff = "0.1.12"
 quoted_printable = "0.4.2"
 diesel_migrations = "1.4.0"
 htmlescape = "0.3.1"
+secret-service = "1.1.1"
 
 [dev-dependencies]
 ctor = "0.1.17"

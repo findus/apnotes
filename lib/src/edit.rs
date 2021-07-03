@@ -147,12 +147,15 @@ mod edit_tests {
 
         let profile = Profile {
             username: "".to_string(),
-            password: "".to_string(),
+            password: Option::from("".to_string()),
             imap_server: "".to_string(),
             email: "".to_string(),
             editor: "".to_string(),
             editor_arguments: vec![],
-            domain: "".to_string()
+            secret_service_attribute: None,
+            secret_service_value: None,
+            domain: "".to_string(),
+            password_type: "".to_string()
         };
 
         match edit_note(&note, false, &profile) {

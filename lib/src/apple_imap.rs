@@ -49,7 +49,7 @@ impl TlsImapSession {
         // certificate is valid for the domain we're connecting to.
         imap::connect((domain, 993), domain, &tls)
             .map_err(|e| e.into())
-            .and_then(|client| client.login(&profile.username, &profile.password).map_err(|e| e.0.into()))
+            .and_then(|client| client.login(&profile.username, &profile.get_password()).map_err(|e| e.0.into()))
     }
 }
 

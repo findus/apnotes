@@ -51,12 +51,15 @@ impl LocalNote {
 
         let profile = Profile {
             username: "test".to_string(),
-            password: "test".to_string(),
+            password: Option::from("test".to_string()),
             imap_server: "test".to_string(),
             email: "test@test.de".to_string(),
             editor: "test".to_string(),
             editor_arguments: vec![],
-            domain: "".to_string()
+            secret_service_attribute: None,
+            secret_service_value: None,
+            domain: "".to_string(),
+            password_type: "".to_string()
         };
 
         RemoteNoteMetaData {

@@ -23,6 +23,7 @@ extern crate quoted_printable;
 #[macro_use]
 extern crate diesel_migrations;
 extern crate htmlescape;
+extern crate secret_service;
 
 #[macro_use]
 mod macros;
