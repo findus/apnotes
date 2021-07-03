@@ -27,9 +27,7 @@ use std::fmt::{Display, Formatter};
 use colored::Colorize;
 use chrono::DateTime;
 use profile::Profile;
-
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use ::error::Result;
 
 pub struct SyncResult {
     pub action: String,

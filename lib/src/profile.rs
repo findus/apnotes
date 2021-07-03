@@ -8,8 +8,7 @@ use self::log::{warn};
 use std::path::PathBuf;
 use error::ProfileError::*;
 use std::str;
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use error::Result;
 
 #[cfg(target_family = "unix")]
 use self::xdg::BaseDirectories;
@@ -43,9 +42,10 @@ impl Profile {
 
     fn secret_service_get_pw(&self) -> Result<String> {
         let ss = SecretService::new(EncryptionType::Dh).unwrap();
-        let collection = ss.get_default_collection().unwrap();
 
-        if collection.is_locked().unwrap() {
+        let collection = ss.get_default_collection()?;
+
+        if collection.ensure_unlocked().is_err() {
             return Err(ProfileError::AgentLocked().into());
         }
 

@@ -8,6 +8,9 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate serde;
 
+#[cfg(test)]
+extern crate mockall;
+
 use self::log::{info, warn, debug};
 use self::imap::Session;
 use std::net::TcpStream;
@@ -16,8 +19,8 @@ use self::imap::types::{Fetch};
 use model::{NotesMetadata};
 use converter::convert_to_html;
 use imap::types::Mailbox;
-#[cfg(test)]
-extern crate mockall;
+use error::Result;
+
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
@@ -25,8 +28,6 @@ use notes::localnote::LocalNote;
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::identifyable_note::IdentifiableNote;
 use profile::Profile;
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub trait ImapSession<S> {
 
@@ -82,7 +83,7 @@ pub trait MailService<T> {
     /// If the passed localnote has >1 bodies it will reject it.
     fn update_message(&mut self, localnote: &LocalNote) -> Result<u32>;
     // Deletes the passed message
-    fn delete_message(&mut self, localnote: &LocalNote) -> std::result::Result<(), Box<dyn std::error::Error>>;
+    fn delete_message(&mut self, localnote: &LocalNote) -> Result<()>;
     /// Selects a specific subfolder
     fn select(&mut self, folder: &str) -> Result<Mailbox>;
     fn logout(&mut self) -> Result<()>;

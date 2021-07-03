@@ -18,6 +18,7 @@ use crossterm::{
 };
 use crossterm::event::KeyEvent;
 use itertools::Itertools;
+use apnotes_lib::error::ErrorCode;
 
 pub struct UiState {
     pub(crate) action_sender: Sender<Task>,
@@ -256,10 +257,9 @@ impl<'u> Ui<'u> {
                         }
                         KeyCode::Char('e') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
-                            let result: Result<LocalNote,Box<dyn std::error::Error>> = {
+                            let result: Result<LocalNote,Box<dyn ErrorCode>> = {
                                 let app = a.lock().unwrap();
                                 app.edit_note(&note, false)
-                                    .map_err(|e| e.into())
                                     .and_then(|note| app.update_note(&note).map(|_n| note).map_err(|e| e.into()))
                             };
 

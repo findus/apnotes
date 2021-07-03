@@ -24,6 +24,7 @@ extern crate quoted_printable;
 extern crate diesel_migrations;
 extern crate htmlescape;
 extern crate secret_service;
+extern crate xdg;
 
 #[macro_use]
 mod macros;
@@ -42,6 +43,8 @@ mod builder;
 pub mod notes;
 mod merge;
 
+use error::{Result, NoteError};
+
 use db::{DatabaseService};
 use error::NoteError::{NoteNotFound, InsertionError};
 use util::is_uuid;
@@ -51,8 +54,6 @@ use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
 use profile::Profile;
 use sync::SyncResult;
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub struct AppleNotes {
     profile: Profile,
@@ -131,7 +132,7 @@ impl AppleNotes {
                         Err(NoteNotFound.into())
                     }
                     Err(e) => {
-                        error!("Error occured: {}", e.to_string());
+                        error!("Error occurred: {}", e.to_string());
                         Err(e.into())
                     }
                 }
@@ -144,7 +145,7 @@ impl AppleNotes {
                         Err(NoteNotFound.into())
                     }
                     Err(e) => {
-                        error!("Error occured: {}", e.to_string());
+                        error!("Error occurred: {}", e.to_string());
                         Err(e.into())
                     }
                 }
@@ -191,7 +192,7 @@ impl AppleNotes {
         self.find_note(&uuid_or_name)
             .and_then(|note| {
                 if note.needs_merge() {
-                    return Err("Needs merge".to_string().into())
+                    return Err(NoteError::NeedsMerge.into())
                 }
                 let first_body = note.body.first().unwrap();
                 println!("{}", (&first_body.text).as_ref().unwrap_or(&"".to_string()));

@@ -7,6 +7,7 @@ extern crate colored;
 extern crate itertools;
 extern crate flexi_logger;
 extern crate apnotes_bin;
+extern crate serde_json;
 
 use clap::{ArgMatches};
 use colored::Colorize;
@@ -15,8 +16,7 @@ use apnotes_lib::AppleNotes;
 use apnotes_lib::notes::traits::identifyable_note::IdentifiableNote;
 use flexi_logger::{Logger, Record, DeferredNow};
 use apnotes_bin::app::app::gen_app;
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use apnotes_lib::error::Result;
 
 //Minimal println like formatting for flexi_logger
 pub fn default_format(
@@ -63,8 +63,8 @@ pub fn main() {
             match result {
                 Ok(_) => {}
                 Err(e) => {
-                    error!("Error: {}", e.to_string());
-                    std::process::exit(-1);
+                    error!("Error: {}\n{} - ({})", e.human_readable_error_message(), e.to_string(), e.error_code().to_string());
+                    std::process::exit(e.error_code());
                 },
             }
         }
