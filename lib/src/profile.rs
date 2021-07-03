@@ -33,11 +33,11 @@ impl Profile {
 #[cfg(target_family = "unix")]
 pub(crate)  fn get_config_path() -> Result<PathBuf> {
         let xdg_dir = BaseDirectories::new()?;
-        match xdg_dir.find_config_file("apple_notes/config") {
+        match xdg_dir.find_config_file("apnotes/config") {
             Some(path) => Ok(path),
             None => {
                 warn!("Could not detect config file, gonna create empty one");
-                let mut path = xdg_dir.create_config_directory("apple_notes")?;
+                let mut path = xdg_dir.create_config_directory("apnotes")?;
                 path.push("config");
                 File::create(&path).expect("Unable to create file");
                 Ok(path.to_path_buf())
@@ -47,7 +47,7 @@ pub(crate)  fn get_config_path() -> Result<PathBuf> {
 
 #[cfg(target_family = "windows")]
 pub(crate)  fn get_config_path() -> Result<PathBuf> {
-    let config_file_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"rs-notes\\config".to_string()));
+    let config_file_path = PathBuf::from(format!("{}\\{}",env!("APPDATA"),"apnotes\\config".to_string()));
     if config_file_path.exists() {
         Ok(config_file_path)
     } else {
@@ -65,11 +65,11 @@ pub(crate)  fn get_db_path() -> PathBuf {
         let db = "notes_db_test";
     #[cfg(not(test))]
         let db = "notes_db";
-    match xdg_dir.find_data_file(format!("apple_notes/{}",db)) {
+    match xdg_dir.find_data_file(format!("apnotes/{}",db)) {
         Some(path) => path,
         None => {
             warn!("Could not detect database, gonna create empty one");
-            let mut path = xdg_dir.create_data_directory("apple_notes").expect("Could not create apple_notes config folder");
+            let mut path = xdg_dir.create_data_directory("apnotes").expect("Could not create apple_notes config folder");
             path.push(&db);
             File::create(&path).expect("Unable to create file");
             path.to_path_buf()
@@ -79,7 +79,7 @@ pub(crate)  fn get_db_path() -> PathBuf {
 
 #[cfg(target_family = "windows")]
 pub(crate)  fn get_db_path() -> PathBuf {
-    let db_file_path = PathBuf::from(format!("{}\\{}", env!("APPDATA"), "rs-notes\\db".to_string()));
+    let db_file_path = PathBuf::from(format!("{}\\{}", env!("APPDATA"), "apnotes\\db".to_string()));
     if db_file_path.exists() {
         db_file_path
     } else {
