@@ -33,18 +33,21 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn get_password(&self) -> String {
+    pub fn get_password(&self) -> Result<String> {
         if self.password_type == "PLAIN" {
-            self.password.as_ref().unwrap().clone()
+            Ok(self.password.as_ref().unwrap().clone())
         } else {
             self.secret_service_get_pw()
         }
     }
 
-    fn secret_service_get_pw(&self) -> String {
+    fn secret_service_get_pw(&self) -> Result<String> {
         let ss = SecretService::new(EncryptionType::Dh).unwrap();
         let collection = ss.get_default_collection().unwrap();
-        collection.unlock().unwrap();
+
+        if collection.is_locked().unwrap() {
+            return Err(ProfileError::AgentLocked().into());
+        }
 
         let attribute = self.secret_service_attribute.as_ref().unwrap();
         let value = self.secret_service_value.as_ref().unwrap();
@@ -57,7 +60,7 @@ impl Profile {
             .get_secret()
             .unwrap();
 
-        return str::from_utf8(&pw).unwrap().to_string();
+        return Ok(str::from_utf8(&pw)?.to_string());
     }
 }
 
@@ -209,6 +212,30 @@ unsafe fn get_test_config() -> &'static str {
 #[cfg(test)]
 mod tests {
     use profile::{load_profile, BASIC_SECRET_SERVICE_CONFIG};
+    use secret_service::{SecretService, EncryptionType};
+
+    #[test]
+    fn test_secret_service() {
+        let ss = SecretService::new(EncryptionType::Dh).unwrap();
+        let collection = ss.get_default_collection().unwrap();
+        //collection.unlock().unwrap();
+
+        if collection.is_locked().unwrap() {
+            return
+        }
+
+        let attribute = "test";
+        let value = "test";
+
+        let _pw = collection.search_items(
+            vec![(&attribute, &value)])
+            .unwrap()
+            .first()
+            .unwrap()
+            .get_secret()
+            .unwrap();
+
+    }
 
     #[test]
     fn test_plain_config() {
@@ -245,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    fn test_secret_service() {
+    fn test_secret_service_config() {
         unsafe {
             BASIC_SECRET_SERVICE_CONFIG = "
                 username=test@test.de

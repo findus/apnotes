@@ -47,9 +47,12 @@ impl TlsImapSession {
 
         // we pass in the domain twice to check that the server's TLS
         // certificate is valid for the domain we're connecting to.
+
+        let password = &profile.get_password()?;
+
         imap::connect((domain, 993), domain, &tls)
             .map_err(|e| e.into())
-            .and_then(|client| client.login(&profile.username, &profile.get_password()).map_err(|e| e.0.into()))
+            .and_then(|client| client.login(&profile.username, password).map_err(|e| e.0.into()))
     }
 }
 
