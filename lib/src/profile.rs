@@ -41,7 +41,7 @@ impl Profile {
     }
 
     fn secret_service_get_pw(&self) -> Result<String> {
-        let ss = SecretService::new(EncryptionType::Dh).unwrap();
+        let ss = SecretService::new(EncryptionType::Dh)?;
 
         let collection = ss.get_default_collection()?;
 
