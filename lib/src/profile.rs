@@ -2,9 +2,7 @@ extern crate xdg;
 extern crate regex;
 extern crate log;
 
-use std::fs;
 use self::regex::Regex;
-
 use std::fs::File;
 use self::log::{warn};
 use std::path::PathBuf;
@@ -18,6 +16,7 @@ use self::xdg::BaseDirectories;
 use secret_service::{SecretService, EncryptionType};
 use error::ProfileError;
 
+#[derive(Debug)]
 pub struct Profile {
     pub(crate) username: String,
     pub(crate) password_type: String,
@@ -124,13 +123,15 @@ pub(crate)  fn get_db_path() -> PathBuf {
     }
 }
 
-
 pub(crate) fn load_profile() -> Result<Profile> {
     let path = get_config_path()?;
     let path = path.into_os_string().to_string_lossy().to_string();
 
     trace!("Read config file from {}", &path);
-    let creds = fs::read_to_string(&path)?;
+    #[cfg(not(test))]
+    let creds = std::fs::read_to_string(&path)?;
+    #[cfg(test)]
+    let creds = unsafe { get_test_config() };
 
     let username_regex = Regex::new(r"username=(.*)")?;
     let password_regex = Regex::new(r"password=(.*)")?;
@@ -158,6 +159,9 @@ pub(crate) fn load_profile() -> Result<Profile> {
             Some(get_with_regex(secret_service_value_regex, &creds)?),
         )
     } else {
+        if password.is_none() {
+            return Err(NoPasswordProvided().into())
+        }
         (None, None)
     };
 
@@ -194,25 +198,71 @@ fn get_with_regex(regex: Regex, creds: &str) -> Result<String> {
 }
 
 #[cfg(test)]
+static mut BASIC_SECRET_SERVICE_CONFIG: &'static str = ""
+;
+
+#[cfg(test)]
+unsafe fn get_test_config() -> &'static str {
+    return BASIC_SECRET_SERVICE_CONFIG
+}
+
+#[cfg(test)]
 mod tests {
-    use secret_service::{SecretService, EncryptionType};
-    use std::str;
+    use profile::{load_profile, BASIC_SECRET_SERVICE_CONFIG};
 
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_plain_config() {
+        unsafe {
+            BASIC_SECRET_SERVICE_CONFIG = "
+                username=test@test.de
+                imap_server=test.test.de
+                email=test@test.de
+                editor=nvim-float
+                editor_arguments=
+                password_type=PLAIN
+                password=f
+                ";
+
+            let profile = load_profile();
+            assert_eq!(profile.as_ref().unwrap().password_type,"PLAIN");
+        }
     }
 
     #[test]
-    fn init_secret_service() {
-        // initialize secret service (dbus connection and encryption session)
-        let ss = SecretService::new(EncryptionType::Dh).unwrap();
+    fn test_no_password_provided() {
+        unsafe {
+            BASIC_SECRET_SERVICE_CONFIG = "
+                username=test@test.de
+                imap_server=test.test.de
+                email=test@test.de
+                editor=nvim-float
+                editor_arguments=
+                password_type=PLAIN
+                ";
 
-        // get default collection
-        let collection = ss.get_default_collection().unwrap();
-        collection.unlock().unwrap();
-        let pw = collection.search_items(vec![("mail", "uberspace")]).unwrap().first().unwrap().get_secret().unwrap();
-        let ud = str::from_utf8(&pw);
-        println!("{:?}", ud );
+            assert!(load_profile().err().is_some());
+        }
+    }
+
+    #[test]
+    fn test_secret_service() {
+        unsafe {
+            BASIC_SECRET_SERVICE_CONFIG = "
+                username=test@test.de
+                imap_server=test.test.de
+                email=test@test.de
+                editor=nvim-float
+                editor_arguments=
+                password_type=SECRET_SERVICE
+                secret_service_attribute=mail
+                secret_service_value=mailservice
+                ";
+
+            let profile = load_profile();
+            assert_eq!(profile.as_ref().unwrap().secret_service_value.as_ref().unwrap(),"mailservice");
+            assert_eq!(profile.as_ref().unwrap().secret_service_attribute.as_ref().unwrap(),"mail");
+            assert_eq!(profile.as_ref().unwrap().password_type,"SECRET_SERVICE");
+        }
+
     }
 }

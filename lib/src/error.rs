@@ -1,6 +1,7 @@
 #[derive(Debug,PartialEq)]
 pub enum ProfileError {
-    NotFound(String)
+    NotFound(String),
+    NoPasswordProvided()
 }
 
 #[derive(Debug,PartialEq)]
