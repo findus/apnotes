@@ -33,7 +33,7 @@ pub enum NoteError {
 
 impl ErrorCode for dyn std::error::Error {
     fn error_code(&self) -> i32 {
-        return -999
+        return 255
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -44,9 +44,9 @@ impl ErrorCode for dyn std::error::Error {
 impl ErrorCode for ProfileError {
     fn error_code(&self) -> i32 {
         match self {
-            ProfileError::NotFound(_) => { -101 }
-            ProfileError::NoPasswordProvided() => { -102 }
-            ProfileError::AgentLocked() => { -103 }
+            ProfileError::NotFound(_) => { 1 }
+            ProfileError::NoPasswordProvided() => { 2 }
+            ProfileError::AgentLocked() => { 3 }
         }
     }
 
@@ -58,8 +58,8 @@ impl ErrorCode for ProfileError {
 impl ErrorCode for UpdateError {
     fn error_code(&self) -> i32 {
         match self {
-            UpdateError::SyncError(_) => { -201 }
-            UpdateError::IoError(_) => { -202 }
+            UpdateError::SyncError(_) => { 20 }
+            UpdateError::IoError(_) => { 21 }
         }
     }
 
@@ -71,11 +71,11 @@ impl ErrorCode for UpdateError {
 impl ErrorCode for NoteError {
     fn error_code(&self) -> i32 {
         match self {
-            NoteError::InsertionError(_) => { -301 }
-            NoteError::EditError(_) => { -302 }
-            NoteError::NeedsMerge => { -303 }
-            NoteError::ContentNotChanged => { -304 }
-            NoteError::NoteNotFound => { -305 }
+            NoteError::InsertionError(_) => { 30 }
+            NoteError::EditError(_) => { 31 }
+            NoteError::NeedsMerge => { 32 }
+            NoteError::ContentNotChanged => { 33 }
+            NoteError::NoteNotFound => { 34 }
         }
     }
 
@@ -86,7 +86,7 @@ impl ErrorCode for NoteError {
 
 impl ErrorCode for diesel::result::Error {
     fn error_code(&self) -> i32 {
-        return -999;
+        return 999;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -96,7 +96,7 @@ impl ErrorCode for diesel::result::Error {
 
 impl ErrorCode for std::str::Utf8Error {
     fn error_code(&self) -> i32 {
-        return -999;
+        return 999;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -106,7 +106,7 @@ impl ErrorCode for std::str::Utf8Error {
 
 impl ErrorCode for xdg::BaseDirectoriesError {
     fn error_code(&self) -> i32 {
-        return -999;
+        return 999;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -116,7 +116,7 @@ impl ErrorCode for xdg::BaseDirectoriesError {
 
 impl ErrorCode for std::io::Error {
     fn error_code(&self) -> i32 {
-        return -999;
+        return 999;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -126,7 +126,7 @@ impl ErrorCode for std::io::Error {
 
 impl ErrorCode for regex::Error {
     fn error_code(&self) -> i32 {
-        return -999;
+        return 999;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -136,7 +136,7 @@ impl ErrorCode for regex::Error {
 
 impl ErrorCode for imap::Error{
     fn error_code(&self) -> i32 {
-        return -999;
+        return 999;
     }
 
     fn human_readable_error_message(&self) -> String {
@@ -146,7 +146,7 @@ impl ErrorCode for imap::Error{
 
 impl ErrorCode for secret_service::SsError {
     fn error_code(&self) -> i32 {
-        return -103;
+        return 103;
     }
 
     fn human_readable_error_message(&self) -> String {
