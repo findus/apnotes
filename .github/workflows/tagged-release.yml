@@ -17,7 +17,7 @@ jobs:
         run: sudo apt-get update
 
       - name: Install libdbus
-        run: sudo apt-get install libdbus-1
+        run: sudo apt-get install libdbus-1-dev
 
 
       - name: Install 1.47.0
