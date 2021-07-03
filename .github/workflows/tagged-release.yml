@@ -13,8 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: apt update
+        run: sudo apt-get update
+
       - name: Install libdbus
         run: sudo apt-get install libdbus-1
+
 
       - name: Install 1.47.0
         uses: actions-rs/toolchain@v1
