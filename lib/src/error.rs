@@ -146,7 +146,7 @@ impl ErrorCode for imap::Error{
 
 impl ErrorCode for secret_service::SsError {
     fn error_code(&self) -> i32 {
-        return -999;
+        return -103;
     }
 
     fn human_readable_error_message(&self) -> String {
