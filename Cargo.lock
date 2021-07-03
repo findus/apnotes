@@ -51,7 +51,7 @@ dependencies = [
 
 [[package]]
 name = "apnotes_bin"
-version = "0.3.6"
+version = "0.3.7"
 dependencies = [
  "apnotes_lib",
  "clap 3.0.0-beta.2",
@@ -69,7 +69,7 @@ dependencies = [
 
 [[package]]
 name = "apnotes_lib"
-version = "0.3.6"
+version = "0.3.7"
 dependencies = [
  "cascade",
  "chrono",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "apnotes_tui"
-version = "0.3.6"
+version = "0.3.7"
 dependencies = [
  "apnotes_lib",
  "colored",

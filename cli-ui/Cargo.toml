@@ -1,6 +1,6 @@
 [package]
 name = "apnotes_tui"
-version = "0.3.6"
+version = "0.3.7"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 edition = "2018"
 
