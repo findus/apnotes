@@ -1,4 +1,6 @@
+#[cfg(target_family = "unix")]
 extern crate xdg;
+
 extern crate regex;
 extern crate log;
 
@@ -10,10 +12,14 @@ use error::ProfileError::*;
 use std::str;
 use error::Result;
 
+use error::ProfileError;
+
 #[cfg(target_family = "unix")]
 use self::xdg::BaseDirectories;
+
+#[cfg(target_family = "unix")]
 use secret_service::{SecretService, EncryptionType};
-use error::ProfileError;
+
 
 #[derive(Debug)]
 pub struct Profile {
@@ -32,6 +38,8 @@ pub struct Profile {
 }
 
 impl Profile {
+
+    #[cfg(target_family = "unix")]
     pub fn get_password(&self) -> Result<String> {
         if self.password_type == "PLAIN" {
             Ok(self.password.as_ref().unwrap().clone())
@@ -40,6 +48,16 @@ impl Profile {
         }
     }
 
+    #[cfg(target_family = "windows")]
+    pub fn get_password(&self) -> Result<String> {
+        if self.password_type == "PLAIN" {
+            Ok(self.password.as_ref().unwrap().clone())
+        } else {
+            panic!("Password type {} not supported", self.password_type)
+        }
+    }
+
+    #[cfg(target_family = "unix")]
     fn secret_service_get_pw(&self) -> Result<String> {
         let ss = SecretService::new(EncryptionType::Dh)?;
 

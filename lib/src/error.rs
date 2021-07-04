@@ -1,3 +1,4 @@
+#[cfg(target_family = "unix")]
 use xdg::BaseDirectoriesError;
 
 pub type Result<T> = std::result::Result<T, Box<dyn ErrorCode>>;
@@ -104,6 +105,7 @@ impl ErrorCode for std::str::Utf8Error {
     }
 }
 
+#[cfg(target_family = "unix")]
 impl ErrorCode for xdg::BaseDirectoriesError {
     fn error_code(&self) -> i32 {
         return 255;
@@ -144,6 +146,7 @@ impl ErrorCode for imap::Error{
     }
 }
 
+#[cfg(target_family = "unix")]
 impl ErrorCode for secret_service::SsError {
     fn error_code(&self) -> i32 {
         return 3;
@@ -166,6 +169,7 @@ impl std::convert::From<UpdateError> for std::boxed::Box<dyn ErrorCode> {
     }
 }
 
+#[cfg(target_family = "unix")]
 impl std::convert::From<secret_service::SsError> for  std::boxed::Box<dyn ErrorCode> {
     fn from(e: secret_service::SsError) -> Self {
         Box::new(e)
@@ -190,6 +194,7 @@ impl std::convert::From<std::str::Utf8Error> for  std::boxed::Box<dyn ErrorCode>
     }
 }
 
+#[cfg(target_family = "unix")]
 impl std::convert::From<BaseDirectoriesError> for  std::boxed::Box<dyn ErrorCode> {
     fn from(e: BaseDirectoriesError) -> Self {
         Box::new(e)

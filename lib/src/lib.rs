@@ -23,7 +23,9 @@ extern crate quoted_printable;
 #[macro_use]
 extern crate diesel_migrations;
 extern crate htmlescape;
+#[cfg(target_family = "unix")]
 extern crate secret_service;
+#[cfg(target_family = "unix")]
 extern crate xdg;
 
 #[macro_use]
