@@ -5,15 +5,10 @@ extern crate clap_generate;
 
 use man::prelude::*;
 use man::Manual;
-use apnotes_bin::app;
-use clap_generate::{generate};
-use std::io;
-use clap_generate::generators::Zsh;
 
 fn main() {
 
-    let mut app = app::app::gen_app();
-    generate::<Zsh, _>(&mut app, "apnotes", &mut io::stdout());
+  //  generate::<Zsh, _>(&mut app, "apnotes", &mut io::stdout());
 
     let page = Manual::new("apnotes")
         .about("Short introduction")
@@ -38,9 +33,9 @@ fn main() {
         )
         .example(
             Example::new()
-                .text("run basic in debug mode")
-                .command("basic -d")
-                .output("Debug Mode: basic will print errors to the console")
+                .text("list all present note subjects")
+                .command("apnotes list --names")
+                .output("Prints the subject name of all stored notes")
         )
         .custom(
             Section::new("usage note")

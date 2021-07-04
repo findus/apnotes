@@ -19,7 +19,6 @@ man = "0.3.0"
 
 apnotes_lib = { path = "../lib" }
 
-
 [[bin]]
 name = "backup"
 path = "src/bin/backup.rs"
