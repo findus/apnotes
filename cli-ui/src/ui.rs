@@ -229,6 +229,7 @@ impl<'u> Ui<'u> {
                             }
                         },
                         KeyCode::Char('n') => {
+                            //Todo: check if something is in progress before letting user create new note
                             self.keyword = Some("".to_string());
                             self.status = format!("New Note: {}", self.keyword.as_ref().unwrap());
                             self.color = Color::Cyan;
