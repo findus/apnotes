@@ -12,7 +12,7 @@ apnotes - interact with notes that got written on note applications from apple d
 
 *-h, --help*
     Show help message and quit.
-*-V, --version
+*-V, --version*
     Show the version number and quit.
 
 # SUBCOMMANDS
