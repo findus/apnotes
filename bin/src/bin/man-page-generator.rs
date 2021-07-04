@@ -41,6 +41,7 @@ fn main() {
             Section::new("usage note")
                 .paragraph("This program will overwrite any file currently stored at the output path")
         )
+        .
         .render();
 
     println!("{}", page);
