@@ -1,3 +1,11 @@
+[![AUR package](https://repology.org/badge/version-for-repo/aur/apnotes.svg)](https://repology.org/project/apnotes/versions)
+[![Lines of Code](https://tokei.rs/b1/github/findus/apnotes)](https://tokei.rs/b1/github/findus/apnotes)
+
+
+<a href="https://repology.org/project/apnotes/versions">
+    <img src="https://repology.org/badge/vertical-allrepos/apnotes.svg" alt="Packaging status" align="right">
+</a>
+
 # apnotes (apple-notes-bridge)
 Interface for Linux to View, Edit, Create, Backup and Sync Notes from apple devices.
 Not everything is implemented yet, and you should duplicate your notes somewhere before using this.
