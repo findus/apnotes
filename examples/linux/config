@@ -1,0 +1,7 @@
+username=your_username
+imap_server=your_imap_server_address.org
+email=your_email@server.org
+password=your_password
+password_type=PLAIN
+editor_arguments=
+editor=gedit
