@@ -1,2 +1,0 @@
-#!/bin/bash
-find ~/.local/share/notes -type f -not -name '*_hash' | wofi  -d | xargs cargo run --bin edit
