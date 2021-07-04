@@ -1,6 +1,6 @@
 [![AUR package](https://repology.org/badge/version-for-repo/aur/apnotes.svg)](https://repology.org/project/apnotes/versions)
 [![Lines of Code](https://tokei.rs/b1/github/findus/apnotes)](https://tokei.rs/b1/github/findus/apnotes)
-
+[![CI](https://github.com/findus/apnotes/workflows/tagged-release/badge.svg)](https://github.com/findus/apnotes/actions)
 
 <a href="https://repology.org/project/apnotes/versions">
     <img src="https://repology.org/badge/vertical-allrepos/apnotes.svg" alt="Packaging status" align="right">
