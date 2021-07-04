@@ -86,8 +86,9 @@ configuration file path:
 Philipp Hentschel <philipp@f1ndus.de>
 Development Repository <https://github.com/findus/apnotes>
 
+# SEE ALSO
 
-
+*apnotes*(5)
 
 
 
