@@ -230,8 +230,10 @@ unsafe fn get_test_config() -> &'static str {
 #[cfg(test)]
 mod tests {
     use profile::{load_profile, BASIC_SECRET_SERVICE_CONFIG};
+    #[cfg(target_family = "unix")]
     use secret_service::{SecretService, EncryptionType};
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn test_secret_service() {
         let ss = SecretService::new(EncryptionType::Dh).unwrap();
