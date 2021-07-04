@@ -26,7 +26,3 @@ path = "src/bin/backup.rs"
 [[bin]]
 name = "apnotes"
 path = "src/bin/notes.rs"
-
-[[bin]]
-name = "man-page-generator"
-path = "src/bin/man-page-generator.rs"
