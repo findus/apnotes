@@ -37,8 +37,10 @@ apnotes - interact with notes that got written on note applications from apple d
     Merges unmerged note
     <note> can either be the notes uuid or subject, if multiple subjects exist
     with the same name the first matching note gets selected
-*new* <name>
+*new [--folder] <name>*
     Creates a new note. <name> is the title of the note
+    [--folder] specifies the subfolder in which the note should get saved, if it does
+    not exists it gets created.
     <note> can either be the notes uuid or subject, if multiple subjects exist
     with the same name the first matching note gets selected
 *print <note>*
