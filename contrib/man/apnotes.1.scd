@@ -11,48 +11,48 @@ apnotes - interact with notes that got written on note applications from apple d
 # FLAGS
 
 *-h, --help*
-    Show help message and quit.
+	Show help message and quit.
 *-V, --version*
-    Show the version number and quit.
+	Show the version number and quit.
 
 # SUBCOMMANDS
 
 *backup*
-    Duplicates current note tree on the imap server (unimplemented right now)
+	Duplicates current note tree on the imap server (unimplemented right now)
 *delete <note>*
-    Flags a note as deleted, so that it gets deleted by next sync
-    <note> can either be the notes uuid or subject, if multiple subjects exist
-    with the same name the first matching note gets selected
+	Flags a note as deleted, so that it gets deleted by next sync
+	<note> can either be the notes uuid or subject, if multiple subjects exist
+	with the same name the first matching note gets selected
 *edit <note>*
-    Edits an existing note.
-    <note> can either be the notes uuid or subject, if multiple subjects exist
-    with the same name the first matching note gets selected
+	Edits an existing note.
+	<note> can either be the notes uuid or subject, if multiple subjects exist
+	with the same name the first matching note gets selected
 *help*
-    Prints this message or the help of the given subcommand(s)
+	Prints this message or the help of the given subcommand(s)
 *list [--names] [--deleted]*
-    Lists all available notes
-    --deleted: Only show notes that were flagges for deletion
-    --names: Only show the names of the notes (hides the uuid)
+	Lists all available notes
+	*--deleted:* Only show notes that were flagges for deletion
+	*--names:* Only show the names of the notes (hides the uuid)
 *merge <note>*
-    Merges unmerged note
-    <note> can either be the notes uuid or subject, if multiple subjects exist
-    with the same name the first matching note gets selected
+	Merges unmerged note
+	*<note>* can either be the notes uuid or subject, if multiple subjects exist
+	with the same name the first matching note gets selected
 *new [--folder] <name>*
-    Creates a new note. <name> is the title of the note
-    [--folder] specifies the subfolder in which the note should get saved, if it does
-    not exists it gets created.
-    <note> can either be the notes uuid or subject, if multiple subjects exist
-    with the same name the first matching note gets selected
+	Creates a new note. <name> is the title of the note
+	*[--folder]* specifies the subfolder in which the note should get saved, if it does
+	not exists it gets created.
+	<note> can either be the notes uuid or subject, if multiple subjects exist
+	with the same name the first matching note gets selected
 *print <note>*
-    Prints note content
-    <note> can either be the notes uuid or subject, if multiple subjects exist
-    with the same name the first matching note gets selected
+	Prints note content
+	<note> can either be the notes uuid or subject, if multiple subjects exist
+	with the same name the first matching note gets selected
 *sync*
-    Syncs local with remote notes and vice versa
+	Syncs local with remote notes and vice versa
 *undelete <note>*
-    Removes deletion flag
-    <note> can either be the notes uuid or subject, if multiple subjects exist
-    with the same name the first matching note gets selected
+	Removes deletion flag
+	<note> can either be the notes uuid or subject, if multiple subjects exist
+	with the same name the first matching note gets selected
 
 # DESCRIPTION
 
@@ -81,7 +81,7 @@ configuration file path:
 
 . ~/.config/apnotes/config
 
-#AUTHOR
+# AUTHOR
 
 Philipp Hentschel <philipp@f1ndus.de>
 Development Repository <https://github.com/findus/apnotes>

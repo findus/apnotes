@@ -13,21 +13,21 @@ let the tool querey it via the secret-service api.
 # KEYS
 
 *username*
-    Your login username
+	Your login username
 *imap_server*
-    Address of your mail server
+	Address of your mail server
 *email*
-    Your email address
+	Your email address
 *password_type*
-    PLAIN or SECRET_SERVICE
+	PLAIN or SECRET_SERVICE
 *secret_service_attribute*
-    Key of the object secret service should query
+	Key of the object secret service should query
 *secret_service_value*
-    Value of the object secret service should query
+	Value of the object secret service should query
 *editor*
-    editor that should be used for editing
+	editor that should be used for editing
 *editor_arguments*
-    arguments that are getting passed to the editor
+	arguments that are getting passed to the editor
 
 # EXAMPLES
 
