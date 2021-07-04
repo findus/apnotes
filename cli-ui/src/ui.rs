@@ -192,7 +192,7 @@ impl<'u> Ui<'u> {
                             self.new_note_mode = false;
                         }
                         KeyCode::Enter => {
-                            self.ui_state.action_sender.send(Task::NewNote(self.status.clone())).unwrap();
+                            self.ui_state.action_sender.send(Task::NewNote(self.status.replace("New Note:","").clone())).unwrap();
                             self.new_note_mode = false;
                         }
                         _ => {}
