@@ -17,16 +17,40 @@ apnotes - interact with notes that got written on note applications from apple d
 
 # SUBCOMMANDS
 
-# backup      Duplicates current note tree on the imap server (unimplemented right now)
-# delete      Flags a note as deleted, so that it gets deleted by next sync
-# edit        Edits an existing note
-# help        Prints this message or the help of the given subcommand(s)
-# list        Lists all available notes
-# merge       Merges unmerged note
-# new         Creates a new note
-# print       Prints note content
-# sync        Syncs local with remote notes and vice versa
-# undelete    Removes deletion flag
+*backup*
+    Duplicates current note tree on the imap server (unimplemented right now)
+*delete <note>*
+    Flags a note as deleted, so that it gets deleted by next sync
+    <note> can either be the notes uuid or subject, if multiple subjects exist
+    with the same name the first matching note gets selected
+*edit <note>*
+    Edits an existing note.
+    <note> can either be the notes uuid or subject, if multiple subjects exist
+    with the same name the first matching note gets selected
+*help*
+    Prints this message or the help of the given subcommand(s)
+*list [--names] [--deleted]*
+    Lists all available notes
+    --deleted: Only show notes that were flagges for deletion
+    --names: Only show the names of the notes (hides the uuid)
+*merge <note>*
+    Merges unmerged note
+    <note> can either be the notes uuid or subject, if multiple subjects exist
+    with the same name the first matching note gets selected
+*new* <name>
+    Creates a new note. <name> is the title of the note
+    <note> can either be the notes uuid or subject, if multiple subjects exist
+    with the same name the first matching note gets selected
+*print <note>*
+    Prints note content
+    <note> can either be the notes uuid or subject, if multiple subjects exist
+    with the same name the first matching note gets selected
+*sync*
+    Syncs local with remote notes and vice versa
+*undelete <note>*
+    Removes deletion flag
+    <note> can either be the notes uuid or subject, if multiple subjects exist
+    with the same name the first matching note gets selected
 
 # DESCRIPTION
 
@@ -46,7 +70,21 @@ normal text editor. *This process is destructive to everything that is not repre
 
 After syncing it is possible to interact with the note database, the resulting changes are getting
 stored inside the database. The changes are getting transmitted to the e-mail server upon next
-synchronization (*apnotes sync*).
+synchronization (*apnotes sync*). The tool also takes care about converting the edited markdown text
+back to html.
+
+# CONFIGURATION
+
+configuration file path:
+
+. ~/.config/apnotes/config
+
+#AUTHOR
+
+Philipp Hentschel <philipp@f1ndus.de>
+Development Repository <https://github.com/findus/apnotes>
+
+
 
 
 
