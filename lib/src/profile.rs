@@ -234,6 +234,7 @@ mod tests {
     use secret_service::{SecretService, EncryptionType};
 
     #[cfg(target_family = "unix")]
+    #[ignore]
     #[test]
     fn test_secret_service() {
         let ss = SecretService::new(EncryptionType::Dh).unwrap();
