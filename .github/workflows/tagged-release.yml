@@ -37,8 +37,8 @@ jobs:
       - name: Install libdbus
         run: sudo apt-get install libdbus-1-dev
 
-      - name: Install libdbus
-        run: sudo apt-get install libdbus-1-dev
+      - name: Install scdoc
+        run: sudo apt-get install scdoc
 
       - name: "Cacbe rust binaries"
         uses: actions/cache@v2
