@@ -45,4 +45,4 @@ secret_service_value=mailpw
 
 # SEE ALSO
 
-*apnotes*(1)
+*apnotes*(1)k

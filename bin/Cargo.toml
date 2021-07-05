@@ -3,6 +3,7 @@ name = "apnotes_bin"
 version = "0.3.7"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 autobins = false
+build = "build.rs"
 
 [dependencies]
 log = "0.4"
