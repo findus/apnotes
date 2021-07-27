@@ -233,6 +233,10 @@ impl AppleNotes {
         self.db_connection.update(note).map_err(|e| e.into())
     }
 
+    pub fn move_note(&self, title: &String, folder: &String) -> Result<()> {
+        unimplemented!()
+    }
+
 }
 
 pub fn get_user_profile() -> Result<Profile> {

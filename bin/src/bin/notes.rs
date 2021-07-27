@@ -57,6 +57,7 @@ pub fn main() {
                 Some(("delete", sub_matches)) => delete_note(sub_matches,&apple_notes),
                 Some(("undelete", sub_matches)) => undelete_note(sub_matches,&apple_notes),
                 Some(("print", sub_matches)) => print_note(sub_matches, &apple_notes),
+                Some(("move", sub_matches)) => move_note(sub_matches, &apple_notes),
                 _ => unreachable!(),
             };
 
@@ -170,4 +171,12 @@ fn new(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
 fn sync_notes(sub_matches: &ArgMatches, app:&AppleNotes) -> Result<()> {
     let is_dry_run = sub_matches.is_present("dry-run");
     app.sync_notes(is_dry_run).map(|_| ())
+}
+
+fn move_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
+
+    let uuid_or_name = sub_matches.value_of("title").unwrap().to_string();
+    let folder = sub_matches.value_of("folder").unwrap().to_string();
+
+    app.move_note(&uuid_or_name, &folder)
 }
