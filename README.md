@@ -7,6 +7,12 @@
 </a>
 
 # apnotes (apple-notes-bridge)
+
+<p align="center">
+  <img style="width:100%" src="https://raw.githubusercontent.com/findus/NotesManager/master/screencast.gif" alt="animated" />
+</p>
+
+
 Interface for Linux to View, Edit, Create, Backup and Sync Notes from apple devices.
 Not everything is implemented yet, and you should duplicate your notes somewhere before using this.
 Works only, if you dont store your notes in icloud
@@ -28,5 +34,3 @@ Right now this repository consists of 3 Crates:
 | Sync Notes        | ✔                    | ✔                         |✔ |
 | Search Notes      | ✔                    | ✔                         |❔ (Scripting) |
 | Merge Notes       | ❌                   | ✔ (Max 2 Versions)        |✔ (Max 2 Versions)  |
-
-![](https://raw.githubusercontent.com/findus/NotesManager/master/screencast.gif)
