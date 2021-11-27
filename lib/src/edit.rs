@@ -40,9 +40,11 @@ pub fn edit_note(local_note: &LocalNote, new: bool, profile: &Profile) -> Result
 
     info!("Opening Note for editing: {} new file: {} path: {}", note.subject(), new,  file_path);
 
-    let mut file = std::fs::File::create(&file_path).expect("Could not create file");
-    file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
-        .expect("Could not write to file");
+    {
+        let mut file = std::fs::File::create(&file_path).expect("Could not create file");
+        file.write_all(note.text.as_ref().unwrap_or(&"".to_string()).as_bytes())
+            .expect("Could not write to file");
+    }
 
     let (editor, args) = if environment_editor.is_ok() {
         (environment_editor.unwrap(),vec![])
