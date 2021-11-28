@@ -6,7 +6,7 @@ use tui::style::{Style, Color, Modifier};
 use tui::layout::{Constraint, Direction, Layout, Alignment};
 use std::sync::{Arc, Mutex};
 use std::time::{Instant, Duration};
-use std::{thread, io};
+use std::{thread, io, vec};
 use std::convert::TryInto;
 use tui::Terminal;
 use tui::backend::CrosstermBackend;
@@ -22,6 +22,7 @@ use itertools::Itertools;
 use apnotes_lib::error::ErrorCode;
 use lazy_static::lazy_static;
 use regex::Regex;
+use tui::text::{Span, Spans};
 
 lazy_static! {
     static ref NOTES_REGEX: Regex = Regex::new(r"^Notes\.? ?").unwrap();
@@ -415,6 +416,15 @@ impl<'u> Ui<'u> {
     }
 
     fn generate_list_items(&mut self) -> Vec<ListItem<'u>> {
+
+        fn gen_item<'u>(folder: String, text: String, style: Style) -> ListItem<'u> {
+            let spans = Spans::from(vec![
+                Span::styled(folder, Style::default().fg(Color::Rgb(170,170,170))),
+                Span::styled(text, style)
+            ]);
+            ListItem::new(spans)
+        }
+
         self.entries.iter()
             .filter(|entry| {
                 if self.keyword.is_some() {
@@ -428,15 +438,15 @@ impl<'u> Ui<'u> {
                 let folder = NOTES_REGEX.replace_all(&folder,"");
                 let folder = if folder.trim().len() > 0 { format!("{}.",folder) } else { "".to_string() };
                 if e.needs_merge() {
-                    ListItem::new(format!("[M] {}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
+                    gen_item(folder, e.first_subject(), Style::default().fg(Color::LightBlue))
                 } else if e.content_changed_locally() {
-                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
+                    gen_item(folder, e.first_subject(), Style::default().fg(Color::LightYellow))
                 } else if e.metadata.locally_deleted {
-                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
+                    gen_item(folder, e.first_subject(), Style::default().fg(Color::LightRed))
                 } else if e.metadata.new {
-                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
+                    gen_item(folder, e.first_subject(), Style::default().fg(Color::LightGreen))
                 } else {
-                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string())
+                    gen_item(folder, e.first_subject(), Style::default().fg(Color::White) )
                 }
             }).collect()
     }
