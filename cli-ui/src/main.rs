@@ -185,7 +185,7 @@ fn main() {
         text: "".to_string(),
         scroll_amount: 0,
         in_search_mode: false,
-        new_note_mode: false
+        new_note_mode: false,
     };
 
     ui.run().unwrap();

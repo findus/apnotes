@@ -19,6 +19,8 @@ use crossterm::{
 use crossterm::event::KeyEvent;
 use itertools::Itertools;
 use apnotes_lib::error::ErrorCode;
+use std::collections::HashMap;
+use std::ops::DerefMut;
 
 pub struct UiState {
     pub(crate) action_sender: Sender<Task>,
@@ -40,18 +42,43 @@ pub struct Ui<'u> {
     pub text: String,
     pub scroll_amount: u16,
     pub in_search_mode: bool,
-    pub new_note_mode: bool
+    pub new_note_mode: bool,
 }
+
+type Callback<'u> = Box<dyn Fn(&'u mut Ui<'u>) -> () + 'u>;
 
 impl<'u> Ui<'u> {
 
-    pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn mk_callback<F>(f: F) -> Callback<'u> where F: Fn(&'u mut Ui<'u>) -> () + 'u {
+        Box::new(f) as Callback
+    }
+
+    fn j_pressed(ui: &mut Ui<'u>) {
+        let selected = ui.note_list_state.selected();
+        if ui.entries.len() > 0 && selected.unwrap_or(0) < ui.entries.len() - 1 {
+            ui.note_list_state.select(Some(selected.unwrap_or(0) + 1));
+            ui.reload_text();
+            ui.scroll_amount = 0;
+        }
+    }
+
+    fn init_keyactions() -> HashMap<String, Callback<'u>> {
+        let navigation_actions: HashMap<String, Callback> = HashMap::from([
+            ("j".to_string(), Ui::mk_callback(Ui::j_pressed))
+        ]);
+        navigation_actions
+    }
+
+    pub fn run(&'u mut self) -> Result<(), Box<dyn std::error::Error>> {
 
         enable_raw_mode().expect("can run in raw mode");
+
+        let navigation_actions = Ui::init_keyactions();
 
         let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
+        let mut input = "".to_string();
 
         terminal.clear().unwrap();
 
@@ -147,17 +174,16 @@ impl<'u> Ui<'u> {
 
             let received_keystroke = self.ui_state.event_receiver.recv()?;
 
-            if self.in_search_mode {
                 match received_keystroke {
                     Event::Input(event) => match event.code {
-                        KeyCode::Esc => {
+                        KeyCode::Esc if self.in_search_mode => {
                             self.status = "".to_string();
                             self.color = Color::White;
                             self.in_search_mode = false;
                             self.refresh();
                             self.reload_text()
                         }
-                        KeyCode::Backspace => {
+                        KeyCode::Backspace if self.in_search_mode  => {
                             let word = self.delete_character();
                             self.keyword = Some(word);
                             self.status = self.keyword.as_ref().unwrap().clone();
@@ -165,49 +191,45 @@ impl<'u> Ui<'u> {
                             self.refresh();
                             self.note_list_state.select(Some(0));
                         }
-                        KeyCode::Char(c) => {
+                        KeyCode::Char(c) if self.in_search_mode => {
+                            input.push(c);
                             let ed = c;
                             self.keyword = Some(format!("{}{}", self.keyword.as_ref().unwrap(), ed));
                             self.status = self.keyword.as_ref().unwrap().clone();
                             self.refresh();
                         }
-                        _ => {}
-                    }
-                    _ => {}
-                }
-            } else if self.new_note_mode {
-                match received_keystroke {
-                    Event::Input(event) => match event.code {
-                        KeyCode::Char(c) => {
+                        KeyCode::Char(c) if self.new_note_mode => {
                             let ed = c;
                             self.status = format!("{}{}", self.status, ed);
                         }
-                        KeyCode::Backspace => {
+                        KeyCode::Backspace if self.new_note_mode => {
                             let word = self.delete_character();
                             self.status = format!("{}{}", self.status, word);
                         }
-                        KeyCode::Esc => {
+                        KeyCode::Esc if self.new_note_mode => {
                             self.status = "".to_string();
                             self.color = Color::White;
                             self.new_note_mode = false;
                         }
-                        KeyCode::Enter => {
-                            self.ui_state.action_sender.send(Task::NewNote(self.status.replace("New Note:","").clone())).unwrap();
+                        KeyCode::Enter if self.new_note_mode => {
+                            self.ui_state.action_sender.send(Task::NewNote(self.status.replace("New Note:", "").clone())).unwrap();
                             self.new_note_mode = false;
                         }
-                        _ => {}
-                    }
-                    _ => {}
-                }
-            } else {
-                match received_keystroke {
-                    Event::Input(event) => match event.code {
-                        KeyCode::Char('j') => {
-                            let selected = self.note_list_state.selected();
-                            if self.entries.len() > 0 && selected.unwrap_or(0) < self.entries.len() -1 {
-                                self.note_list_state.select(Some(selected.unwrap_or(0) + 1));
-                                self.reload_text();
-                                self.scroll_amount = 0;
+                        KeyCode::Char(char) => {
+                            input.push(char);
+                            match input.as_str() {
+                                "j" => {
+                                    Ui::j_pressed(self);
+                                    input = "".to_string();
+                                },
+                                "GG" => {
+                                    self.note_list_state.select(Some(0));
+                                    self.reload_text();
+                                    self.scroll_amount = 0;
+                                    input = "".to_string();
+                                }
+                                ,
+                                _ => {}
                             }
                         },
                         KeyCode::Char('k') => {
@@ -237,7 +259,7 @@ impl<'u> Ui<'u> {
                         },
                         KeyCode::Char('m') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
-                            let result =  {
+                            let result = {
                                 a.lock().unwrap().merge(&note.metadata.uuid)
                             };
                             match result {
@@ -258,7 +280,7 @@ impl<'u> Ui<'u> {
                         }
                         KeyCode::Char('e') => {
                             let note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap();
-                            let result: Result<LocalNote,Box<dyn ErrorCode>> = {
+                            let result: Result<LocalNote, Box<dyn ErrorCode>> = {
                                 let app = a.lock().unwrap();
                                 app.edit_note(&note, false)
                                     .and_then(|note| app.update_note(&note).map(|_n| note).map_err(|e| e.into()))
@@ -271,31 +293,27 @@ impl<'u> Ui<'u> {
                                     let old_note_idx = self.get_note_index(old_uuid);
                                     self.note_list_state.select(Some(old_note_idx));
                                     self.reload_text();
-
                                 }
                                 Err(e) => {
                                     self.color = Color::Red;
                                     self.status = e.to_string();
                                 }
                             }
-
                         },
                         KeyCode::Char('d') => {
                             let mut note = self.entries.get(self.note_list_state.selected().unwrap()).unwrap().clone();
-                            note.metadata.locally_deleted = !note.metadata.locally_deleted ;
+                            note.metadata.locally_deleted = !note.metadata.locally_deleted;
 
                             let db_connection = apnotes_lib::db::SqliteDBConnection::new();
                             db_connection.update(&note).unwrap();
 
                             self.refresh();
-
                         },
                         KeyCode::Char('s') => {
                             self.status = "Syncing".to_string();
                             self.color = Color::Yellow;
 
                             self.ui_state.action_sender.send(Task::Sync).unwrap();
-
                         },
                         KeyCode::Char('x') => {
                             self.status = "Syncing".to_string();
@@ -324,7 +342,6 @@ impl<'u> Ui<'u> {
                             self.refresh();
                             self.select_entry(old_uuid);
                             self.reload_text();
-
                         },
                         KeyCode::Esc => {
                             let old_uuid = self.get_old_selected_entry_uuid();
@@ -336,7 +353,6 @@ impl<'u> Ui<'u> {
                         }
                         _ => {}
                     }
-                    Event::Tick => {}
                     Event::OutCome(outcome) => match outcome {
                         Outcome::Busy() => {
                             self.color = Color::Red;
@@ -361,9 +377,8 @@ impl<'u> Ui<'u> {
                             break;
                         }
                     }
+                    _ => {}
                 }
-            }
-
 
         }
 
