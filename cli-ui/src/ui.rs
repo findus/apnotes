@@ -7,6 +7,7 @@ use tui::layout::{Constraint, Direction, Layout, Alignment};
 use std::sync::{Arc, Mutex};
 use std::time::{Instant, Duration};
 use std::{thread, io};
+use std::convert::TryInto;
 use tui::Terminal;
 use tui::backend::CrosstermBackend;
 use apnotes_lib::AppleNotes;
@@ -19,6 +20,12 @@ use crossterm::{
 use crossterm::event::KeyEvent;
 use itertools::Itertools;
 use apnotes_lib::error::ErrorCode;
+use lazy_static::lazy_static;
+use regex::Regex;
+
+lazy_static! {
+    static ref NOTES_REGEX: Regex = Regex::new(r"^Notes\.? ?").unwrap();
+}
 
 pub struct UiState {
     pub(crate) action_sender: Sender<Task>,
@@ -417,16 +424,19 @@ impl<'u> Ui<'u> {
                 }
             })
             .map(|e| {
+                let folder =e.metadata.folder();
+                let folder = NOTES_REGEX.replace_all(&folder,"");
+                let folder = if folder.trim().len() > 0 { format!("{}.",folder) } else { "".to_string() };
                 if e.needs_merge() {
-                    ListItem::new(format!("[M] {} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
+                    ListItem::new(format!("[M] {}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightBlue))
                 } else if e.content_changed_locally() {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
+                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightYellow))
                 } else if e.metadata.locally_deleted {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
+                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightRed))
                 } else if e.metadata.new {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
+                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string()).style(Style::default().fg(Color::LightGreen))
                 } else {
-                    ListItem::new(format!("{} {}", e.metadata.folder(), e.first_subject()).to_string())
+                    ListItem::new(format!("{}{}", folder, e.first_subject()).to_string())
                 }
             }).collect()
     }

@@ -2,6 +2,9 @@ extern crate apnotes_lib;
 extern crate itertools;
 extern crate log;
 extern crate diesel;
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
 
 mod ui;
 
