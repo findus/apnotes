@@ -88,11 +88,11 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send>, profile: &Profile)
-    -> Result<Vec<SyncResult>> {
+pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send>, profile: &Profile, is_dry_run: bool)
+                  -> Result<Vec<SyncResult>> {
     ::apple_imap::MailServiceImpl::new_with_login(profile)
         .and_then(|mut imap_service| {
-            sync(&mut imap_service, db_connection).map(|result| (result,imap_service))
+            sync(&mut imap_service, db_connection, is_dry_run).map(|result| (result,imap_service))
         })
         .and_then(|(result, mut imap_service)| {
             imap_service.logout().map(|_| result).map_err(|e| e.into())
@@ -274,8 +274,8 @@ fn get_needs_merge_basic<'a>(remote_note_header: Option<&'a RemoteNoteHeaderColl
     }
 }
 
-pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn DatabaseService + Send>)
-    -> Result<Vec<SyncResult>>
+pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn DatabaseService + Send>, is_dry_run: bool)
+               -> Result<Vec<SyncResult>>
 
 {
     let headers = imap_session.fetch_headers()?;
@@ -284,6 +284,12 @@ pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn Da
 
     let actions =
         get_sync_actions(&grouped_not_headers, &fetches);
+
+    if is_dry_run {
+        info!("Dry run");
+        return Ok(Vec::new())
+    }
+
     let results = process_actions(imap_session, db_connection, &actions);
 
     for (action, subject, result) in &results {
@@ -307,7 +313,7 @@ pub fn sync<T>(imap_session: &mut dyn MailService<T>, db_connection: &Box<dyn Da
 pub fn process_actions<'a, T>(
     imap_connection: &mut dyn MailService<T>,
     db_connection: &Box<dyn DatabaseService + Send>,
-    actions: &'a Vec<UpdateAction<'a>>) -> Vec<(&'a UpdateAction<'a>,String, Result<()>)>
+    actions: &'a Vec<UpdateAction<'a>>) -> Vec<(&'a UpdateAction<'a>, String, Result<()>)>
 
 {
     let result = actions

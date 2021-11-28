@@ -120,7 +120,7 @@ impl App {
                                 }
                                 Task::Sync => {
                                     let d = app_lock.lock().unwrap();
-                                    match d.sync_notes() {
+                                    match d.sync_notes(false) {
                                         Ok(result) => {
                                             if result.iter().find(|syncresult| syncresult.result.is_err()).is_some() {
                                                 event_tx.send(Event::OutCome(Failure(format!("Sync error: Could not sync all notes")))).unwrap();

@@ -50,7 +50,7 @@ pub fn main() {
 
             let result = match matches.subcommand() {
                 Some(("new",  sub_matches)) => new(sub_matches,&apple_notes),
-                Some(("sync", _sub_matches)) => apple_notes.sync_notes().map(|_| ()),
+                Some(("sync", sub_matches)) => sync_notes(sub_matches, &apple_notes).map(|_| ()),
                 Some(("list", sub_matches)) => list_notes(sub_matches,&apple_notes),
                 Some(("edit", sub_matches)) => edit_passed_note(sub_matches,&apple_notes),
                 Some(("merge", sub_matches)) => merge_note(sub_matches,&apple_notes),
@@ -165,4 +165,9 @@ fn new(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
         .and_then(|metadata| app.edit_note(&metadata, true))
         .and_then(|local_note| app.update_note(&local_note))
         .map_err(|e| e.into())
+}
+
+fn sync_notes(sub_matches: &ArgMatches, app:&AppleNotes) -> Result<()> {
+    let is_dry_run = sub_matches.is_present("dry-run");
+    app.sync_notes(is_dry_run).map(|_| ())
 }

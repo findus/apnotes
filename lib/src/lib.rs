@@ -27,6 +27,7 @@ extern crate htmlescape;
 extern crate secret_service;
 #[cfg(target_family = "unix")]
 extern crate xdg;
+extern crate clap;
 
 #[macro_use]
 mod macros;
@@ -54,6 +55,7 @@ use notes::localnote::LocalNote;
 use error::{UpdateError};
 use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
+use clap::ArgMatches;
 use profile::Profile;
 use sync::SyncResult;
 
@@ -82,8 +84,8 @@ impl AppleNotes {
     /// of every individual note that got processes
     ///
     /// Tuple content:  (UpdateAction,Subject,Result)
-    pub fn sync_notes(&self) -> Result<Vec<SyncResult>> {
-        sync::sync_notes(&self.db_connection, &self.profile)
+    pub fn sync_notes(&self, dry_run: bool) -> Result<Vec<SyncResult>> {
+        sync::sync_notes(&self.db_connection, &self.profile, dry_run)
     }
 
     /// Opens a text editor with the content of the specified note
