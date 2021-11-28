@@ -31,8 +31,8 @@ pub struct NotesMetadata {
     /// However multiple notes with the name can exist remotely
     /// if notes are getting edited simultaneously on multiple
     /// devices, the notes app recognizes this and duplicates
-    /// the note the first with the content that was edited on
-    /// device1, and the second with the content that was
+    /// the note, the first one with the content that was edited on
+    /// device1, and the second one with the content that was
     /// edited on device2.
     pub uuid: String,
     pub mime_version: String,

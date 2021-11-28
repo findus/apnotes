@@ -175,7 +175,7 @@ fn sync_notes(sub_matches: &ArgMatches, app:&AppleNotes) -> Result<()> {
 
 fn move_note(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
 
-    let uuid_or_name = sub_matches.value_of("title").unwrap().to_string();
+    let uuid_or_name = sub_matches.value_of("note").unwrap().to_string();
     let folder = sub_matches.value_of("folder").unwrap().to_string();
 
     app.move_note(&uuid_or_name, &folder)

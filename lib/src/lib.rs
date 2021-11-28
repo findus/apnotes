@@ -58,6 +58,8 @@ use std::collections::hash_map::RandomState;
 use clap::ArgMatches;
 use profile::Profile;
 use sync::SyncResult;
+use model::NotesMetadata;
+use builder::NotesMetadataBuilder;
 
 pub struct AppleNotes {
     profile: Profile,
@@ -233,8 +235,34 @@ impl AppleNotes {
         self.db_connection.update(note).map_err(|e| e.into())
     }
 
-    pub fn move_note(&self, title: &String, folder: &String) -> Result<()> {
-        unimplemented!()
+    pub fn move_note(&self, title_or_uuid: &String, folder: &String) -> Result<()> {
+        // check if not merged
+        // check if specified folder exists and if folder != source folder
+
+        if folder.chars().all(char::is_alphanumeric) == false {
+            return Err(InsertionError("Folder name has to be alphanumeric".to_string()).into())
+        }
+
+        //TODO logic what to do if user wants to move to standard folder
+
+        self.find_note(title_or_uuid)
+            .and_then(|old_note| {
+                let mut new_metadata = old_note.metadata.clone();
+                new_metadata.subfolder = format!("Notes.{}",folder.clone());
+                let new_note = note![
+                    new_metadata,
+                    old_note.body.first().unwrap().clone()
+                ];
+                Ok(new_note)
+            })
+            .and_then(|new_note| {
+                self.db_connection.update(&new_note).map_err(|e| e.into())
+            })
+        // check if note exists
+
+        //for sync, note here
+        //guess: delete old note and create copy in new folder
+        // implemented move detection
     }
 
 }
