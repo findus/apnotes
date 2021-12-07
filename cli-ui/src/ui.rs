@@ -7,7 +7,6 @@ use tui::layout::{Constraint, Direction, Layout, Alignment};
 use std::sync::{Arc, Mutex};
 use std::time::{Instant, Duration};
 use std::{thread, io, vec};
-use std::convert::TryInto;
 use tui::Terminal;
 use tui::backend::CrosstermBackend;
 use apnotes_lib::AppleNotes;
@@ -188,11 +187,12 @@ impl<'u> Ui<'u> {
                     Event::Input(event) => match event.code {
                         KeyCode::Char(c) => {
                             let ed = c;
-                            self.status = format!("{}{}", self.status, ed);
+                            self.status = format!("{}{}", self.keyword.clone().unwrap(), ed);
+                            self.keyword = Some(self.status.to_string());
                         }
                         KeyCode::Backspace => {
-                            let word = self.delete_character();
-                            self.status = format!("{}{}", self.status, word);
+                            self.keyword = Some(self.delete_character());
+                            self.status = format!("{}",self.keyword.clone().unwrap());
                         }
                         KeyCode::Esc => {
                             self.status = "".to_string();
@@ -202,6 +202,7 @@ impl<'u> Ui<'u> {
                         KeyCode::Enter => {
                             self.ui_state.action_sender.send(Task::NewNote(self.status.replace("New Note:","").clone())).unwrap();
                             self.new_note_mode = false;
+                            self.keyword = None;
                         }
                         _ => {}
                     }

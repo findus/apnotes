@@ -55,7 +55,6 @@ use notes::localnote::LocalNote;
 use error::{UpdateError};
 use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
-use clap::ArgMatches;
 use profile::Profile;
 use sync::SyncResult;
 
@@ -96,7 +95,7 @@ impl AppleNotes {
     }
 
     /// Creates a new note, with the specified name inside the specified folder
-    pub fn create_new_note(&self, with_subject: &String, folder: &String)
+    pub fn create_new_note(&self, with_subject: &str, folder: &str)
                               -> Result<LocalNote>
     {
 
@@ -106,12 +105,12 @@ impl AppleNotes {
 
         #[cfg(test)]
             let note = note!(
-             builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
+             builder::NotesMetadataBuilder::new().with_folder(folder.to_string()).is_new(true).build(),
              builder::BodyMetadataBuilder::new().with_text(&with_subject.clone()).build()
            );
         #[cfg(not(test))]
             let note = note!(
-             builder::NotesMetadataBuilder::new().with_folder(folder.clone()).is_new(true).build(),
+             builder::NotesMetadataBuilder::new().with_folder(folder.to_string()).is_new(true).build(),
              builder::BodyMetadataBuilder::new(&self.profile).with_text(&with_subject.clone()).build()
            );
 

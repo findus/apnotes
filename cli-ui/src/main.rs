@@ -2,7 +2,6 @@ extern crate apnotes_lib;
 extern crate itertools;
 extern crate log;
 extern crate diesel;
-#[macro_use]
 extern crate lazy_static;
 extern crate regex;
 
@@ -112,7 +111,12 @@ impl App {
                             match next_action {
                                 Task::NewNote(name) => {
                                     let d = app_lock.lock().unwrap();
-                                    match d.create_new_note(&name, &String::new()) {
+                                    let result = match name.split_once("/") {
+                                        Some((folder, name)) => d.create_new_note(name, folder),
+                                        None => d.create_new_note(&name, &String::new())
+                                    };
+
+                                    match result {
                                         Ok(_) => {
                                             event_tx.send(Event::OutCome(Success("New note created".to_string()))).unwrap();
                                         }
