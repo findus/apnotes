@@ -15,32 +15,32 @@ This is an experimental tui frontend for apnotes. It provides basic note navigat
 # KEYBINDINGS
 
 *ESC*
-    Exit from filter/search/new-note mode
+	Exit from filter/search/new-note mode
 
 *j k*
-    Navigate up or down
+	Navigate up or down
 
 */*
-    Enter search mode, now you can search for keywords inside your notes
+	Enter search mode, now you can search for keywords inside your notes
 
 *c*
-    Clear search filter
+	Clear search filter
 
 *n*
-    Enter new note mode, enter the title of the new note. Use "/" to specify a subfolder:
-    Example: todo/vacation
+	Enter new note mode, enter the title of the new note. Use "/" to specify a subfolder:
+	Example: todo/vacation
 
 *J K*
-    Scroll up or down
+	Scroll up or down
 
 *s*
-    Sync
+	Sync
 
 *d*
-    toggle the deletion flag on a note
+	toggle the deletion flag on a note
 
 *e*
-    edit a note inside your specified editor
+	edit a note inside your specified editor
 
 # AUTHOR
 
