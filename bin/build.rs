@@ -16,6 +16,7 @@ fn build_man_pages() {
     if cfg!(target_os = "linux") {
         build_man_page("apnotes.1");
         build_man_page("apnotes.5");
+        build_man_page("apnotes-tui.1");
     };
 
     fn build_man_page(name: &str) {
