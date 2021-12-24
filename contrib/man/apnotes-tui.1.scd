@@ -42,6 +42,9 @@ This is an experimental tui frontend for apnotes. It provides basic note navigat
 *e*
 	edit a note inside your specified editor
 
+*m*
+	merge a note
+
 # AUTHOR
 
 Philipp Hentschel <philipp@f1ndus.de>
