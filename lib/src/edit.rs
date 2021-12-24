@@ -87,6 +87,7 @@ fn read_edited_text(local_note: &LocalNote, note: &Body, file_path: &str, _profi
             subfolder: local_note.metadata.subfolder.clone(),
             locally_deleted: local_note.metadata.locally_deleted,
             new: local_note.metadata.new,
+            edited: true,
             date: Utc::now().to_rfc2822(),
             uuid: local_note.metadata.uuid.clone(),
             mime_version: local_note.metadata.mime_version.clone()

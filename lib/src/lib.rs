@@ -27,7 +27,6 @@ extern crate htmlescape;
 extern crate secret_service;
 #[cfg(target_family = "unix")]
 extern crate xdg;
-extern crate clap;
 
 #[macro_use]
 mod macros;

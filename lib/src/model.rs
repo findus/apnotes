@@ -24,6 +24,7 @@ pub struct NotesMetadata {
     /// Indicator for newly created notes, so that they
     /// dont get deleted while syncing
     pub new: bool,
+    pub edited: bool,
     pub date: String, //TODO type
     /// UUID for the message. This uuid never changes after
     /// creating a note.
@@ -44,6 +45,7 @@ impl NotesMetadata {
             subfolder,
             locally_deleted: false,
             new: false,
+            edited: false,
             date: header.date(),
             uuid: header.uuid(),
             mime_version: header.mime_version(),
@@ -55,6 +57,7 @@ impl NotesMetadata {
             subfolder: remote_metadata.folder.clone(),
             locally_deleted: false,
             new: false,
+            edited: false,
             date: remote_metadata.headers.date(),
             uuid: remote_metadata.headers.uuid(),
             mime_version: remote_metadata.headers.mime_version()

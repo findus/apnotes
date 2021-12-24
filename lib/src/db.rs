@@ -83,9 +83,8 @@ impl SqLiteConnector {
             .expect(&format!("Error connecting to {}", database_url));
 
         let _ = &connection.execute("PRAGMA foreign_keys = ON").unwrap();
-        // This will run the necessary migrations.
-        embedded_migrations::run(&connection).unwrap();
 
+        let _ = embedded_migrations::run_with_output(&connection, &mut std::io::stdout());
         connection
     }
 }

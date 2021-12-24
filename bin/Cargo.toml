@@ -15,7 +15,7 @@ serde_derive = "1.0.114"
 serde = "1.0.114"
 diesel = { features = ["sqlite"], version =  "1.4.5"}
 itertools = "0.10.0"
-flexi_logger = "0.17"
+flexi_logger = "0.22.0"
 man = "0.3.0"
 
 apnotes_lib = { path = "../lib" }

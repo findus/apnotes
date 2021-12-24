@@ -13,6 +13,7 @@ table! {
         subfolder -> Text,
         locally_deleted -> Bool,
         new -> Bool,
+        edited -> Bool,
         date -> Timestamp,
         uuid -> Text,
         mime_version -> Text,

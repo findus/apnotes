@@ -90,6 +90,7 @@ impl NotesMetadataBuilder {
                 subfolder: "".to_string(),
                 locally_deleted: false,
                 new: false,
+                edited: false,
                 date,
                 uuid: generate_uuid(),
                 mime_version: "1.0 (Mac OS X Notes 4.6 \\(879.10\\))".to_string()
@@ -106,6 +107,11 @@ impl NotesMetadataBuilder {
 
     pub fn is_new(mut self, new: bool) -> Self {
         self.notes_metadata.new = new;
+        self
+    }
+
+    pub fn got_edited(mut self, edited: bool) -> Self {
+        self.notes_metadata.edited = edited;
         self
     }
 

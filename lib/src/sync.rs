@@ -174,8 +174,8 @@ fn get_delete_locally_action<'a>(remote_note_headers: Option<&'a RemoteNoteHeade
         (None,Some(ln)) if ln.metadata.new == false && ln.needs_merge() == false => {
             Some(DeleteLocally(ln))
         },
-        // Local not got created and deleted instantly without syncing in between
-        (None,Some(ln)) if ln.metadata.new == true && ln.needs_merge() == false => {
+        // Local note got created and deleted instantly without syncing in between
+        (None,Some(ln)) if ln.metadata.new == true && ln.needs_merge() == false && ln.metadata.locally_deleted => {
             Some(DeleteLocally(ln))
         },
         _ => None,
@@ -195,6 +195,10 @@ fn get_add_remotely_action<'a>(remote_note_header: Option<&'a RemoteNoteHeaderCo
     match (local_note,remote_note_header) {
         (Some(local_note),None) if local_note.metadata.locally_deleted == false &&
             local_note.metadata.new == true => Some(AddRemotely(local_note)),
+        // Local note got edited AND deleted remotely, so we want to readd it remotely
+        (Some(ln),None) if ln.metadata.new == false && ln.metadata.edited == true && ln.needs_merge() == false && ln.metadata.locally_deleted == false => {
+            Some(AddRemotely(ln))
+        },
         _ => None
     }
 }
@@ -452,6 +456,7 @@ fn update_message_remotely<'a, T>(imap_connection: &mut dyn MailService<T>,
                                 subfolder: localnote.metadata.subfolder.clone(),
                                 locally_deleted: localnote.metadata.locally_deleted,
                                 new: false,
+                                edited: false,
                                 date: localnote.metadata.date.clone(),
                                 uuid:localnote.metadata.uuid.clone(),
                                 mime_version: localnote.metadata.mime_version.clone()
@@ -1277,7 +1282,34 @@ mod sync_tests {
         let action = get_sync_actions(&remote_data, &local_notes);
 
         assert_eq!(action.len(), 1);
+        println!("{}", action[0]);
         assert!(matches!(action[0], UpdateAction::DeleteLocally(_)));
+
+    }
+
+    // Local note got created and flagged for deletion instantly e.g. no remote note present
+    #[test]
+    pub fn readd_remotely_deleted_note_because_it_was_edited_locally() {
+        let local_notes = set![
+            note![
+                NotesMetadataBuilder::new().with_uuid("1").is_new(false).got_edited(true).is_flagged_for_deletion(false).build(),
+                BodyMetadataBuilder::new().with_message_id("4").build()
+            ]
+        ];
+
+        let remote_notes = set![
+
+        ];
+
+        let remote_data: GroupedRemoteNoteHeaders = remote_notes.iter().map(|entry| {
+            RemoteNoteMetaData::new(entry)
+        }).collect();
+
+        let action = get_sync_actions(&remote_data, &local_notes);
+
+        assert_eq!(action.len(), 1);
+        println!("{}", action[0]);
+        assert!(matches!(action[0], UpdateAction::AddRemotely(_)));
 
     }
 
