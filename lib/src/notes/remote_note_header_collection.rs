@@ -1,6 +1,6 @@
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
-use notes::traits::identifyable_note::IdentifiableNote;
+use notes::traits::identifyable_note::{IdentifiableNote, Subject};
 use notes::traits::header_parser::HeaderParser;
 use std::collections::HashSet;
 
@@ -44,10 +44,15 @@ impl IdentifiableNote for RemoteNoteHeaderCollection {
         self.iter().last().expect("At least one Element must be present").headers.uuid()
     }
 
+}
+
+impl Subject for  RemoteNoteHeaderCollection {
+
     fn first_subject(&self) -> String {
         match self.first() {
             Some(e) => e.headers.subject(),
             None => "".to_string()
         }
     }
+
 }

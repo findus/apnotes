@@ -4,7 +4,7 @@ use std::hash::Hasher;
 use notes::note_headers::NoteHeaders;
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
-use notes::traits::identifyable_note::IdentifiableNote;
+use notes::traits::identifyable_note::{IdentifiableNote, Subject};
 use notes::traits::mergeable_note_body::MergeableNoteBody;
 use notes::traits::header_parser::HeaderParser;
 use std::collections::HashSet;
@@ -108,7 +108,9 @@ impl IdentifiableNote for LocalNote {
     fn uuid(&self) -> String {
         self.metadata.uuid()
     }
+}
 
+impl Subject for LocalNote {
     fn first_subject(&self) -> String {
         match self.body.first() {
             None => "".to_string(),

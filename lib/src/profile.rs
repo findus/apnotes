@@ -29,7 +29,9 @@ pub struct Profile {
     pub(crate) email: String,
     pub(crate) editor: String,
     pub(crate) editor_arguments: Vec<String>,
+    #[allow(dead_code)]
     pub(crate) secret_service_attribute: Option<String>,
+    #[allow(dead_code)]
     pub(crate) secret_service_value: Option<String>,
     #[allow(dead_code)]
     pub(crate) domain: String,

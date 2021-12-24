@@ -3,6 +3,9 @@ use std::hash::Hasher;
 pub trait IdentifiableNote {
     fn folder(&self) -> String;
     fn uuid(&self) -> String;
+}
+
+pub trait Subject {
     fn first_subject(&self) -> String;
 }
 

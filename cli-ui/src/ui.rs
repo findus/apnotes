@@ -11,7 +11,7 @@ use tui::Terminal;
 use tui::backend::CrosstermBackend;
 use apnotes_lib::AppleNotes;
 use std::sync::mpsc::{Sender, Receiver};
-use apnotes_lib::notes::traits::identifyable_note::IdentifiableNote;
+use apnotes_lib::notes::traits::identifyable_note::{IdentifiableNote, Subject};
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},

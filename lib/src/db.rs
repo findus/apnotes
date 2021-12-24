@@ -82,7 +82,7 @@ impl SqLiteConnector {
         let connection = SqliteConnection::establish(&database_url)
             .expect(&format!("Error connecting to {}", database_url));
 
-        &connection.execute("PRAGMA foreign_keys = ON").unwrap();
+        let _ = &connection.execute("PRAGMA foreign_keys = ON").unwrap();
         // This will run the necessary migrations.
         embedded_migrations::run(&connection).unwrap();
 

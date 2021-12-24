@@ -25,7 +25,7 @@ fn build_man_pages() {
             .output()
             .expect("failed to execute process")
             .status.success() == false {
-            panic!(format!("Could not create {}", name));
+            panic!("Could not create {}", name);
         };
     }
 

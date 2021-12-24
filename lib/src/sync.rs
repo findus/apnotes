@@ -19,7 +19,7 @@ use notes::localnote::{LocalNote};
 use notes::remote_note_metadata::RemoteNoteMetaData;
 use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
 use notes::grouped_remote_note_headers::GroupedRemoteNoteHeaders;
-use notes::traits::identifyable_note::IdentifiableNote;
+use notes::traits::identifyable_note::{IdentifiableNote, Subject};
 use notes::traits::header_parser::HeaderParser;
 use notes::traits::mergeable_note_body::MergeableNoteBody;
 use util::filter_none;
@@ -324,7 +324,7 @@ pub fn process_actions<'a, T>(
                 UpdateAction::DeleteLocally(local_note) => process_delete_locally(db_connection, action, local_note),
                 UpdateAction::UpdateLocally(new_note_bodies) => process_update_locally(imap_connection, db_connection, action,new_note_bodies),
                 UpdateAction::Merge(_method,remote_note) => { process_merge(imap_connection, db_connection, action, remote_note) },
-                UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, local_note.metadata.first_subject(), update_message_remotely(imap_connection, db_connection, &local_note)) }
+                UpdateAction::AddRemotely(local_note) | UpdateAction::UpdateRemotely(local_note) => { (action, local_note.first_subject(), update_message_remotely(imap_connection, db_connection, &local_note)) }
                 UpdateAction::AddLocally(note_headers) => process_add_locally(imap_connection, db_connection, action, note_headers),
             };
             return result;
@@ -427,7 +427,7 @@ fn process_delete_locally<'a>(db_connection: &Box<dyn DatabaseService + Send>,
     //content on local side
     let result = db_connection.delete(b)
         .map_err(|e| e.into());
-    (action,b.metadata.first_subject(), result)
+    (action,b.first_subject(), result)
 }
 
 fn update_message_remotely<'a, T>(imap_connection: &mut dyn MailService<T>,

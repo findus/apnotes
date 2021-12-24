@@ -72,7 +72,6 @@ impl IdentifiableNote for NotesMetadata {
     fn uuid(&self) -> String {
         self.uuid.clone()
     }
-    fn first_subject(&self) -> String { "".to_string() }
 }
 
 impl std::cmp::PartialEq for NotesMetadata  {

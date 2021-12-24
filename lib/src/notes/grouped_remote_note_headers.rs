@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use notes::traits::identifyable_note::IdentifiableNote;
+use notes::traits::identifyable_note::{IdentifiableNote, Subject};
 use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
 
 /// The note headers fetched from the server, grouped by uuid
@@ -14,6 +14,10 @@ impl IdentifiableNote for GroupedRemoteNoteHeaders {
     fn uuid(&self) -> String {
         self.iter().map(|note| note.uuid()).last().unwrap()
     }
+
+}
+
+impl Subject for GroupedRemoteNoteHeaders {
 
     fn first_subject(&self) -> String {
         match self.iter().next() {
