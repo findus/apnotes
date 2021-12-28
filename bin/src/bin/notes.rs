@@ -33,7 +33,7 @@ pub fn default_format(
 
 pub fn main() {
 
-    Logger::try_with_env_or_str("info, html5ever=error").unwrap().format(default_format).start().unwrap();
+    Logger::try_with_env_or_str("info, html5ever=error").unwrap().log_to_stdout().format(default_format).start().unwrap();
 
     let app = gen_app();
 
