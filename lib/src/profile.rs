@@ -70,8 +70,8 @@ impl Profile {
             return Err(ProfileError::AgentLocked().into());
         }
 
-        let attribute = self.secret_service_attribute.as_ref().unwrap();
-        let value = self.secret_service_value.as_ref().unwrap();
+        let attribute = self.secret_service_attribute.as_ref()?;
+        let value = self.secret_service_value.as_ref()?;
 
         let map =HashMap::from([(attribute.as_str(), value.as_str())]);
 
@@ -79,14 +79,13 @@ impl Profile {
         let tuple_vec = HashMap::from([(attribute, value)]);
 
         let entries = collection.search_items(
-            map)
-            .unwrap();
+            map)?;
 
-        let entry = entries.first().unwrap();
+        let entry = entries.first()?;
 
-        let attributes = entry.get_attributes().unwrap();
+        let attributes = entry.get_attributes()?;
 
-        let entry = entry.unlock().and_then(|_| entry.get_secret()).unwrap();
+        let entry = entry.unlock().and_then(|_| entry.get_secret())?;
 
         return Ok(str::from_utf8(&entry)?.to_string());
     }
@@ -260,8 +259,8 @@ mod tests {
             return
         }
 
-        let attribute = "mail";
-        let value = "uberspace";
+        let attribute = "test";
+        let value = "test";
 
         let tuple_vec = HashMap::from([(attribute, value)]);
 
