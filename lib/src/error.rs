@@ -14,6 +14,9 @@ pub enum ProfileError {
     NotFound(String),
     NoPasswordProvided(),
     AgentLocked(),
+    NoAttributeProvided(),
+    NoValueProvided(),
+    NoEntryFound()
 }
 
 #[derive(Debug,PartialEq)]
@@ -48,6 +51,9 @@ impl ErrorCode for ProfileError {
             ProfileError::NotFound(_) => { 1 }
             ProfileError::NoPasswordProvided() => { 2 }
             ProfileError::AgentLocked() => { 3 }
+            ProfileError::NoAttributeProvided() => { 4 }
+            ProfileError::NoValueProvided() => { 5 }
+            ProfileError::NoEntryFound() => { 6 }
         }
     }
 

@@ -70,8 +70,8 @@ impl Profile {
             return Err(ProfileError::AgentLocked().into());
         }
 
-        let attribute = self.secret_service_attribute.as_ref()?;
-        let value = self.secret_service_value.as_ref()?;
+        let attribute = self.secret_service_attribute.as_ref().ok_or(NoAttributeProvided())?;
+        let value = self.secret_service_value.as_ref().ok_or(NoValueProvided())?;
 
         let map =HashMap::from([(attribute.as_str(), value.as_str())]);
 
@@ -81,7 +81,7 @@ impl Profile {
         let entries = collection.search_items(
             map)?;
 
-        let entry = entries.first()?;
+        let entry = entries.first().ok_or(NoEntryFound())?;
 
         let attributes = entry.get_attributes()?;
 
