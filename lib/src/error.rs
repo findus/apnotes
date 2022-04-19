@@ -147,7 +147,7 @@ impl ErrorCode for imap::Error{
 }
 
 #[cfg(target_family = "unix")]
-impl ErrorCode for secret_service::SsError {
+impl ErrorCode for secret_service::Error {
     fn error_code(&self) -> i32 {
         return 3;
     }
@@ -170,8 +170,8 @@ impl std::convert::From<UpdateError> for std::boxed::Box<dyn ErrorCode> {
 }
 
 #[cfg(target_family = "unix")]
-impl std::convert::From<secret_service::SsError> for  std::boxed::Box<dyn ErrorCode> {
-    fn from(e: secret_service::SsError) -> Self {
+impl std::convert::From<secret_service::Error> for  std::boxed::Box<dyn ErrorCode> {
+    fn from(e: secret_service::Error) -> Self {
         Box::new(e)
     }
 }

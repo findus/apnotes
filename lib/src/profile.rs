@@ -4,6 +4,7 @@ extern crate xdg;
 extern crate regex;
 extern crate log;
 
+use std::collections::HashMap;
 use self::regex::Regex;
 use std::fs::File;
 use self::log::{warn};
@@ -72,15 +73,22 @@ impl Profile {
         let attribute = self.secret_service_attribute.as_ref().unwrap();
         let value = self.secret_service_value.as_ref().unwrap();
 
-        let pw = collection.search_items(
-            vec![(&attribute, &value)])
-            .unwrap()
-            .first()
-            .unwrap()
-            .get_secret()
+        let map =HashMap::from([(attribute.as_str(), value.as_str())]);
+
+
+        let tuple_vec = HashMap::from([(attribute, value)]);
+
+        let entries = collection.search_items(
+            map)
             .unwrap();
 
-        return Ok(str::from_utf8(&pw)?.to_string());
+        let entry = entries.first().unwrap();
+
+        let attributes = entry.get_attributes().unwrap();
+
+        let entry = entry.unlock().and_then(|_| entry.get_secret()).unwrap();
+
+        return Ok(str::from_utf8(&entry)?.to_string());
     }
 }
 
@@ -231,6 +239,7 @@ unsafe fn get_test_config() -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use profile::{load_profile, BASIC_SECRET_SERVICE_CONFIG};
     #[cfg(target_family = "unix")]
     use secret_service::{SecretService, EncryptionType};
@@ -240,23 +249,34 @@ mod tests {
     #[test]
     fn test_secret_service() {
         let ss = SecretService::new(EncryptionType::Dh).unwrap();
+        let collections = ss.get_all_collections().unwrap();
+        let size = collections.len();
         let collection = ss.get_default_collection().unwrap();
         //collection.unlock().unwrap();
+
+        collection.ensure_unlocked();
 
         if collection.is_locked().unwrap() {
             return
         }
 
-        let attribute = "test";
-        let value = "test";
+        let attribute = "mail";
+        let value = "uberspace";
 
-        let _pw = collection.search_items(
-            vec![(&attribute, &value)])
-            .unwrap()
-            .first()
-            .unwrap()
-            .get_secret()
+        let tuple_vec = HashMap::from([(attribute, value)]);
+
+        let entries = collection.search_items(
+            tuple_vec)
             .unwrap();
+
+        let entry = entries.first().unwrap();
+
+        let attributes = entry.get_attributes().unwrap();
+
+        let entry = entry.unlock().and_then(|_| entry.get_secret()).unwrap();
+
+        println!("test");
+
 
     }
 
