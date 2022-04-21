@@ -76,16 +76,20 @@ impl Profile {
         let map =HashMap::from([(attribute.as_str(), value.as_str())]);
 
 
-        let tuple_vec = HashMap::from([(attribute, value)]);
+        let _tuple_vec = HashMap::from([(attribute, value)]);
 
         let entries = collection.search_items(
             map)?;
 
         let entry = entries.first().ok_or(NoEntryFound())?;
 
-        let attributes = entry.get_attributes()?;
+        let _attributes = entry.get_attributes()?;
 
-        let entry = entry.unlock().and_then(|_| entry.get_secret())?;
+        let entry = if entry.is_locked()? {
+            entry.unlock().and_then(|_| entry.get_secret())?
+        } else {
+            entry.get_secret()?
+        };
 
         return Ok(str::from_utf8(&entry)?.to_string());
     }
@@ -249,11 +253,11 @@ mod tests {
     fn test_secret_service() {
         let ss = SecretService::new(EncryptionType::Dh).unwrap();
         let collections = ss.get_all_collections().unwrap();
-        let size = collections.len();
+        let _size = collections.len();
         let collection = ss.get_default_collection().unwrap();
         //collection.unlock().unwrap();
 
-        collection.ensure_unlocked();
+        collection.ensure_unlocked().unwrap();
 
         if collection.is_locked().unwrap() {
             return
@@ -270,9 +274,9 @@ mod tests {
 
         let entry = entries.first().unwrap();
 
-        let attributes = entry.get_attributes().unwrap();
+        let _attributes = entry.get_attributes().unwrap();
 
-        let entry = entry.unlock().and_then(|_| entry.get_secret()).unwrap();
+        let _entry = entry.unlock().and_then(|_| entry.get_secret()).unwrap();
 
         println!("test");
 
