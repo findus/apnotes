@@ -1,6 +1,6 @@
 [package]
 name = "apnotes_bin"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 autobins = false
 build = "build.rs"
