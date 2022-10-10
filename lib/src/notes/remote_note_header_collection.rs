@@ -1,7 +1,7 @@
-use notes::remote_note_metadata::RemoteNoteMetaData;
-use notes::traits::mergeable_note_body::MergeableNoteBody;
-use notes::traits::identifyable_note::{IdentifiableNote, Subject};
-use notes::traits::header_parser::HeaderParser;
+use crate::notes::remote_note_metadata::RemoteNoteMetaData;
+use crate::notes::traits::mergeable_note_body::MergeableNoteBody;
+use crate::notes::traits::identifyable_note::{IdentifiableNote, Subject};
+use crate::notes::traits::header_parser::HeaderParser;
 use std::collections::HashSet;
 
 /// A collection of remote note metadata that share the

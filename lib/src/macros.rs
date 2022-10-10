@@ -14,7 +14,7 @@ macro_rules! note {
                 mutable_body.metadata_uuid = uuid.clone();
                 temp_set.push(mutable_body);
             )*
-            ::notes::localnote::LocalNote {
+            crate::notes::localnote::LocalNote {
                 metadata: localnote,
                 body: temp_set
             }
@@ -38,8 +38,8 @@ macro_rules! set {
 
 #[cfg(test)]
 mod macro_test {
-    use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
-    use notes::localnote::LocalNote;
+    use crate::builder::{NotesMetadataBuilder, BodyMetadataBuilder};
+    use crate::notes::localnote::LocalNote;
 
     #[test]
     fn note_macro_uuid() {

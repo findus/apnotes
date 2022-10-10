@@ -4,6 +4,11 @@ extern crate log;
 extern crate diesel;
 extern crate lazy_static;
 extern crate regex;
+extern crate tui;
+extern crate crossterm;
+extern crate futures;
+
+use futures::executor::block_on;
 
 mod ui;
 
@@ -127,7 +132,8 @@ impl App {
                                 }
                                 Task::Sync => {
                                     let d = app_lock.lock().unwrap();
-                                    match d.sync_notes(false) {
+
+                                    match block_on(d.sync_notes(false)) {
                                         Ok(result) => {
                                             if result.iter().find(|syncresult| syncresult.result.is_err()).is_some() {
                                                 event_tx.send(Event::OutCome(Failure(format!("Sync error: Could not sync all notes")))).unwrap();

@@ -3,12 +3,12 @@ extern crate html2runes;
 extern crate log;
 
 use std::hash::{Hasher};
-use builder::{HeaderBuilder};
-use notes::note_headers::NoteHeaders;
-use notes::localnote::LocalNote;
-use notes::traits::header_parser::HeaderParser;
+use crate::builder::{HeaderBuilder};
+use crate::notes::note_headers::NoteHeaders;
+use crate::notes::localnote::LocalNote;
+use crate::notes::traits::header_parser::HeaderParser;
 #[cfg(not(test))]
-use profile::Profile;
+use crate::profile::Profile;
 
 /// Data Structure that represents a remote note
 #[derive(Clone,Eq,Debug)]

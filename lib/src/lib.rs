@@ -82,8 +82,8 @@ impl AppleNotes {
     /// of every individual note that got processes
     ///
     /// Tuple content:  (UpdateAction,Subject,Result)
-    pub fn sync_notes(&self, dry_run: bool) -> Result<Vec<SyncResult>> {
-        sync::sync_notes(&self.db_connection, &self.profile, dry_run)
+    pub async fn sync_notes(&self, dry_run: bool) -> Result<Vec<SyncResult>> {
+        sync::sync_notes(&self.db_connection, &self.profile, dry_run).await
     }
 
     /// Opens a text editor with the content of the specified note

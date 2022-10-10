@@ -1,6 +1,6 @@
 extern crate pulldown_cmark;
 
-use model::Body;
+use crate::model::Body;
 use self::pulldown_cmark::{Parser, html};
 
 pub fn convert2md(input: &String) -> String {

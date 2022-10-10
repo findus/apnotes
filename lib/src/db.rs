@@ -7,20 +7,20 @@ Windows: Register sqlite dll with "lib /MACHINE:X64 /def:sqlite3.def /out:sqlite
 Set: SQLITE3_LIB_DIR
 **/
 
-use ::{schema};
+use crate::{schema};
 
 use diesel::{SqliteConnection, Connection};
 use diesel::*;
 use diesel::result::Error;
-use model::{NotesMetadata, Body};
-use schema::metadata::dsl::metadata;
-use schema::body::dsl::body;
+use crate::model::{NotesMetadata, Body};
+use crate::schema::metadata::dsl::metadata;
+use crate::schema::body::dsl::body;
 use self::log::*;
-use schema::body::columns::metadata_uuid;
+use crate::schema::body::columns::metadata_uuid;
 use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
-use schema::metadata::columns::subfolder;
-use notes::localnote::LocalNote;
+use crate::schema::metadata::columns::subfolder;
+use crate::notes::localnote::LocalNote;
 
 embed_migrations!("../migrations/");
 
@@ -36,7 +36,7 @@ pub trait DatabaseService {
     ///
     /// If multiple notes exists tell user that a merge needs to happen
     ///
-    fn append_note(&self, model: &::model::Body) -> Result<(), Error>;
+    fn append_note(&self, model: &crate::model::Body) -> Result<(), Error>;
     /// In case of a successful merge this method replaces all unmerged notes with a single
     /// merged note
     fn update_merged_note(&self, note_body: &Body) -> Result<(), Error>;
@@ -74,7 +74,7 @@ struct SqLiteConnector {
 
 impl SqLiteConnector {
     fn connect() -> SqliteConnection {
-        let database_url = ::profile::get_db_path().into_os_string().to_string_lossy().to_string();
+        let database_url = crate::profile::get_db_path().into_os_string().to_string_lossy().to_string();
 
         #[cfg(debug)]
         info!("Database Path: {}", database_url);
@@ -216,7 +216,7 @@ impl DatabaseService for SqliteDBConnection {
             .order(subfolder.asc())
             .load::<NotesMetadata>(&self.connection)?;
 
-        let note_bodies: Vec<Body> = ::model::Body::belonging_to(&notes)
+        let note_bodies: Vec<Body> = crate::model::Body::belonging_to(&notes)
             .load::<Body>(&self.connection)?;
 
         let grouped = note_bodies.grouped_by(&notes);
@@ -277,7 +277,7 @@ impl DatabaseService for SqliteDBConnection {
 
         debug!("Fetched note with uuid {}", first_note.uuid.clone());
 
-        let note_body = ::model::Body::belonging_to(&first_note)
+        let note_body = crate::model::Body::belonging_to(&first_note)
             .load::<Body>(&self.connection)?;
 
         debug!("This note has {} subnotes ", note_body.len());
@@ -296,7 +296,7 @@ impl DatabaseService for SqliteDBConnection {
         let first_note = first_note.first();
 
         if let Some(first_note) = first_note {
-            let d = ::model::Body::belonging_to(first_note)
+            let d = crate::model::Body::belonging_to(first_note)
                 .load::<Body>(&self.connection)?.len() == 0;
             return Ok(d);
         } else {
@@ -333,11 +333,11 @@ impl DatabaseService for SqliteDBConnection {
 
 #[cfg(test)]
 mod db_tests {
-    use model::NotesMetadata;
-    use builder::*;
-    use ::model::Body;
+    use crate::model::NotesMetadata;
+    use crate::builder::*;
+    use crate::model::Body;
     use super::*;
-    use notes::traits::identifyable_note::IdentifiableNote;
+    use crate::notes::traits::identifyable_note::IdentifiableNote;
 
     /// Should return an error, because this note still has child note_bodies
     #[test]
@@ -572,7 +572,7 @@ mod db_tests {
 
     #[test]
     fn update_single_note() {
-        use builder::HeaderBuilder;
+        use crate::builder::HeaderBuilder;
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
 
@@ -691,7 +691,7 @@ mod db_tests {
     /// saved.
     #[test]
     fn insert_single_note() {
-        use builder::HeaderBuilder;
+        use crate::builder::HeaderBuilder;
         let con =  ::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
         let m_data: ::model::NotesMetadata =
@@ -727,7 +727,7 @@ mod db_tests {
     /// uuid
     #[test]
     fn no_duplicate_entries() {
-        use builder::HeaderBuilder;
+        use crate::builder::HeaderBuilder;
         //Setup
         dotenv::dotenv().ok();
         let con =  ::db::SqliteDBConnection::new();
@@ -753,7 +753,7 @@ mod db_tests {
     /// Appends an additional note to a super-note and checks if both are there
     #[test]
     fn append_additional_note() {
-        use builder::HeaderBuilder;
+        use crate::builder::HeaderBuilder;
 
         dotenv::dotenv().ok();
         let con =  ::db::SqliteDBConnection::new();
@@ -793,7 +793,7 @@ mod db_tests {
     /// This test adds 2 bodies to a note and replaces it with a "merged" one
     /// the old bodies should be gone now and a new single one should be present
     fn replace_with_merged_body() {
-        use builder::HeaderBuilder;
+        use crate::builder::HeaderBuilder;
 
         //Setup
         dotenv::dotenv().ok();

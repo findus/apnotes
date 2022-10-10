@@ -3,20 +3,20 @@ extern crate regex;
 extern crate log;
 extern crate uuid;
 
-use error::NoteError;
-use error::NoteError::{EditError, ContentNotChanged};
+use crate::error::NoteError;
+use crate::error::NoteError::{EditError, ContentNotChanged};
 use self::log::*;
 use std::io::{Write};
-use ::model::Body;
-use builder::{BodyMetadataBuilder};
-use notes::localnote::LocalNote;
+use crate::model::Body;
+use crate::builder::{BodyMetadataBuilder};
+use crate::notes::localnote::LocalNote;
 
 #[cfg(test)]
 use self::regex::Regex;
-use model::NotesMetadata;
+use crate::model::NotesMetadata;
 
 use chrono::Utc;
-use profile::Profile;
+use crate::profile::Profile;
 
 
 /// Edits the passed note and alters the metadata if successful
@@ -128,10 +128,10 @@ fn replace_uuid(string: &str) -> String {
 
 #[cfg(test)]
 mod edit_tests {
-    use error::NoteError;
-    use edit::{edit_note, replace_uuid};
-    use builder::*;
-    use profile::Profile;
+    use crate::error::NoteError;
+    use crate::edit::{edit_note, replace_uuid};
+    use crate::builder::*;
+    use crate::profile::Profile;
 
     #[test]
     fn should_generate_new_uuid() {

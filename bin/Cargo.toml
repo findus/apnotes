@@ -4,6 +4,7 @@ version = "0.4.2"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 autobins = false
 build = "build.rs"
+edition = "2021"
 
 [dependencies]
 log = "0.4"
@@ -17,6 +18,7 @@ diesel = { features = ["sqlite"], version =  "1.4.5"}
 itertools = "0.10.0"
 flexi_logger = "0.22.0"
 man = "0.3.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 apnotes_lib = { path = "../lib" }
 
@@ -27,3 +29,4 @@ path = "src/bin/backup.rs"
 [[bin]]
 name = "apnotes"
 path = "src/bin/notes.rs"
+

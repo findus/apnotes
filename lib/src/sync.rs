@@ -8,26 +8,26 @@ extern crate ctor;
 use self::itertools::Itertools;
 use self::log::*;
 use std::collections::HashSet;
-use sync::UpdateAction::{AddLocally, UpdateRemotely, UpdateLocally, AddRemotely, DeleteLocally, DeleteRemote, Merge};
-use model::{NotesMetadata, Body};
-use error::UpdateError::SyncError;
-use error::UpdateError;
-use apple_imap::{MailService};
-use db::{DatabaseService};
-use converter::convert2md;
-use notes::localnote::{LocalNote};
-use notes::remote_note_metadata::RemoteNoteMetaData;
-use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
-use notes::grouped_remote_note_headers::GroupedRemoteNoteHeaders;
-use notes::traits::identifyable_note::{IdentifiableNote, Subject};
-use notes::traits::header_parser::HeaderParser;
-use notes::traits::mergeable_note_body::MergeableNoteBody;
-use util::filter_none;
+use crate::sync::UpdateAction::{AddLocally, UpdateRemotely, UpdateLocally, AddRemotely, DeleteLocally, DeleteRemote, Merge};
+use crate::model::{NotesMetadata, Body};
+use crate::error::UpdateError::SyncError;
+use crate::error::UpdateError;
+use crate::apple_imap::{MailService};
+use crate::db::{DatabaseService};
+use crate::converter::convert2md;
+use crate::notes::localnote::{LocalNote};
+use crate::notes::remote_note_metadata::RemoteNoteMetaData;
+use crate::notes::remote_note_header_collection::RemoteNoteHeaderCollection;
+use crate::notes::grouped_remote_note_headers::GroupedRemoteNoteHeaders;
+use crate::notes::traits::identifyable_note::{IdentifiableNote, Subject};
+use crate::notes::traits::header_parser::HeaderParser;
+use crate::notes::traits::mergeable_note_body::MergeableNoteBody;
+use crate::util::filter_none;
 use std::fmt::{Display, Formatter};
 use colored::Colorize;
 use chrono::DateTime;
-use profile::Profile;
-use ::error::Result;
+use crate::profile::Profile;
+use crate::error::Result;
 
 pub struct SyncResult {
     pub action: String,
@@ -88,9 +88,9 @@ pub enum MergeMethod {
     AppendLocally,
 }
 
-pub fn sync_notes(db_connection: &Box<dyn DatabaseService + Send>, profile: &Profile, is_dry_run: bool)
+pub async fn sync_notes(db_connection: &Box<dyn DatabaseService + Send>, profile: &Profile, is_dry_run: bool)
                   -> Result<Vec<SyncResult>> {
-    ::apple_imap::MailServiceImpl::new_with_login(profile)
+    crate::apple_imap::MailServiceImpl::new_with_login(profile).await
         .and_then(|mut imap_service| {
             sync(&mut imap_service, db_connection, is_dry_run).map(|result| (result,imap_service))
         })
@@ -584,7 +584,7 @@ pub fn collect_mergeable_notes(header_metadata: RemoteNoteHeaderCollection) -> G
 #[cfg(test)]
 mod sync_tests {
     use super::*;
-    use builder::{NotesMetadataBuilder, BodyMetadataBuilder};
+    use crate::builder::{NotesMetadataBuilder, BodyMetadataBuilder};
 
 
     #[cfg(test)]
@@ -662,7 +662,7 @@ mod sync_tests {
     /// Tests if metadata with multiple bodies is getting properly grouped
     #[test]
     fn test_mergable_notes_grouping() {
-        use builder::HeaderBuilder;
+        use crate::builder::HeaderBuilder;
 
         let metadata_1 = RemoteNoteMetaData {
             headers: HeaderBuilder::new().with_subject("Note").build(),

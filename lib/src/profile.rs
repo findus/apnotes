@@ -9,17 +9,18 @@ use self::regex::Regex;
 use std::fs::File;
 use self::log::{warn};
 use std::path::PathBuf;
-use error::ProfileError::*;
+use crate::error::ProfileError::*;
 use std::str;
-use error::Result;
+use crate::error::Result;
 
-use error::ProfileError;
+use crate::error::ProfileError;
 
 #[cfg(target_family = "unix")]
 use self::xdg::BaseDirectories;
 
 #[cfg(target_family = "unix")]
 use secret_service::{SecretService, EncryptionType};
+use crate::error::ProfileError::{NoAttributeProvided, NoEntryFound, NoValueProvided};
 
 
 #[derive(Debug)]
@@ -43,11 +44,11 @@ pub struct Profile {
 impl Profile {
 
     #[cfg(target_family = "unix")]
-    pub fn get_password(&self) -> Result<String> {
+    pub async fn get_password(&self) -> Result<String> {
         if self.password_type == "PLAIN" {
             Ok(self.password.as_ref().unwrap().clone())
         } else {
-            self.secret_service_get_pw()
+            self.secret_service_get_pw().await
         }
     }
 
@@ -61,34 +62,28 @@ impl Profile {
     }
 
     #[cfg(target_family = "unix")]
-    fn secret_service_get_pw(&self) -> Result<String> {
-        let ss = SecretService::new(EncryptionType::Dh)?;
+    async fn secret_service_get_pw(&self) -> Result<String> {
+        let ss = SecretService::connect(EncryptionType::Dh).await?;
 
-        let collection = ss.get_default_collection()?;
+        let collection = ss.get_default_collection().await?;
 
-        if collection.ensure_unlocked().is_err() {
-            return Err(ProfileError::AgentLocked().into());
-        }
+        collection.ensure_unlocked().await.map_err(|_| ProfileError::AgentLocked())?;
 
         let attribute = self.secret_service_attribute.as_ref().ok_or(NoAttributeProvided())?;
         let value = self.secret_service_value.as_ref().ok_or(NoValueProvided())?;
 
         let map =HashMap::from([(attribute.as_str(), value.as_str())]);
 
-
         let _tuple_vec = HashMap::from([(attribute, value)]);
 
-        let entries = collection.search_items(
-            map)?;
+        let entries = ss.search_items(map).await?;
 
-        let entry = entries.first().ok_or(NoEntryFound())?;
-
-        let _attributes = entry.get_attributes()?;
-
-        let entry = if entry.is_locked()? {
-            entry.unlock().and_then(|_| entry.get_secret())?
+        let entry = if entries.locked.len() > 0 {
+            let entry = entries.locked.first().ok_or(NoEntryFound())?;
+            entry.unlock().await?;
+            entry.get_secret().await?
         } else {
-            entry.get_secret()?
+            entries.unlocked.first().ok_or(NoEntryFound())?.get_secret().await?
         };
 
         return Ok(str::from_utf8(&entry)?.to_string());
@@ -243,7 +238,7 @@ unsafe fn get_test_config() -> &'static str {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use profile::{load_profile, BASIC_SECRET_SERVICE_CONFIG};
+    use crate::profile::{load_profile, BASIC_SECRET_SERVICE_CONFIG};
     #[cfg(target_family = "unix")]
     use secret_service::{SecretService, EncryptionType};
 

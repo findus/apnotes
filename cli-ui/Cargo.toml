@@ -2,7 +2,7 @@
 name = "apnotes_tui"
 version = "0.4.2"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,6 +16,7 @@ log = "0.4.14"
 diesel = { features = ["sqlite"], version =  "1.4.5"}
 lazy_static = "1.4.0"
 regex = "1.5.4"
+futures = "0.3.24"
 
 [[bin]]
 name = "apnotes-tui"

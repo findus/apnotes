@@ -1,4 +1,4 @@
-use notes::traits::header_parser::HeaderParser;
+use crate::notes::traits::header_parser::HeaderParser;
 
 pub type NoteHeaders = Vec<(String, String)>;
 

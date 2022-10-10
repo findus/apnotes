@@ -1,10 +1,10 @@
-use model::{Body, NotesMetadata};
-use util::generate_uuid;
+use crate::model::{Body, NotesMetadata};
+use crate::util::generate_uuid;
 use chrono::Utc;
-use notes::note_headers::NoteHeaders;
-use notes::traits::header_parser::HeaderParser;
+use crate::notes::note_headers::NoteHeaders;
+use crate::notes::traits::header_parser::HeaderParser;
 #[cfg(not(test))]
-use profile::Profile;
+use crate::profile::Profile;
 
 pub struct BodyMetadataBuilder {
     body: Body
@@ -110,6 +110,7 @@ impl NotesMetadataBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn got_edited(mut self, edited: bool) -> Self {
         self.notes_metadata.edited = edited;
         self

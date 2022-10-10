@@ -3,6 +3,8 @@ name = "apnotes_lib"
 version = "0.4.2"
 authors = ["Philipp Hentschel <philipp@f1ndus.de>"]
 autobins = false
+rust-version = "1.60.0"
+edition = "2021"
 
 [dependencies]
 curl = "0.4.25"
@@ -34,9 +36,10 @@ diesel_migrations = "1.4.0"
 htmlescape = "0.3.1"
 
 [target.'cfg(unix)'.dependencies]
-secret-service = { git =  "https://github.com/findus/secret-service-rs" }
+secret-service = { git =  "https://github.com/hwchen/secret-service-rs", rev = "d1715b78a47efd73a4407ab4b905ed5425b96ad5", features = ["default"]}
 xdg = "2.0.0"
 
 [dev-dependencies]
 ctor = "0.1.17"
 mockall = "0.9.1"
+tokio = { version = "1", features = ["rt", "macros"] }

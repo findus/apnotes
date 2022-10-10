@@ -1,16 +1,16 @@
-use ::util;
-use schema::metadata;
-use schema::body;
+use crate::util;
+use crate::schema::metadata;
+use crate::schema::body;
 #[cfg(test)]
-use notes::localnote::LocalNote;
+use crate::notes::localnote::LocalNote;
 use std::hash::Hasher;
-use notes::note_headers::NoteHeaders;
-use notes::remote_note_metadata::RemoteNoteMetaData;
-use notes::traits::identifyable_note::IdentifiableNote;
-use notes::traits::header_parser::HeaderParser;
+use crate::notes::note_headers::NoteHeaders;
+use crate::notes::remote_note_metadata::RemoteNoteMetaData;
+use crate::notes::traits::identifyable_note::IdentifiableNote;
+use crate::notes::traits::header_parser::HeaderParser;
 use chrono::{DateTime};
 #[cfg(not(test))]
-use profile::Profile;
+use crate::profile::Profile;
 
 
 #[derive(Identifiable,Clone,Queryable,Insertable,Debug,Eq)]

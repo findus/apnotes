@@ -1,15 +1,15 @@
-use model::NotesMetadata;
-use model::Body;
+use crate::model::NotesMetadata;
+use crate::model::Body;
 use std::hash::Hasher;
-use notes::note_headers::NoteHeaders;
-use notes::remote_note_metadata::RemoteNoteMetaData;
-use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
-use notes::traits::identifyable_note::{IdentifiableNote, Subject};
-use notes::traits::mergeable_note_body::MergeableNoteBody;
-use notes::traits::header_parser::HeaderParser;
+use crate::notes::note_headers::NoteHeaders;
+use crate::notes::remote_note_metadata::RemoteNoteMetaData;
+use crate::notes::remote_note_header_collection::RemoteNoteHeaderCollection;
+use crate::notes::traits::identifyable_note::{IdentifiableNote, Subject};
+use crate::notes::traits::mergeable_note_body::MergeableNoteBody;
+use crate::notes::traits::header_parser::HeaderParser;
 use std::collections::HashSet;
 use quoted_printable::ParseMode;
-use profile::Profile;
+use crate::profile::Profile;
 
 #[derive(Eq,Clone,Debug)]
 pub struct LocalNote {

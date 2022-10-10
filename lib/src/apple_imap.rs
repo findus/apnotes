@@ -16,18 +16,18 @@ use self::imap::Session;
 use std::net::TcpStream;
 use self::native_tls::TlsStream;
 use self::imap::types::{Fetch};
-use model::{NotesMetadata};
-use converter::convert_to_html;
-use imap::types::Mailbox;
-use error::Result;
+use crate::model::{NotesMetadata};
+use crate::converter::convert_to_html;
+use crate::imap::types::Mailbox;
+use crate::error::Result;
 
 #[cfg(test)]
-use mockall::{automock, predicate::*};
-use notes::remote_note_header_collection::RemoteNoteHeaderCollection;
-use notes::localnote::LocalNote;
-use notes::remote_note_metadata::RemoteNoteMetaData;
-use notes::traits::identifyable_note::IdentifiableNote;
-use profile::Profile;
+use crate::mockall::{automock, predicate::*};
+use crate::notes::remote_note_header_collection::RemoteNoteHeaderCollection;
+use crate::notes::localnote::LocalNote;
+use crate::notes::remote_note_metadata::RemoteNoteMetaData;
+use crate::notes::traits::identifyable_note::IdentifiableNote;
+use crate::profile::Profile;
 
 pub trait ImapSession<S> {
 
@@ -39,7 +39,7 @@ pub struct TlsImapSession {
 
 impl TlsImapSession {
 
-    fn login(profile: &Profile) -> Result<Session<TlsStream<TcpStream>>> {
+    async fn login(profile: &Profile) -> Result<Session<TlsStream<TcpStream>>> {
         let domain = profile.imap_server.as_str();
         info!("Imap login");
         info!("Connecting to {}", domain);
@@ -49,7 +49,7 @@ impl TlsImapSession {
         // we pass in the domain twice to check that the server's TLS
         // certificate is valid for the domain we're connecting to.
 
-        let password = &profile.get_password()?;
+        let password = &profile.get_password().await?;
 
         imap::connect((domain, 993), domain, &tls)
             .map_err(|e| e.into())
@@ -95,8 +95,8 @@ pub struct MailServiceImpl<'a> {
 }
 
 impl <'a>MailServiceImpl<'a> {
-    pub fn new_with_login(profile: &Profile) -> Result<MailServiceImpl> {
-        match TlsImapSession::login(profile) {
+    pub async fn new_with_login(profile: &Profile) -> Result<MailServiceImpl> {
+        match TlsImapSession::login(profile).await {
             Ok(session) => {
                 Ok(
                     MailServiceImpl {

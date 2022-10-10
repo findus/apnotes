@@ -31,7 +31,8 @@ pub fn default_format(
     )
 }
 
-pub fn main() {
+#[tokio::main]
+pub async fn main() {
 
     Logger::try_with_env_or_str("info, html5ever=error").unwrap().log_to_stdout().format(default_format).start().unwrap();
 
@@ -50,7 +51,7 @@ pub fn main() {
 
             let result = match matches.subcommand() {
                 Some(("new",  sub_matches)) => new(sub_matches,&apple_notes),
-                Some(("sync", sub_matches)) => sync_notes(sub_matches, &apple_notes).map(|_| ()),
+                Some(("sync", sub_matches)) => sync_notes(sub_matches, &apple_notes).await.map(|_| ()),
                 Some(("list", sub_matches)) => list_notes(sub_matches,&apple_notes),
                 Some(("edit", sub_matches)) => edit_passed_note(sub_matches,&apple_notes),
                 Some(("merge", sub_matches)) => merge_note(sub_matches,&apple_notes),
@@ -167,7 +168,7 @@ fn new(sub_matches: &ArgMatches, app: &AppleNotes) -> Result<()> {
         .map_err(|e| e.into())
 }
 
-fn sync_notes(sub_matches: &ArgMatches, app:&AppleNotes) -> Result<()> {
+async fn sync_notes(sub_matches: &ArgMatches, app:&AppleNotes) -> Result<()> {
     let is_dry_run = sub_matches.is_present("dry-run");
-    app.sync_notes(is_dry_run).map(|_| ())
+    app.sync_notes(is_dry_run).await.map(|_| ())
 }
