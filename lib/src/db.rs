@@ -351,7 +351,7 @@ mod db_tests {
             note_body.clone()
         ];
 
-        let db_connection = ::db::SqliteDBConnection::new();
+        let db_connection = crate::db::SqliteDBConnection::new();
 
         db_connection.delete_everything().unwrap();
         db_connection.insert_into_db(&note).unwrap();
@@ -378,7 +378,7 @@ mod db_tests {
 
         let note_body = note.body[0].clone();
 
-        let db_connection = ::db::SqliteDBConnection::new();
+        let db_connection = crate::db::SqliteDBConnection::new();
 
         db_connection.delete_everything().unwrap();
         db_connection.insert_into_db(&note).unwrap();
@@ -409,7 +409,7 @@ mod db_tests {
 
         let note_body = note.body[0].clone();
 
-        let db_connection = ::db::SqliteDBConnection::new();
+        let db_connection = crate::db::SqliteDBConnection::new();
 
         db_connection.delete_everything().unwrap();
         db_connection.insert_into_db(&note).unwrap();
@@ -452,7 +452,7 @@ mod db_tests {
             BodyMetadataBuilder::new().with_text("meem\nTestTestTest").build()
         ];
 
-        let db_connection = ::db::SqliteDBConnection::new();
+        let db_connection = crate::db::SqliteDBConnection::new();
 
         db_connection.delete_everything().unwrap();
         db_connection.insert_into_db(&note).unwrap();
@@ -483,7 +483,7 @@ mod db_tests {
             BodyMetadataBuilder::new().build()
     ];
 
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().unwrap();
 
         assert_eq!(con.insert_into_db(&note).is_err(), true);
@@ -512,7 +512,7 @@ mod db_tests {
             body3
     ];
 
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
         con.insert_into_db(&note).expect("Should insert note into the db");
         con.insert_into_db(&note_with_2_bodies).expect("Should insert note into the db");
@@ -573,10 +573,10 @@ mod db_tests {
     #[test]
     fn update_single_note() {
         use crate::builder::HeaderBuilder;
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
 
-        let m_data: ::model::NotesMetadata =
+        let m_data: crate::model::NotesMetadata =
             NotesMetadata::new(
                 &HeaderBuilder::new().build(),
                 "test".to_string()
@@ -634,11 +634,11 @@ mod db_tests {
     /// The correct note should remain in side the db
     #[test]
     fn delete_single_note() {
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
 
-        let m_data: ::model::NotesMetadata =
-            NotesMetadata::new(&::builder::HeaderBuilder::new().build(),
+        let m_data: crate::model::NotesMetadata =
+            NotesMetadata::new(&crate::builder::HeaderBuilder::new().build(),
                                "test".to_string()
         );
 
@@ -692,9 +692,9 @@ mod db_tests {
     #[test]
     fn insert_single_note() {
         use crate::builder::HeaderBuilder;
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete the db");
-        let m_data: ::model::NotesMetadata =
+        let m_data: crate::model::NotesMetadata =
             NotesMetadata::new(
                 &HeaderBuilder::new().build(),
                 "test".to_string()
@@ -730,10 +730,10 @@ mod db_tests {
         use crate::builder::HeaderBuilder;
         //Setup
         dotenv::dotenv().ok();
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete everything");
 
-        let m_data: ::model::NotesMetadata =
+        let m_data: crate::model::NotesMetadata =
             NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
 
         let note_body = Body::new(Some(0), m_data.uuid.clone());
@@ -756,9 +756,9 @@ mod db_tests {
         use crate::builder::HeaderBuilder;
 
         dotenv::dotenv().ok();
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete everything");
-        let m_data: ::model::NotesMetadata =
+        let m_data: crate::model::NotesMetadata =
             NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
 
         let note_body = Body::new(Some(0), m_data.uuid.clone());
@@ -797,9 +797,9 @@ mod db_tests {
 
         //Setup
         dotenv::dotenv().ok();
-        let con =  ::db::SqliteDBConnection::new();
+        let con =  crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete everything");
-        let m_data: ::model::NotesMetadata =
+        let m_data: crate::model::NotesMetadata =
             NotesMetadata::new(&HeaderBuilder::new().build(), "test".to_string());
 
         let note_body = Body::new(Some(0), m_data.uuid.clone());
@@ -849,7 +849,7 @@ mod db_tests {
     fn test_delete_multiple_bodies() {
 
         dotenv::dotenv().ok();
-        let con = ::db::SqliteDBConnection::new();
+        let con = crate::db::SqliteDBConnection::new();
         con.delete_everything().expect("Should delete everything");
 
         let first = note![

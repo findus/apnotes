@@ -242,42 +242,6 @@ mod tests {
     #[cfg(target_family = "unix")]
     use secret_service::{SecretService, EncryptionType};
 
-    #[cfg(target_family = "unix")]
-    #[ignore]
-    #[test]
-    fn test_secret_service() {
-        let ss = SecretService::new(EncryptionType::Dh).unwrap();
-        let collections = ss.get_all_collections().unwrap();
-        let _size = collections.len();
-        let collection = ss.get_default_collection().unwrap();
-        //collection.unlock().unwrap();
-
-        collection.ensure_unlocked().unwrap();
-
-        if collection.is_locked().unwrap() {
-            return
-        }
-
-        let attribute = "test";
-        let value = "test";
-
-        let tuple_vec = HashMap::from([(attribute, value)]);
-
-        let entries = collection.search_items(
-            tuple_vec)
-            .unwrap();
-
-        let entry = entries.first().unwrap();
-
-        let _attributes = entry.get_attributes().unwrap();
-
-        let _entry = entry.unlock().and_then(|_| entry.get_secret()).unwrap();
-
-        println!("test");
-
-
-    }
-
     #[test]
     fn test_plain_config() {
         unsafe {
